@@ -96,6 +96,7 @@ static hid_device_t    hid_device_singleton;
 static bool            hid_device_boot_protocol_mode_supported;
 static const uint8_t * hid_device_descriptor;
 static uint16_t        hid_device_descriptor_len;
+static bool            hid_device_accept_shorter_hid_reports;
 
 
 static uint16_t hid_device_cid = 0;
@@ -237,8 +238,10 @@ void hid_create_sdp_record(uint8_t *service, uint32_t service_record_handle, con
     de_pop_sequence(service, attribute); 
 
     // 0x0100 "ServiceName"
-    de_add_number(service,  DE_UINT, DE_SIZE_16, 0x0100);
-    de_add_data(service,  DE_STRING, (uint16_t) strlen(params->device_name), (uint8_t *) params->device_name);
+    if (params->device_name != NULL){
+        de_add_number(service,  DE_UINT, DE_SIZE_16, 0x0100);
+        de_add_data(service,  DE_STRING, (uint16_t) strlen(params->device_name), (uint8_t *) params->device_name);
+    }
 
     de_add_number(service,  DE_UINT, DE_SIZE_16, BLUETOOTH_ATTRIBUTE_BLUETOOTH_PROFILE_DESCRIPTOR_LIST);
     attribute = de_push_sequence(service);
@@ -374,7 +377,12 @@ static int hid_report_size_valid(uint16_t cid, int report_id, hid_report_type_t 
         }
     } else {
         int size =  btstack_hid_get_report_size_for_id(report_id, report_type, hid_device_descriptor, hid_device_descriptor_len);
-        if ((size == 0) || (size != report_size)) return 0;
+        if (size == 0) return 0;
+        if (hid_device_accept_shorter_hid_reports){
+            if (report_size > size) return 0;
+        } else {
+            if (size != report_size) return 0;
+        }
     }
     return 1;
 }
@@ -839,6 +847,7 @@ void hid_device_init(bool boot_protocol_mode_supported, uint16_t descriptor_len,
     hid_device_boot_protocol_mode_supported = boot_protocol_mode_supported;
     hid_device_descriptor =  descriptor;
     hid_device_descriptor_len = descriptor_len;
+    hid_device_accept_shorter_hid_reports = false;
     hci_device_get_report = dummy_write_report;
     hci_device_set_report = dummy_set_report;
     hci_device_report_data = dummy_report_data;
@@ -858,7 +867,12 @@ void hid_device_deinit(void){
     hid_device_boot_protocol_mode_supported = false;
     hid_device_descriptor = NULL;
     hid_device_descriptor_len = 0;
+    hid_device_accept_shorter_hid_reports = false;
     hid_device_cid = 0;
+}
+
+void hid_device_accept_truncated_hid_reports(bool accept_truncated){
+    hid_device_accept_shorter_hid_reports = accept_truncated;
 }
 
 /**

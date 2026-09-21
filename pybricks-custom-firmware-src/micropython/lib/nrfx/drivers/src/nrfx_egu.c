@@ -1,6 +1,8 @@
 /*
- * Copyright (c) 2019, Nordic Semiconductor ASA
+ * Copyright (c) 2019 - 2025, Nordic Semiconductor ASA
  * All rights reserved.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -33,12 +35,7 @@
 
 #if NRFX_CHECK(NRFX_EGU_ENABLED)
 
-#if !(NRFX_CHECK(NRFX_EGU0_ENABLED) || \
-      NRFX_CHECK(NRFX_EGU1_ENABLED) || \
-      NRFX_CHECK(NRFX_EGU2_ENABLED) || \
-      NRFX_CHECK(NRFX_EGU3_ENABLED) || \
-      NRFX_CHECK(NRFX_EGU4_ENABLED) || \
-      NRFX_CHECK(NRFX_EGU5_ENABLED))
+#if !NRFX_FEATURE_PRESENT(NRFX_EGU, _ENABLED)
 #error "No enabled EGU instances. Check <nrfx_config.h>."
 #endif
 
@@ -72,36 +69,52 @@ typedef struct
 
 static egu_control_block_t m_cb[NRFX_EGU_ENABLED_COUNT];
 
+/*
+ * `-Warray-bounds` warning is disabled for the `egu_event_mask_get_and_clear`
+ * function because GCC 12 and above may report a false positive due to accessing
+ * event registers.
+ */
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Warray-bounds"
+#endif
+
 static uint32_t egu_event_mask_get_and_clear(NRF_EGU_Type * p_reg, uint32_t int_mask)
 {
     uint32_t event_mask = 0;
     while (int_mask)
     {
-        uint8_t event_idx = __CLZ(__RBIT(int_mask));
-        int_mask &= ~(1uL << event_idx);
+        uint8_t event_idx = (uint8_t)NRF_CTZ(int_mask);
+        int_mask &= ~(1UL << event_idx);
 
         nrf_egu_event_t event = nrf_egu_triggered_event_get(event_idx);
         if (nrf_egu_event_check(p_reg, event))
         {
             nrf_egu_event_clear(p_reg, event);
-            event_mask |= (1uL << event_idx);
+            event_mask |= (1UL << event_idx);
         }
     }
     return event_mask;
 }
+
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
 
 nrfx_err_t nrfx_egu_init(nrfx_egu_t const *       p_instance,
                          uint8_t                  interrupt_priority,
                          nrfx_egu_event_handler_t event_handler,
                          void *                   p_context)
 {
-    NRFX_ASSERT(p_instance);
-
     egu_control_block_t * p_cb = &m_cb[p_instance->drv_inst_idx];
 
     if (p_cb->state != NRFX_DRV_STATE_UNINITIALIZED)
     {
+#if NRFX_API_VER_AT_LEAST(3, 2, 0)
+        return NRFX_ERROR_ALREADY;
+#else
         return NRFX_ERROR_INVALID_STATE;
+#endif
     }
 
     p_cb->state     = NRFX_DRV_STATE_INITIALIZED;
@@ -118,7 +131,6 @@ nrfx_err_t nrfx_egu_init(nrfx_egu_t const *       p_instance,
 
 void nrfx_egu_int_enable(nrfx_egu_t const * p_instance, uint32_t mask)
 {
-    NRFX_ASSERT(p_instance);
     NRFX_ASSERT(m_cb[p_instance->drv_inst_idx].state == NRFX_DRV_STATE_INITIALIZED);
     NRFX_ASSERT(m_cb[p_instance->drv_inst_idx].handler);
 
@@ -128,7 +140,6 @@ void nrfx_egu_int_enable(nrfx_egu_t const * p_instance, uint32_t mask)
 
 void nrfx_egu_int_disable(nrfx_egu_t const * p_instance, uint32_t mask)
 {
-    NRFX_ASSERT(p_instance);
     NRFX_ASSERT(m_cb[p_instance->drv_inst_idx].state == NRFX_DRV_STATE_INITIALIZED);
 
     nrf_egu_int_disable(p_instance->p_reg, mask);
@@ -136,7 +147,6 @@ void nrfx_egu_int_disable(nrfx_egu_t const * p_instance, uint32_t mask)
 
 void nrfx_egu_trigger(nrfx_egu_t const * p_instance, uint8_t event_idx)
 {
-    NRFX_ASSERT(p_instance);
     NRFX_ASSERT(m_cb[p_instance->drv_inst_idx].state == NRFX_DRV_STATE_INITIALIZED);
     NRFX_ASSERT(event_idx < nrf_egu_channel_count(p_instance->p_reg));
 
@@ -145,71 +155,36 @@ void nrfx_egu_trigger(nrfx_egu_t const * p_instance, uint8_t event_idx)
 
 void nrfx_egu_uninit(nrfx_egu_t const * p_instance)
 {
-    NRFX_ASSERT(p_instance);
-
     egu_control_block_t * p_cb = &m_cb[p_instance->drv_inst_idx];
 
-    nrf_egu_int_disable(p_instance->p_reg, ~0uL);
+    nrf_egu_int_disable(p_instance->p_reg, ~0UL);
     NRFX_IRQ_DISABLE(nrfx_get_irq_number(p_instance->p_reg));
 
     p_cb->state = NRFX_DRV_STATE_UNINITIALIZED;
 }
 
-static void egu_irq_handler(NRF_EGU_Type * p_reg, egu_control_block_t * p_cb)
+bool nrfx_egu_init_check(nrfx_egu_t const * p_instance)
 {
-    uint32_t int_mask = nrf_egu_int_enable_check(p_reg, ~0uL);
+    egu_control_block_t * p_cb = &m_cb[p_instance->drv_inst_idx];
+
+    return (p_cb->state != NRFX_DRV_STATE_UNINITIALIZED);
+}
+
+static void irq_handler(NRF_EGU_Type * p_reg, egu_control_block_t * p_cb)
+{
+    uint32_t int_mask = nrf_egu_int_enable_check(p_reg, ~0UL);
 
     /* Check (and clear) only the events that are set to generate interrupts.
        Leave the other ones untouched. */
     uint32_t event_mask = egu_event_mask_get_and_clear(p_reg, int_mask);
     while (event_mask)
     {
-        uint8_t event_idx = __CLZ(__RBIT(event_mask));
-        event_mask &= ~(1uL << event_idx);
+        uint8_t event_idx = (uint8_t)NRF_CTZ(event_mask);
+        event_mask &= ~(1UL << event_idx);
         p_cb->handler(event_idx, p_cb->p_context);
     }
 }
 
-#if NRFX_CHECK(NRFX_EGU0_ENABLED)
-void nrfx_egu_0_irq_handler(void)
-{
-    egu_irq_handler(NRF_EGU0, &m_cb[NRFX_EGU0_INST_IDX]);
-}
-#endif
-
-#if NRFX_CHECK(NRFX_EGU1_ENABLED)
-void nrfx_egu_1_irq_handler(void)
-{
-    egu_irq_handler(NRF_EGU1, &m_cb[NRFX_EGU1_INST_IDX]);
-}
-#endif
-
-#if NRFX_CHECK(NRFX_EGU2_ENABLED)
-void nrfx_egu_2_irq_handler(void)
-{
-    egu_irq_handler(NRF_EGU2, &m_cb[NRFX_EGU2_INST_IDX]);
-}
-#endif
-
-#if NRFX_CHECK(NRFX_EGU3_ENABLED)
-void nrfx_egu_3_irq_handler(void)
-{
-    egu_irq_handler(NRF_EGU3, &m_cb[NRFX_EGU3_INST_IDX]);
-}
-#endif
-
-#if NRFX_CHECK(NRFX_EGU4_ENABLED)
-void nrfx_egu_4_irq_handler(void)
-{
-    egu_irq_handler(NRF_EGU4, &m_cb[NRFX_EGU4_INST_IDX]);
-}
-#endif
-
-#if NRFX_CHECK(NRFX_EGU5_ENABLED)
-void nrfx_egu_5_irq_handler(void)
-{
-    egu_irq_handler(NRF_EGU5, &m_cb[NRFX_EGU5_INST_IDX]);
-}
-#endif
+NRFX_INSTANCE_IRQ_HANDLERS(EGU, egu)
 
 #endif // NRFX_CHECK(NRFX_EGU_ENABLED)

@@ -1,6 +1,8 @@
 /*
- * Copyright (c) 2017 - 2019, Nordic Semiconductor ASA
+ * Copyright (c) 2017 - 2025, Nordic Semiconductor ASA
  * All rights reserved.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -71,7 +73,21 @@ PRS_BOX_DEFINE(3)
 #if defined(NRFX_PRS_BOX_4_ADDR) && NRFX_CHECK(NRFX_PRS_BOX_4_ENABLED)
 PRS_BOX_DEFINE(4)
 #endif
-
+#if defined(NRFX_PRS_BOX_5_ADDR) && NRFX_CHECK(NRFX_PRS_BOX_5_ENABLED)
+PRS_BOX_DEFINE(5)
+#endif
+#if defined(NRFX_PRS_BOX_6_ADDR) && NRFX_CHECK(NRFX_PRS_BOX_6_ENABLED)
+PRS_BOX_DEFINE(6)
+#endif
+#if defined(NRFX_PRS_BOX_7_ADDR) && NRFX_CHECK(NRFX_PRS_BOX_7_ENABLED)
+PRS_BOX_DEFINE(7)
+#endif
+#if defined(NRFX_PRS_BOX_8_ADDR) && NRFX_CHECK(NRFX_PRS_BOX_8_ENABLED)
+PRS_BOX_DEFINE(8)
+#endif
+#if defined(NRFX_PRS_BOX_9_ADDR) && NRFX_CHECK(NRFX_PRS_BOX_9_ENABLED)
+PRS_BOX_DEFINE(9)
+#endif
 
 static prs_box_t * prs_box_get(void const * p_base_addr)
 {
@@ -97,6 +113,26 @@ static prs_box_t * prs_box_get(void const * p_base_addr)
 #endif
 #if defined(NRFX_PRS_BOX_4_ADDR) && NRFX_CHECK(NRFX_PRS_BOX_4_ENABLED)
     if (IS_PRS_BOX(4, p_base_addr)) { return &m_prs_box_4; }
+    else
+#endif
+#if defined(NRFX_PRS_BOX_5_ADDR) && NRFX_CHECK(NRFX_PRS_BOX_5_ENABLED)
+    if (IS_PRS_BOX(5, p_base_addr)) { return &m_prs_box_5; }
+    else
+#endif
+#if defined(NRFX_PRS_BOX_6_ADDR) && NRFX_CHECK(NRFX_PRS_BOX_6_ENABLED)
+    if (IS_PRS_BOX(6, p_base_addr)) { return &m_prs_box_6; }
+    else
+#endif
+#if defined(NRFX_PRS_BOX_7_ADDR) && NRFX_CHECK(NRFX_PRS_BOX_7_ENABLED)
+    if (IS_PRS_BOX(7, p_base_addr)) { return &m_prs_box_7; }
+    else
+#endif
+#if defined(NRFX_PRS_BOX_8_ADDR) && NRFX_CHECK(NRFX_PRS_BOX_8_ENABLED)
+    if (IS_PRS_BOX(8, p_base_addr)) { return &m_prs_box_8; }
+    else
+#endif
+#if defined(NRFX_PRS_BOX_9_ADDR) && NRFX_CHECK(NRFX_PRS_BOX_9_ENABLED)
+    if (IS_PRS_BOX(9, p_base_addr)) { return &m_prs_box_9; }
     else
 #endif
     {

@@ -52,6 +52,15 @@ $(error failed)
 endif
 endif
 endif
+ifeq ($(PB_MCU_FAMILY),STM32)
+ifeq ("$(wildcard $(PBTOP)/micropython/lib/CMSIS_6/README.md)","")
+$(info GIT cloning CMSIS_6 submodule)
+$(info $(shell cd $(PBTOP)/micropython && git submodule update --init lib/CMSIS_6))
+ifeq ("$(wildcard $(PBTOP)/micropython/lib/CMSIS_6/README.md)","")
+$(error failed)
+endif
+endif
+endif
 ifeq ($(PB_LIB_BTSTACK),1)
 ifeq ("$(wildcard $(PBTOP)/lib/btstack/README.md)","")
 $(info GIT cloning btstack submodule)
@@ -101,10 +110,19 @@ MICROPY_ROM_TEXT_COMPRESSION ?= 1
 include $(TOP)/py/py.mk
 include $(TOP)/extmod/extmod.mk
 
+# MICROPY_VFS_ROM is enabled so that py/persistentcode.c can reference the
+# bytecode and string data of a downloaded program in place instead of copying
+# it to the heap. MICROPY_VFS is not enabled, so the VfsRom object and its file
+# wrapper are never registered and the linker discards all of their code. Drop
+# the translation units entirely so that their qstrs are not added either.
+UNUSED_EXTMOD_SRC_C = extmod/vfs_rom.c extmod/vfs_rom_file.c
+PY_O := $(filter-out $(addprefix $(BUILD)/,$(UNUSED_EXTMOD_SRC_C:.c=.o)), $(PY_O))
+SRC_QSTR := $(filter-out $(UNUSED_EXTMOD_SRC_C), $(SRC_QSTR))
+
 INC += -I.
 INC += -I$(TOP)
 ifeq ($(PB_MCU_FAMILY),STM32)
-INC += -I$(TOP)/lib/cmsis/inc
+INC += -I$(TOP)/lib/CMSIS_6/CMSIS/Core/Include
 INC += -I$(TOP)/lib/stm32lib/CMSIS/STM32$(PB_MCU_SERIES)xx/Include
 endif
 ifeq ($(PB_LIB_STM32_HAL),1)
@@ -437,13 +455,26 @@ BTSTACK_SRC_C += $(addprefix lib/btstack/chipset/cc256x/,\
 	btstack_chipset_cc256x.c \
 	)
 
+# Bluetooth Classic profiles (HID host etc.). Requires ENABLE_CLASSIC in the
+# platform btstack_config.h.
+ifeq ($(PB_LIB_BTSTACK_CLASSIC),1)
+BTSTACK_SRC_C += $(addprefix lib/btstack/src/classic/,\
+	device_id_server.c \
+	hid_host.c \
+	rfcomm.c \
+	sdp_client.c \
+	sdp_server.c \
+	sdp_util.c \
+	spp_server.c \
+	)
+endif
+
 # libusb-specific BTStack sources for virtual_hub
 ifeq ($(PB_MCU_FAMILY),native)
 BTSTACK_SRC_C += $(addprefix lib/btstack/,\
 	platform/libusb/hci_transport_h2_libusb.c \
 	platform/posix/hci_dump_posix_stdout.c \
 	platform/posix/btstack_tlv_posix.c \
-	src/classic/btstack_link_key_db_tlv.c \
 	src/ble/le_device_db_tlv.c \
 	chipset/zephyr/btstack_chipset_zephyr.c \
 	chipset/realtek/btstack_chipset_realtek.c \
@@ -609,7 +640,9 @@ MEDIA_SRC = $(sort $(addprefix lib/pbio/src/image/media/,\
 	lms2012/_port_view_pd.bmp \
 	ui/_accept24.svg \
 	ui/_accept24_fill.svg \
+	ui/_bt_host.svg \
 	ui/_off20.svg \
+	ui/_gamepad_small.svg \
 	ui/_port_view_nxt_color_ambient.svg \
 	ui/_port_view_nxt_color_color.svg \
 	ui/_port_view_nxt_color_reflection.svg \
@@ -738,12 +771,23 @@ $(BUILD)/genhdr/%.h: $(PBTOP)/lib/pbio/drv/bluetooth/%.gatt
 
 endif
 
+# Short git hash of this repository (pybricks-micropython, not the MicroPython
+# submodule), made available to pbio code via a generated header.
+PYBRICKS_GIT_HASH := $(shell $(GIT) rev-parse --short HEAD)
+
 ifeq ($(MICROPY_GIT_TAG),)
 # CI builds use build number + git hash as tag/firmware version
 export MICROPY_GIT_TAG := local-build-$(shell $(GIT) describe --tags --dirty --always --exclude "@pybricks/*")
-export MICROPY_GIT_HASH :=$(shell $(GIT) rev-parse --short HEAD)
+export MICROPY_GIT_HASH := $(PYBRICKS_GIT_HASH)
 endif
 FW_VERSION := $(MICROPY_GIT_TAG)
+
+$(BUILD)/pbio_version_hash.h: FORCE
+	$(Q)$(MKDIR) -p $(dir $@)
+	$(Q)echo '#define PBIO_VERSION_HASH "$(PYBRICKS_GIT_HASH)"' > $@.tmp
+	$(Q)if cmp -s $@.tmp $@ 2>/dev/null; then rm $@.tmp; else echo "GEN $@"; mv $@.tmp $@; fi
+
+$(OBJ): | $(BUILD)/pbio_version_hash.h
 
 $(info PLATFORM: $(PBIO_PLATFORM) VERSION: $(FW_VERSION))
 
@@ -825,6 +869,10 @@ MAKE_BOOTABLE_IMAGE = $(PBTOP)/bricks/ev3/make_bootable_image.py
 $(BUILD)/firmware-base.bin: $(MAKE_BOOTABLE_IMAGE) $(PBTOP)/lib/pbio/platform/ev3/u-boot.bin $(BUILD)/firmware.stripped.elf
 	$(Q)$^ $@
 
+# The hub name offset is scraped from the ELF embedded in the firmware image.
+$(BUILD)/firmware.metadata.json: METADATA_ARGS = --elf $(BUILD)/firmware.stripped.elf
+$(BUILD)/firmware.metadata.json: $(BUILD)/firmware.stripped.elf
+
 else
 # For embeded systems, the firmware is just the base file.
 $(BUILD)/firmware-base.bin: $(BUILD)/firmware-obj.bin
@@ -840,7 +888,7 @@ endif
 
 $(BUILD)/firmware.metadata.json: $(BUILD)/firmware.elf $(METADATA)
 	$(ECHO) "META creating firmware metadata"
-	$(Q)$(METADATA) $(FW_VERSION) $(PBIO_PLATFORM) $<.map $@
+	$(Q)$(METADATA) $(FW_VERSION) $(PBIO_PLATFORM) $<.map $@ $(METADATA_ARGS)
 
 # firmware.zip file
 ZIP_FILES := \

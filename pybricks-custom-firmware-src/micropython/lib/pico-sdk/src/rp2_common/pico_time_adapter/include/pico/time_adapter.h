@@ -11,6 +11,10 @@
 #include "hardware/timer.h"
 #include "pico/assert.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TA_NUM_TIMERS NUM_GENERIC_TIMERS
 #define TA_NUM_TIMER_ALARMS NUM_ALARMS
 
@@ -80,7 +84,7 @@ static inline void ta_disable_irq_handler(alarm_pool_timer_t *timer, uint alarm_
     hw_clear_bits(&timer_hw_from_timer(timer)->inte, 1u << alarm_num);
     irq_set_enabled(irq_num, true);
     irq_remove_handler(irq_num, irq_handler);
-    hardware_alarm_unclaim(alarm_num);
+    timer_hardware_alarm_unclaim(timer, alarm_num);
 }
 
 static inline void ta_hardware_alarm_claim(alarm_pool_timer_t *timer, uint hardware_alaram_num) {
@@ -102,4 +106,9 @@ static inline uint ta_timer_num(alarm_pool_timer_t *timer) {
 static inline alarm_pool_timer_t *ta_default_timer_instance(void) {
     return PICO_DEFAULT_TIMER_INSTANCE();
 }
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif

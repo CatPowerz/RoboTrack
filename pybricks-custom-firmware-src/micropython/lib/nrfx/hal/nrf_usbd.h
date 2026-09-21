@@ -1,6 +1,8 @@
 /*
- * Copyright (c) 2017 - 2019, Nordic Semiconductor ASA
+ * Copyright (c) 2017 - 2025, Nordic Semiconductor ASA
  * All rights reserved.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -239,6 +241,7 @@ NRF_STATIC_INLINE uint32_t nrf_usbd_shorts_get(NRF_USBD_Type const * p_reg);
  *
  * @param[in] p_reg Pointer to the structure of registers of the peripheral.
  * @param[in] mask  Mask of interrupts to be enabled.
+ *                  Use @ref nrf_usbd_int_mask_t values for bit masking.
  */
 NRF_STATIC_INLINE void nrf_usbd_int_enable(NRF_USBD_Type * p_reg, uint32_t mask);
 
@@ -247,6 +250,7 @@ NRF_STATIC_INLINE void nrf_usbd_int_enable(NRF_USBD_Type * p_reg, uint32_t mask)
  *
  * @param[in] p_reg Pointer to the structure of registers of the peripheral.
  * @param[in] mask  Mask of interrupts to be checked.
+ *                  Use @ref nrf_usbd_int_mask_t values for bit masking.
  *
  * @return Mask of enabled interrupts.
  */
@@ -266,6 +270,7 @@ NRF_STATIC_INLINE uint32_t nrf_usbd_int_enable_get(NRF_USBD_Type const * p_reg);
  *
  * @param[in] p_reg Pointer to the structure of registers of the peripheral.
  * @param[in] mask  Mask of interrupts to be disabled.
+ *                  Use @ref nrf_usbd_int_mask_t values for bit masking.
  */
 NRF_STATIC_INLINE void nrf_usbd_int_disable(NRF_USBD_Type * p_reg, uint32_t mask);
 
@@ -307,7 +312,7 @@ NRF_STATIC_INLINE volatile uint32_t* nrf_usbd_getRegPtr(NRF_USBD_Type * p_reg, u
 NRF_STATIC_INLINE volatile const uint32_t* nrf_usbd_getRegPtr_c(NRF_USBD_Type const * p_reg,
                                                                 uint32_t              offset)
 {
-    return (volatile const uint32_t*)(((uint8_t *)p_reg) + (uint32_t)offset);
+    return (volatile const uint32_t*)(((uint8_t const *)p_reg) + (uint32_t)offset);
 }
 
 /* ------------------------------------------------------------------------------------------------
@@ -1086,15 +1091,6 @@ NRF_STATIC_INLINE uint32_t nrf_usbd_ep_amount_get(NRF_USBD_Type const * p_reg, u
 
 NRF_STATIC_INLINE void nrf_usbd_enable(NRF_USBD_Type * p_reg)
 {
-#ifdef NRF_FPGA_IMPLEMENTATION
-    *(volatile uint32_t *)0x400005F4 = 3;
-    __ISB();
-    __DSB();
-    *(volatile uint32_t *)0x400005F0 = 3;
-    __ISB();
-    __DSB();
-#endif
-
     p_reg->ENABLE = USBD_ENABLE_ENABLE_Enabled << USBD_ENABLE_ENABLE_Pos;
     (void) p_reg->ENABLE;
 }
@@ -1192,19 +1188,19 @@ NRF_STATIC_INLINE uint8_t nrf_usbd_setup_brequest_get(NRF_USBD_Type const * p_re
 
 NRF_STATIC_INLINE uint16_t nrf_usbd_setup_wvalue_get(NRF_USBD_Type const * p_reg)
 {
-    const uint16_t val = p_reg->WVALUEL;
+    const uint16_t val = (uint16_t)p_reg->WVALUEL;
     return (uint16_t)(val | ((p_reg->WVALUEH) << 8));
 }
 
 NRF_STATIC_INLINE uint16_t nrf_usbd_setup_windex_get(NRF_USBD_Type const * p_reg)
 {
-    const uint16_t val = p_reg->WINDEXL;
+    const uint16_t val = (uint16_t)p_reg->WINDEXL;
     return (uint16_t)(val | ((p_reg->WINDEXH) << 8));
 }
 
 NRF_STATIC_INLINE uint16_t nrf_usbd_setup_wlength_get(NRF_USBD_Type const * p_reg)
 {
-    const uint16_t val = p_reg->WLENGTHL;
+    const uint16_t val = (uint16_t)p_reg->WLENGTHL;
     return (uint16_t)(val | ((p_reg->WLENGTHH) << 8));
 }
 
@@ -1281,7 +1277,7 @@ NRF_STATIC_INLINE void nrf_usbd_dtoggle_set(NRF_USBD_Type *    p_reg,
     NRFX_ASSERT(NRF_USBD_EP_VALIDATE(ep));
     NRFX_ASSERT(!NRF_USBD_EPISO_CHECK(ep));
     p_reg->DTOGGLE = ep | (NRF_USBD_DTOGGLE_NOP << USBD_DTOGGLE_VALUE_Pos);
-    p_reg->DTOGGLE = ep | (op << USBD_DTOGGLE_VALUE_Pos);
+    p_reg->DTOGGLE = ep | ((uint32_t)op << USBD_DTOGGLE_VALUE_Pos);
     (void) p_reg->DTOGGLE;
 }
 

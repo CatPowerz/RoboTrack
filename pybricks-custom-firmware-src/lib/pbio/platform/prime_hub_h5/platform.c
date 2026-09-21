@@ -13,7 +13,7 @@
 #include <pbdrv/clock.h>
 #include <pbdrv/ioport.h>
 #include "pbio/light_matrix.h"
-#include <pbio/port_interface.h>
+#include <pbio/port.h>
 
 #include "../../drv/adc/adc_stm32_hal.h"
 #include "../../drv/block_device/block_device_w25qxx_stm32.h"
@@ -506,7 +506,7 @@ const pbdrv_ioport_platform_data_t pbdrv_ioport_platform_data[PBDRV_CONFIG_IOPOR
         .uart_driver_index = UART_PORT_A,
         .external_port_index = 0,
         .counter_driver_index = PBDRV_IOPORT_INDEX_NOT_AVAILABLE,
-        .pins = &(pbdrv_ioport_pins_t) {
+        .pins = &(const pbdrv_ioport_pins_t) {
             .p5 = { .bank = GPIOD, .pin = 7  },
             .p6 = { .bank = GPIOD, .pin = 13  },
             .uart_buf = { .bank = GPIOA, .pin = 10 },
@@ -528,7 +528,7 @@ const pbdrv_ioport_platform_data_t pbdrv_ioport_platform_data[PBDRV_CONFIG_IOPOR
         .uart_driver_index = UART_PORT_B,
         .external_port_index = 1,
         .counter_driver_index = PBDRV_IOPORT_INDEX_NOT_AVAILABLE,
-        .pins = &(pbdrv_ioport_pins_t) {
+        .pins = &(const pbdrv_ioport_pins_t) {
             .p5 = { .bank = GPIOD, .pin = 12 },
             .p6 = { .bank = GPIOD, .pin = 10 },
             .uart_buf = { .bank = GPIOA, .pin = 8 },
@@ -546,7 +546,7 @@ const pbdrv_ioport_platform_data_t pbdrv_ioport_platform_data[PBDRV_CONFIG_IOPOR
         .uart_driver_index = UART_PORT_C,
         .external_port_index = 2,
         .counter_driver_index = PBDRV_IOPORT_INDEX_NOT_AVAILABLE,
-        .pins = &(pbdrv_ioport_pins_t) {
+        .pins = &(const pbdrv_ioport_pins_t) {
             .p5 = { .bank = GPIOD, .pin = 11 },
             .p6 = { .bank = GPIOE, .pin = 4 },
             .uart_buf = { .bank = GPIOE, .pin = 5 },
@@ -564,7 +564,7 @@ const pbdrv_ioport_platform_data_t pbdrv_ioport_platform_data[PBDRV_CONFIG_IOPOR
         .uart_driver_index = UART_PORT_D,
         .external_port_index = 3,
         .counter_driver_index = PBDRV_IOPORT_INDEX_NOT_AVAILABLE,
-        .pins = &(pbdrv_ioport_pins_t) {
+        .pins = &(const pbdrv_ioport_pins_t) {
             .p5 = { .bank = GPIOC, .pin = 15 },
             .p6 = { .bank = GPIOC, .pin = 14 },
             .uart_buf = { .bank = GPIOB, .pin = 2  },
@@ -582,7 +582,7 @@ const pbdrv_ioport_platform_data_t pbdrv_ioport_platform_data[PBDRV_CONFIG_IOPOR
         .uart_driver_index = UART_PORT_E,
         .external_port_index = 4,
         .counter_driver_index = PBDRV_IOPORT_INDEX_NOT_AVAILABLE,
-        .pins = &(pbdrv_ioport_pins_t) {
+        .pins = &(const pbdrv_ioport_pins_t) {
             .p5 = { .bank = GPIOC, .pin = 13 },
             .p6 = { .bank = GPIOE, .pin = 12 },
             .uart_buf = { .bank = GPIOB, .pin = 5 },
@@ -600,7 +600,7 @@ const pbdrv_ioport_platform_data_t pbdrv_ioport_platform_data[PBDRV_CONFIG_IOPOR
         .uart_driver_index = UART_PORT_F,
         .external_port_index = 5,
         .counter_driver_index = PBDRV_IOPORT_INDEX_NOT_AVAILABLE,
-        .pins = &(pbdrv_ioport_pins_t) {
+        .pins = &(const pbdrv_ioport_pins_t) {
             .p5 = { .bank = GPIOB, .pin = 12 },
             .p6 = { .bank = GPIOE, .pin = 6 },
             .uart_buf = { .bank = GPIOC, .pin = 5 },
@@ -1653,6 +1653,28 @@ static void SystemClock_Config(void) {
 
 // special memory addresses defined in linker script
 extern uint32_t *_fw_isr_vector_src;
+
+// Called from startup.s at Reset_Handler entry, before the .data copy and
+// .bss clear. The bootloader jumps to the firmware with ADC1 still converting
+// (CONT mode) and a circular linked-list GPDMA channel still servicing it,
+// with its DMA nodes and destination buffer in SRAM. Once the startup code
+// stomps that SRAM, the still-running channel rewrites its (now reassigned)
+// buffer address with one more ADC scan and then fetches a zeroed node,
+// corrupting whatever firmware data lands there. Quiesce DMA and ADC first.
+// Runs before RAM init: must not touch .data or .bss.
+void SystemInitEarly(void) {
+    // The bootloader normally leaves these bus clocks on, but the resets
+    // below only take effect (and register reads only work) if they are.
+    RCC->AHB1ENR |= RCC_AHB1ENR_GPDMA1EN | RCC_AHB1ENR_GPDMA2EN;
+    RCC->AHB2ENR |= RCC_AHB2ENR_ADCEN;
+    __DSB();
+
+    RCC->AHB1RSTR |= RCC_AHB1RSTR_GPDMA1RST | RCC_AHB1RSTR_GPDMA2RST;
+    RCC->AHB2RSTR |= RCC_AHB2RSTR_ADCRST;
+    __DSB();
+    RCC->AHB1RSTR &= ~(RCC_AHB1RSTR_GPDMA1RST | RCC_AHB1RSTR_GPDMA2RST);
+    RCC->AHB2RSTR &= ~RCC_AHB2RSTR_ADCRST;
+}
 
 // Called from assembly code in startup.s
 void SystemInit(void) {

@@ -1,6 +1,8 @@
 /*
- * Copyright (c) 2017 - 2019, Nordic Semiconductor ASA
+ * Copyright (c) 2017 - 2025, Nordic Semiconductor ASA
  * All rights reserved.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -34,14 +36,21 @@
 #if NRFX_CHECK(NRFX_POWER_ENABLED)
 
 #include <nrfx_power.h>
-#if defined(REGULATORS_PRESENT)
-#include <hal/nrf_regulators.h>
-#endif
 
 #if NRFX_CHECK(NRFX_CLOCK_ENABLED)
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 extern bool nrfx_clock_irq_enabled;
 extern void nrfx_clock_irq_handler(void);
+
+#ifdef __cplusplus
+}
 #endif
+
+#endif // NRFX_CHECK(NRFX_CLOCK_ENABLED)
 
 /**
  * @internal
@@ -51,6 +60,11 @@ extern void nrfx_clock_irq_handler(void);
  * Internal variables, auxiliary macros and functions of POWER driver.
  * @{
  */
+
+#if (NRF_POWER_HAS_CONST_LATENCY && NRF_POWER_HAS_LOW_POWER)
+/** This variable is used as a reference counter of @ref nrfx_power_constlat_mode_request calls. */
+static uint8_t m_power_mode_refs = 0;
+#endif
 
 /**
  * This variable is used to check whether common POWER_CLOCK common interrupt
@@ -103,17 +117,26 @@ nrfx_err_t nrfx_power_init(nrfx_power_config_t const * p_config)
     NRFX_ASSERT(p_config);
     if (m_initialized)
     {
-        return NRFX_ERROR_ALREADY_INITIALIZED;
+        return NRFX_ERROR_ALREADY;
     }
 
 #if NRF_POWER_HAS_DCDCEN_VDDH
     nrf_power_dcdcen_vddh_set(NRF_POWER, p_config->dcdcenhv);
+#elif defined(REGULATORS_PRESENT) && NRF_REGULATORS_HAS_VREG_HIGH
+    nrf_regulators_vreg_enable_set(NRF_REGULATORS, NRF_REGULATORS_VREG_HIGH, p_config->dcdcenhv);
 #endif
+
 #if NRF_POWER_HAS_DCDCEN
     nrf_power_dcdcen_set(NRF_POWER, p_config->dcdcen);
 #elif defined(REGULATORS_PRESENT)
-    nrf_regulators_dcdcen_set(NRF_REGULATORS, p_config->dcdcen);
+    nrf_regulators_vreg_enable_set(NRF_REGULATORS, NRF_REGULATORS_VREG_MAIN, p_config->dcdcen);
+#if !defined(NRF_TRUSTZONE_NONSECURE)
+    if (p_config->dcdcen && nrf53_errata_53())
+    {
+        *((volatile uint32_t *)0x50004728ul) = 0x1;
+    }
 #endif
+#endif // defined(REGULATORS_PRESENT)
 
     nrfx_power_clock_irq_init();
 
@@ -130,21 +153,31 @@ void nrfx_power_uninit(void)
     if (!nrfx_clock_irq_enabled)
 #endif
     {
-        NRFX_IRQ_DISABLE(nrfx_get_irq_number(NRF_POWER));
+#if defined(NRF54L05_XXAA) || defined(NRF54L10_XXAA) || defined(NRF54L15_XXAA)
+        IRQn_Type irqn = CLOCK_POWER_IRQn;
+#else
+        IRQn_Type irqn = nrfx_get_irq_number(NRF_POWER);
+#endif
+        NRFX_IRQ_DISABLE(irqn);
     }
-#if NRF_POWER_HAS_POFCON
+#if NRFX_POWER_SUPPORTS_POFCON
     nrfx_power_pof_uninit();
 #endif
 #if NRF_POWER_HAS_SLEEPEVT
     nrfx_power_sleepevt_uninit();
 #endif
-#if NRF_POWER_HAS_USBREG
+#if NRF_POWER_HAS_USBREG || defined(USBREG_PRESENT)
     nrfx_power_usbevt_uninit();
 #endif
     m_initialized = false;
 }
 
-#if NRF_POWER_HAS_POFCON
+bool nrfx_power_init_check(void)
+{
+    return m_initialized;
+}
+
+#if NRFX_POWER_SUPPORTS_POFCON
 void nrfx_power_pof_init(nrfx_power_pofwarn_config_t const * p_config)
 {
     NRFX_ASSERT(p_config != NULL);
@@ -159,10 +192,25 @@ void nrfx_power_pof_init(nrfx_power_pofwarn_config_t const * p_config)
 
 void nrfx_power_pof_enable(nrfx_power_pofwarn_config_t const * p_config)
 {
+#if NRF_POWER_HAS_POFCON
     nrf_power_pofcon_set(NRF_POWER, true, p_config->thr);
-#if NRF_POWER_HAS_VDDH
+#if NRF_POWER_HAS_POFCON_VDDH
     nrf_power_pofcon_vddh_set(NRF_POWER, p_config->thrvddh);
 #endif
+#elif NRF_REGULATORS_HAS_POF
+    nrf_regulators_pof_config_t pof_config = {
+        .enable       = true,
+        .thr          = p_config->thr,
+#if NRF_REGULATORS_HAS_POF_VDDH
+        .thr_vddh     = p_config->thrvddh,
+#endif
+#if NRF_REGULATORS_HAS_POF_WARN_DISABLE
+        .warn_disable = false,
+#endif
+    };
+    nrf_regulators_pof_config_set(NRF_REGULATORS, &pof_config);
+#endif
+
     if (m_pofwarn_handler != NULL)
     {
         nrf_power_int_enable(NRF_POWER, NRF_POWER_INT_POFWARN_MASK);
@@ -171,7 +219,15 @@ void nrfx_power_pof_enable(nrfx_power_pofwarn_config_t const * p_config)
 
 void nrfx_power_pof_disable(void)
 {
+#if NRF_POWER_HAS_POFCON
     nrf_power_pofcon_set(NRF_POWER, false, NRF_POWER_POFTHR_V27);
+#elif NRF_REGULATORS_HAS_POF
+    nrf_regulators_pof_config_t pof_config = {
+        .enable = false,
+        .thr    = NRF_REGULATORS_POF_THR_2V7,
+    };
+    nrf_regulators_pof_config_set(NRF_REGULATORS, &pof_config);
+#endif
     nrf_power_int_disable(NRF_POWER, NRF_POWER_INT_POFWARN_MASK);
 }
 
@@ -179,7 +235,7 @@ void nrfx_power_pof_uninit(void)
 {
     m_pofwarn_handler = NULL;
 }
-#endif // NRF_POWER_HAS_POFCON
+#endif // NRFX_POWER_SUPPORTS_POFCON
 
 #if NRF_POWER_HAS_SLEEPEVT
 void nrfx_power_sleepevt_init(nrfx_power_sleepevt_config_t const * p_config)
@@ -221,6 +277,51 @@ void nrfx_power_sleepevt_uninit(void)
 }
 #endif /* NRF_POWER_HAS_SLEEPEVT */
 
+#if (NRF_POWER_HAS_CONST_LATENCY && NRF_POWER_HAS_LOW_POWER)
+nrfx_err_t nrfx_power_constlat_mode_request(void)
+{
+    NRFX_ASSERT(m_power_mode_refs != UINT8_MAX);
+
+    nrfx_err_t err_code = NRFX_ERROR_ALREADY;
+    NRFX_CRITICAL_SECTION_ENTER();
+
+    m_power_mode_refs++;
+
+    if (m_power_mode_refs == 1)
+    {
+        nrf_power_task_trigger(NRF_POWER, NRF_POWER_TASK_CONSTLAT);
+        err_code = NRFX_SUCCESS;
+    }
+    NRFX_CRITICAL_SECTION_EXIT();
+
+    return err_code;
+}
+
+nrfx_err_t nrfx_power_constlat_mode_free(void)
+{
+    NRFX_ASSERT(m_power_mode_refs != 0);
+
+    nrfx_err_t err_code = NRFX_ERROR_BUSY;
+    NRFX_CRITICAL_SECTION_ENTER();
+
+    m_power_mode_refs--;
+
+    if (m_power_mode_refs == 0)
+    {
+        nrf_power_task_trigger(NRF_POWER, NRF_POWER_TASK_LOWPWR);
+        err_code = NRFX_SUCCESS;
+    }
+    NRFX_CRITICAL_SECTION_EXIT();
+
+    return err_code;
+}
+
+nrfx_power_mode_t nrfx_power_mode_get(void)
+{
+    return m_power_mode_refs > 0 ? NRFX_POWER_MODE_CONSTLAT : NRFX_POWER_MODE_LOWPWR;
+}
+#endif
+
 #if NRF_POWER_HAS_USBREG
 void nrfx_power_usbevt_init(nrfx_power_usbevt_config_t const * p_config)
 {
@@ -249,16 +350,21 @@ void nrfx_power_usbevt_disable(void)
 
 void nrfx_power_usbevt_uninit(void)
 {
+    nrfx_power_usbevt_disable();
     m_usbevt_handler = NULL;
 }
+
+
 #endif /* NRF_POWER_HAS_USBREG */
 
 
 void nrfx_power_irq_handler(void)
 {
     uint32_t enabled = nrf_power_int_enable_get(NRF_POWER);
+    /* Prevent "unused variable" warning when all below blocks are disabled. */
+    (void)enabled;
 
-#if NRF_POWER_HAS_POFCON
+#if NRFX_POWER_SUPPORTS_POFCON
     if ((0 != (enabled & NRF_POWER_INT_POFWARN_MASK)) &&
         nrf_power_event_get_and_clear(NRF_POWER, NRF_POWER_EVENT_POFWARN))
     {

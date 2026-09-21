@@ -37,6 +37,7 @@ typedef struct {
     #if SOC_PM_SUPPORT_EXT0_WAKEUP
     int8_t ext0_pin;   // just the pin#, -1 == None
     #endif
+    uint64_t gpio_pins; // set bit == pin#
     #if SOC_TOUCH_SENSOR_SUPPORTED
     bool wake_on_touch : 1;
     #endif
@@ -50,8 +51,12 @@ typedef struct {
     #if SOC_PM_SUPPORT_EXT1_WAKEUP
     bool ext1_level : 1;
     #endif
+    bool gpio_level : 1;
 } machine_rtc_config_t;
 
 extern machine_rtc_config_t machine_rtc_config;
+
+// User backup memory buffer, shared with machine.mem_backup on esp32.
+extern uint8_t rtc_user_mem_data[MICROPY_HW_RTC_USER_MEM_MAX];
 
 #endif

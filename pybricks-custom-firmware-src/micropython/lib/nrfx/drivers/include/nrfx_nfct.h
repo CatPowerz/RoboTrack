@@ -1,6 +1,8 @@
 /*
- * Copyright (c) 2018 - 2019, Nordic Semiconductor ASA
+ * Copyright (c) 2018 - 2025, Nordic Semiconductor ASA
  * All rights reserved.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -33,7 +35,7 @@
 #define NRFX_NFCT_H__
 
 #include <nrfx.h>
-#include <hal/nrf_nfct.h>
+#include <haly/nrfy_nfct.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -99,6 +101,7 @@ typedef enum
 typedef enum
 {
     NRFX_NFCT_PARAM_ID_FDT,     ///< NFC-A Frame Delay Time parameter.
+    NRFX_NFCT_PARAM_ID_FDT_MIN, ///< NFC-A Frame Delay Time Min parameter.
     NRFX_NFCT_PARAM_ID_SEL_RES, ///< Value of the 'Protocol' field in the NFC-A SEL_RES frame.
     NRFX_NFCT_PARAM_ID_NFCID1,  ///< NFC-A NFCID1 setting (NFC tag identifier).
 } nrfx_nfct_param_id_t;
@@ -117,6 +120,7 @@ typedef struct
     union
     {
         uint32_t           fdt;              ///< NFC-A Frame Delay Time. Filled when nrfx_nfct_param_t.id is @ref NRFX_NFCT_PARAM_ID_FDT.
+        uint32_t           fdt_min;          ///< NFC-A Frame Delay Time Min. Filled when nrfx_nfct_param_t.id is @ref NRFX_NFCT_PARAM_ID_FDT_MIN.
         uint8_t            sel_res_protocol; ///< NFC-A value of the 'Protocol' field in the SEL_RES frame. Filled when nrfx_nfct_param_t.id is @ref NRFX_NFCT_PARAM_ID_SEL_RES.
         nrfx_nfct_nfcid1_t nfcid1;           ///< NFC-A NFCID1 value (tag identifier). Filled when nrfx_nfct_param_t.id is @ref NRFX_NFCT_PARAM_ID_NFCID1.
     } data;                                  ///< Union to store parameter data.
@@ -164,6 +168,9 @@ typedef struct
  * @brief Callback descriptor to pass events from the NFCT driver to the upper layer.
  *
  * @param[in] p_event Pointer to the event descriptor.
+ *
+ * @note @ref NRFX_NFCT_EVT_FIELD_DETECTED and @ref NRFX_NFCT_EVT_FIELD_LOST are generated only on field state transitions,
+ *       i.e. there will be no multiple events of the same type (out of the 2 mentioned) coming in a row.
  */
 typedef void (*nrfx_nfct_handler_t)(nrfx_nfct_evt_t const * p_event);
 
@@ -172,6 +179,7 @@ typedef struct
 {
     uint32_t            rxtx_int_mask; ///< Mask for enabling RX/TX events. Indicate which events must be forwarded to the upper layer by using @ref nrfx_nfct_evt_id_t. By default, no events are enabled. */
     nrfx_nfct_handler_t cb;            ///< Callback.
+    uint8_t             irq_priority;  ///< Interrupt priority.
 } nrfx_nfct_config_t;
 
 /**
@@ -180,7 +188,10 @@ typedef struct
  * @param[in] p_config  Pointer to the NFCT driver configuration structure.
  *
  * @retval NRFX_SUCCESS             The NFCT driver was initialized successfully.
- * @retval NRFX_ERROR_INVALID_STATE The NFCT driver is already initialized.
+ * @retval NRFX_ERROR_ALREADY       The driver is already initialized.
+ * @retval NRFX_ERROR_INVALID_STATE The driver is already initialized.
+ *                                  Deprecated - use @ref NRFX_ERROR_ALREADY instead.
+ * @retval NRFX_ERROR_FORBIDDEN     The NFCT antenna pads are not configured as antenna pins.
  */
 nrfx_err_t nrfx_nfct_init(nrfx_nfct_config_t const * p_config);
 
@@ -190,6 +201,14 @@ nrfx_err_t nrfx_nfct_init(nrfx_nfct_config_t const * p_config);
  * After uninitialization, the instance is in disabled state.
  */
 void nrfx_nfct_uninit(void);
+
+/**
+ * @brief Function for checking if the NFCT driver is initialized.
+ *
+ * @retval true  Driver is already initialized.
+ * @retval false Driver is not initialized.
+ */
+bool nrfx_nfct_init_check(void);
 
 /**
  * @brief Function for starting the NFC subsystem.
@@ -218,8 +237,11 @@ bool nrfx_nfct_field_check(void);
  * @brief Function for preparing the NFCT driver for receiving an NFC frame.
  *
  * @param[in] p_rx_data  Pointer to the RX buffer.
+ *
+ * @retval NRFX_SUCCESS            The operation was successful.
+ * @retval NRFX_ERROR_INVALID_ADDR Data buffer does not point to memory region reachable by EasyDMA.
  */
-void nrfx_nfct_rx(nrfx_nfct_data_desc_t const * p_rx_data);
+nrfx_err_t nrfx_nfct_rx(nrfx_nfct_data_desc_t const * p_rx_data);
 
 /**
  * @brief Function for transmitting an NFC frame.
@@ -229,9 +251,28 @@ void nrfx_nfct_rx(nrfx_nfct_data_desc_t const * p_rx_data);
  *
  * @retval NRFX_SUCCESS              The operation was successful.
  * @retval NRFX_ERROR_INVALID_LENGTH The TX buffer size is invalid.
+ * @retval NRFX_ERROR_BUSY           Driver is already transferring.
+ * @retval NRFX_ERROR_INVALID_ADDR   Data buffer does not point to memory region reachable by
+ *                                   EasyDMA.
  */
 nrfx_err_t nrfx_nfct_tx(nrfx_nfct_data_desc_t const * p_tx_data,
                         nrf_nfct_frame_delay_mode_t   delay_mode);
+
+/**
+ * @brief Function for transmitting an NFC frame with a specified number of bits.
+ *
+ * @param[in] p_tx_data   Pointer to the TX buffer. Unlike in @ref nrfx_nfct_tx, @p data_size is
+ *                        used as the number of bits to transmit, rather than bytes.
+ * @param[in] delay_mode  Delay mode of the NFCT frame timer.
+ *
+ * @retval NRFX_SUCCESS              The operation was successful.
+ * @retval NRFX_ERROR_INVALID_LENGTH The TX buffer size is invalid.
+ * @retval NRFX_ERROR_BUSY           Driver is already transferring.
+ * @retval NRFX_ERROR_INVALID_ADDR   Data buffer does not point to memory region reachable by
+ *                                   EasyDMA.
+ */
+nrfx_err_t nrfx_nfct_bits_tx(nrfx_nfct_data_desc_t const * p_tx_data,
+                             nrf_nfct_frame_delay_mode_t   delay_mode);
 
 /**
  * @brief Function for moving the NFCT to a new state.
@@ -264,6 +305,9 @@ nrfx_err_t nrfx_nfct_parameter_set(nrfx_nfct_param_t const * p_param);
 
 /**
  * @brief Function for getting default bytes for NFCID1.
+ *
+ * @note This function cannot be used from the non-secure code because it requires access
+ *       to FICR registers.
  *
  * @param[in,out] p_nfcid1_buff    In:  empty buffer for data;
  *                                 Out: buffer with the NFCID1 default data. These values

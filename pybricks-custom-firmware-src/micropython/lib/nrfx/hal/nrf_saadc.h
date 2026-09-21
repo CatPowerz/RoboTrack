@@ -1,6 +1,8 @@
 /*
- * Copyright (c) 2015 - 2019, Nordic Semiconductor ASA
+ * Copyright (c) 2015 - 2025, Nordic Semiconductor ASA
  * All rights reserved.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -45,6 +47,151 @@ extern "C" {
  * @brief   Hardware access layer for managing the SAADC peripheral.
  */
 
+/** @brief Symbol specifying the offset of interrupt bitmask for limits of all channels. */
+#define NRF_SAADC_LIMITS_INT_OFFSET \
+    NRFX_MIN(SAADC_INTENSET_CH0LIMITH_Pos, SAADC_INTENSET_CH0LIMITL_Pos)
+
+/** @brief Symbol specifying number of LIMIT events per channel. */
+#define NRF_SAADC_LIMITS_PER_CHANNEL (2)
+
+/** @brief Symbol specifying the interrupt bitmask for limits of all channels. */
+#define NRF_SAADC_ALL_CHANNELS_LIMITS_INT_MASK                             \
+    ((uint32_t)(NRFX_BIT_MASK(SAADC_CH_NUM * NRF_SAADC_LIMITS_PER_CHANNEL) \
+                << NRF_SAADC_LIMITS_INT_OFFSET))
+
+#if defined(SAADC_CH_CONFIG_TACQ_3us) || defined(__NRFX_DOXYGEN__)
+/** @brief Symbol indicating whether the configuration of acquisition time using predefined values is present. */
+#define NRF_SAADC_HAS_ACQTIME_ENUM 1
+#else
+#define NRF_SAADC_HAS_ACQTIME_ENUM 0
+#endif
+
+#if defined(SAADC_CH_CONFIG_TCONV_Msk) || defined(__NRFX_DOXYGEN__)
+/** @brief Symbol indicating whether the configuration of conversion time is present. */
+#define NRF_SAADC_HAS_CONVTIME 1
+#else
+#define NRF_SAADC_HAS_CONVTIME 0
+#endif
+
+#if defined(SAADC_TRIM_LINCALCOEFF_VAL_Msk) || defined(__NRFX_DOXYGEN__)
+/** @brief Symbol indicating whether the configuration of linearity calibration coefficients is present. */
+#define NRF_SAADC_HAS_LIN_CAL 1
+#else
+#define NRF_SAADC_HAS_LIN_CAL 0
+#endif
+
+#if defined(SAADC_CAL_ResetValue) || defined(__NRFX_DOXYGEN__)
+/** @brief Symbol indicating whether SAADC CAL trim config is present. */
+#define NRF_SAADC_HAS_CAL 1
+#else
+#define NRF_SAADC_HAS_CAL 0
+#endif
+
+#if defined(SAADC_CALREF_ResetValue) || defined(__NRFX_DOXYGEN__)
+/** @brief Symbol indicating whether SAADC CALREF trim is present. */
+#define NRF_SAADC_HAS_CALREF 1
+#else
+#define NRF_SAADC_HAS_CALREF 0
+#endif
+
+#if defined(SAADC_CH_PSELP_PIN_Msk) || defined(__NRFX_DOXYGEN__)
+/** @brief Symbol indicating whether configuration of analog input using pin number is present. */
+#define NRF_SAADC_HAS_AIN_AS_PIN 1
+#else
+#define NRF_SAADC_HAS_AIN_AS_PIN 0
+#endif
+
+#if defined(SAADC_CH_CONFIG_RESP_Msk) || defined(__NRFX_DOXYGEN__)
+/** @brief Symbol indicating whether SAADC channel resistor control is present. */
+#define NRF_SAADC_HAS_CH_CONFIG_RES 1
+#else
+#define NRF_SAADC_HAS_CH_CONFIG_RES 0
+#endif
+
+#if defined(SAADC_CH_PSELP_CONNECT_Internal) || defined(__NRFX_DOXYGEN__)
+/** @brief Symbol indicating whether SAADC positive internal inputs for pin number configurations are present. */
+#define NRF_SAADC_HAS_CH_PSELP_INTERNAL 1
+#else
+#define NRF_SAADC_HAS_CH_PSELP_INTERNAL 0
+#endif
+
+#if defined(SAADC_CH_PSELN_CONNECT_Internal) || defined(__NRFX_DOXYGEN__)
+/** @brief Symbol indicating whether SAADC negative internal inputs for pin number configurations are present. */
+#define NRF_SAADC_HAS_CH_PSELN_INTERNAL 1
+#else
+#define NRF_SAADC_HAS_CH_PSELN_INTERNAL 0
+#endif
+
+#if defined(SAADC_CH_CONFIG_BURST_Msk) || defined(__NRFX_DOXYGEN__)
+/** @brief Symbol indicating whether SAADC channel specific burst mode configuration is present. */
+#define NRF_SAADC_HAS_CH_BURST 1
+#else
+#define NRF_SAADC_HAS_CH_BURST 0
+#endif
+
+#if defined(SAADC_BURST_BURST_Msk) || defined(__NRFX_DOXYGEN__)
+/** @brief Symbol indicating whether SAADC peripheral burst mode configuration is present. */
+#define NRF_SAADC_HAS_BURST 1
+#else
+#define NRF_SAADC_HAS_BURST 0
+#endif
+
+#if defined(SAADC_CH_CONFIG_CHOPPING_Msk) || defined(__NRFX_DOXYGEN__)
+/** @brief Symbol indicating whether SAADC channel specific chopping mode configuration is present. */
+#define NRF_SAADC_HAS_CH_CHOPPING 1
+#else
+#define NRF_SAADC_HAS_CH_CHOPPING 0
+#endif
+
+#if defined(SAADC_CH_CONFIG_GAIN_Msk) || defined(__NRFX_DOXYGEN__)
+/** @brief Symbol indicating whether SAADC channel specific gain configuration is present. */
+#define NRF_SAADC_HAS_CH_GAIN 1
+#else
+#define NRF_SAADC_HAS_CH_GAIN 0
+#endif
+
+#if defined(SAADC_CH_CONFIG_HIGHSPEED_Msk) || defined(__NRFX_DOXYGEN__)
+/** @brief Symbol indicating whether SAADC channel specific highspeed mode configuration is present. */
+#define NRF_SAADC_HAS_CH_HIGHSPEED 1
+#else
+#define NRF_SAADC_HAS_CH_HIGHSPEED 0
+#endif
+
+#if !NRF_SAADC_HAS_ACQTIME_ENUM || defined(__NRFX_DOXYGEN__)
+/** @brief Maximum value of acquire time. */
+#define NRF_SAADC_ACQTIME_MAX SAADC_CH_CONFIG_TACQ_Max
+#endif
+
+#if NRF_SAADC_HAS_CONVTIME
+/** @brief Symbol specifying maximum value of conversion time. */
+#define NRF_SAADC_CONVTIME_MAX SAADC_CH_CONFIG_TCONV_Max
+#endif
+
+#if NRF_SAADC_HAS_LIN_CAL
+/** @brief Symbol specifying maximum count of linearity calibration coefficients. */
+#define NRF_SAADC_LIN_CAL_MAX_COUNT SAADC_TRIM_LINCALCOEFF_MaxCount
+
+/** @brief Symbol specifying maximum value of linearity calibration coefficient. */
+#define NRF_SAADC_LIN_CAL_MAX SAADC_TRIM_LINCALCOEFF_VAL_Max
+#endif
+
+/** @brief @deprecated Symbol specifying width of the 8-bit sample in bits. */
+#define NRF_SAADC_8BIT_SAMPLE_WIDTH 16
+
+#if defined(SAADC_SAMPLERATE_CC_Min) || defined(__NRFX_DOXYGEN__)
+/** @brief Symbol specifying minimum capture and compare value for sample rate. */
+#define NRF_SAADC_SAMPLERATE_CC_MIN SAADC_SAMPLERATE_CC_Min
+#else
+#define NRF_SAADC_SAMPLERATE_CC_MIN (80UL)
+#endif
+
+#if defined(SAADC_SAMPLERATE_CC_Max) || defined(__NRFX_DOXYGEN__)
+/** @brief Symbol specifying maximum capture and compare value for sample rate. */
+#define NRF_SAADC_SAMPLERATE_CC_MAX SAADC_SAMPLERATE_CC_Max
+#else
+#define NRF_SAADC_SAMPLERATE_CC_MAX (2047UL)
+#endif
+
 /** @brief Resolution of the analog-to-digital converter. */
 typedef enum
 {
@@ -54,20 +201,88 @@ typedef enum
     NRF_SAADC_RESOLUTION_14BIT = SAADC_RESOLUTION_VAL_14bit  ///< 14 bit resolution.
 } nrf_saadc_resolution_t;
 
+#if NRF_SAADC_HAS_AIN_AS_PIN
+/** @brief Analog input type. */
+typedef uint32_t nrf_saadc_input_t;
+
+#if defined(SAADC_CH_PSELP_INTERNAL_Avdd) || defined(__NRFX_DOXYGEN__)
+/** @brief Symbol specifying internal 0.9 V analog supply rail as input. */
+#define NRF_SAADC_INPUT_AVDD ((SAADC_CH_PSELP_INTERNAL_Avdd + 1) << SAADC_CH_PSELP_INTERNAL_Pos)
+#endif
+
+#if defined(SAADC_CH_PSELP_INTERNAL_Dvdd) || defined(__NRFX_DOXYGEN__)
+/** @brief Symbol specifying internal 0.9 V digital supply rail as input. */
+#define NRF_SAADC_INPUT_DVDD ((SAADC_CH_PSELP_INTERNAL_Dvdd + 1) << SAADC_CH_PSELP_INTERNAL_Pos)
+#endif
+
+#if defined(SAADC_CH_PSELP_INTERNAL_Vdd) || defined(__NRFX_DOXYGEN__)
+/** @brief Symbol specifying VDD as input. */
+#define NRF_SAADC_INPUT_VDD ((SAADC_CH_PSELP_INTERNAL_Vdd + 1) << SAADC_CH_PSELP_INTERNAL_Pos)
+#endif
+
+#if defined(SAADC_CH_PSELP_INTERNAL_VDDAO1V8) || defined(__NRFX_DOXYGEN__)
+/** @brief Symbol specifying AVDD_AO_1V8 as input. */
+#define NRF_SAADC_INPUT_VDDAO1V8 ((SAADC_CH_PSELP_INTERNAL_VDDAO1V8 + 1) \
+                                    << SAADC_CH_PSELP_INTERNAL_Pos)
+#endif
+
+#if defined(SAADC_CH_PSELP_INTERNAL_VDDAO0V8) || defined(__NRFX_DOXYGEN__)
+/** @brief Symbol specifying VDD_AO_0V8 as input. */
+#define NRF_SAADC_INPUT_VDDAO0V8 ((SAADC_CH_PSELP_INTERNAL_VDDAO0V8 + 1) \
+                                    << SAADC_CH_PSELP_INTERNAL_Pos)
+#endif
+
+#if defined(SAADC_CH_PSELP_INTERNAL_VDDRF) || defined(__NRFX_DOXYGEN__)
+/** @brief Symbol specifying VDDRF as input. */
+#define NRF_SAADC_INPUT_VDDRF ((SAADC_CH_PSELP_INTERNAL_VDDRF + 1) << SAADC_CH_PSELP_INTERNAL_Pos)
+#endif
+
+#if defined(SAADC_CH_PSELP_INTERNAL_VBAT) || defined(__NRFX_DOXYGEN__)
+/** @brief Symbol specifying VBat as input. */
+#define NRF_SAADC_INPUT_VBAT ((SAADC_CH_PSELP_INTERNAL_VBAT + 1) << SAADC_CH_PSELP_INTERNAL_Pos)
+#endif
+
+/** @brief Symbol specifying disconnected analog input. */
+#define NRF_SAADC_INPUT_DISABLED ((nrf_saadc_input_t)UINT32_MAX)
+#else
 /** @brief Input selection for the analog-to-digital converter. */
 typedef enum
 {
-    NRF_SAADC_INPUT_DISABLED = SAADC_CH_PSELP_PSELP_NC,           ///< Not connected.
-    NRF_SAADC_INPUT_AIN0     = SAADC_CH_PSELP_PSELP_AnalogInput0, ///< Analog input 0 (AIN0).
-    NRF_SAADC_INPUT_AIN1     = SAADC_CH_PSELP_PSELP_AnalogInput1, ///< Analog input 1 (AIN1).
-    NRF_SAADC_INPUT_AIN2     = SAADC_CH_PSELP_PSELP_AnalogInput2, ///< Analog input 2 (AIN2).
-    NRF_SAADC_INPUT_AIN3     = SAADC_CH_PSELP_PSELP_AnalogInput3, ///< Analog input 3 (AIN3).
-    NRF_SAADC_INPUT_AIN4     = SAADC_CH_PSELP_PSELP_AnalogInput4, ///< Analog input 4 (AIN4).
-    NRF_SAADC_INPUT_AIN5     = SAADC_CH_PSELP_PSELP_AnalogInput5, ///< Analog input 5 (AIN5).
-    NRF_SAADC_INPUT_AIN6     = SAADC_CH_PSELP_PSELP_AnalogInput6, ///< Analog input 6 (AIN6).
-    NRF_SAADC_INPUT_AIN7     = SAADC_CH_PSELP_PSELP_AnalogInput7, ///< Analog input 7 (AIN7).
-    NRF_SAADC_INPUT_VDD      = SAADC_CH_PSELP_PSELP_VDD           ///< VDD as input.
+    NRF_SAADC_INPUT_DISABLED = SAADC_CH_PSELP_PSELP_NC,            ///< Not connected.
+    NRF_SAADC_INPUT_AIN0     = SAADC_CH_PSELP_PSELP_AnalogInput0,  ///< Analog input 0 (AIN0).
+    NRF_SAADC_INPUT_AIN1     = SAADC_CH_PSELP_PSELP_AnalogInput1,  ///< Analog input 1 (AIN1).
+    NRF_SAADC_INPUT_AIN2     = SAADC_CH_PSELP_PSELP_AnalogInput2,  ///< Analog input 2 (AIN2).
+    NRF_SAADC_INPUT_AIN3     = SAADC_CH_PSELP_PSELP_AnalogInput3,  ///< Analog input 3 (AIN3).
+    NRF_SAADC_INPUT_AIN4     = SAADC_CH_PSELP_PSELP_AnalogInput4,  ///< Analog input 4 (AIN4).
+    NRF_SAADC_INPUT_AIN5     = SAADC_CH_PSELP_PSELP_AnalogInput5,  ///< Analog input 5 (AIN5).
+    NRF_SAADC_INPUT_AIN6     = SAADC_CH_PSELP_PSELP_AnalogInput6,  ///< Analog input 6 (AIN6).
+    NRF_SAADC_INPUT_AIN7     = SAADC_CH_PSELP_PSELP_AnalogInput7,  ///< Analog input 7 (AIN7).
+#if defined(SAADC_CH_PSELP_PSELP_VDD) || defined(__NRFX_DOXYGEN__)
+    NRF_SAADC_INPUT_VDD      = SAADC_CH_PSELP_PSELP_VDD,           ///< VDD as input.
+#endif
+#if defined(SAADC_CH_PSELP_PSELP_VDDHDIV5) || defined(__NRFX_DOXYGEN__)
+    NRF_SAADC_INPUT_VDDHDIV5 = SAADC_CH_PSELP_PSELP_VDDHDIV5       ///< VDDH/5 as input.
+#endif
+#if defined(SAADC_CH_PSELP_PSELP_AnalogInput8) || defined(__NRFX_DOXYGEN__)
+    NRF_SAADC_INPUT_AIN8     = SAADC_CH_PSELP_PSELP_AnalogInput8,  ///< Analog input 8 (AIN8).
+#endif
+#if defined(SAADC_CH_PSELP_PSELP_AnalogInput9) || defined(__NRFX_DOXYGEN__)
+    NRF_SAADC_INPUT_AIN9     = SAADC_CH_PSELP_PSELP_AnalogInput9,  ///< Analog input 9 (AIN9).
+#endif
+#if defined(SAADC_CH_PSELP_PSELP_AnalogInput10) || defined(__NRFX_DOXYGEN__)
+    NRF_SAADC_INPUT_AIN10    = SAADC_CH_PSELP_PSELP_AnalogInput10, ///< Analog input 10 (AIN10).
+#endif
+#if defined(SAADC_CH_PSELP_PSELP_AnalogInput11) || defined(__NRFX_DOXYGEN__)
+    NRF_SAADC_INPUT_AIN11    = SAADC_CH_PSELP_PSELP_AnalogInput11, ///< Analog input 11 (AIN11).
+#endif
+#if defined(SAADC_CH_PSELP_PSELP_AnalogInput12) || defined(__NRFX_DOXYGEN__)
+    NRF_SAADC_INPUT_AIN12    = SAADC_CH_PSELP_PSELP_AnalogInput12, ///< Analog input 12 (AIN12).
+#endif
+#if defined(SAADC_CH_PSELP_PSELP_AnalogInput13) || defined(__NRFX_DOXYGEN__)
+    NRF_SAADC_INPUT_AIN13    = SAADC_CH_PSELP_PSELP_AnalogInput13, ///< Analog input 13 (AIN13).
+#endif
 } nrf_saadc_input_t;
+#endif
 
 /** @brief Analog-to-digital converter oversampling mode. */
 typedef enum
@@ -83,35 +298,79 @@ typedef enum
     NRF_SAADC_OVERSAMPLE_256X     = SAADC_OVERSAMPLE_OVERSAMPLE_Over256x  ///< Oversample 256x.
 } nrf_saadc_oversample_t;
 
+#if NRF_SAADC_HAS_CH_CONFIG_RES
 /** @brief Analog-to-digital converter channel resistor control. */
 typedef enum
 {
-    NRF_SAADC_RESISTOR_DISABLED = SAADC_CH_CONFIG_RESP_Bypass,   ///< Bypass resistor ladder.
-    NRF_SAADC_RESISTOR_PULLDOWN = SAADC_CH_CONFIG_RESP_Pulldown, ///< Pull-down to GND.
-    NRF_SAADC_RESISTOR_PULLUP   = SAADC_CH_CONFIG_RESP_Pullup,   ///< Pull-up to VDD.
-    NRF_SAADC_RESISTOR_VDD1_2   = SAADC_CH_CONFIG_RESP_VDD1_2    ///< Set input at VDD/2.
+    NRF_SAADC_RESISTOR_DISABLED = SAADC_CH_CONFIG_RESP_Bypass,       ///< Bypass resistor ladder.
+    NRF_SAADC_RESISTOR_PULLDOWN = SAADC_CH_CONFIG_RESP_Pulldown,     ///< Pull-down to GND.
+    NRF_SAADC_RESISTOR_PULLUP   = SAADC_CH_CONFIG_RESP_Pullup,       ///< Pull-up to VDD.
+#if defined(SAADC_CH_CONFIG_RESP_VDD1_2) || defined(__NRFX_DOXYGEN__)
+    NRF_SAADC_RESISTOR_VDD1_2   = SAADC_CH_CONFIG_RESP_VDD1_2,       ///< Set input at VDD/2.
+#endif
+#if defined(SAADC_CH_CONFIG_RESP_VDDAO1V8div2)
+    NRF_SAADC_RESISTOR_VDD1_2   = SAADC_CH_CONFIG_RESP_VDDAO1V8div2, ///< Set input at VDD/2.
+#endif
 } nrf_saadc_resistor_t;
+#endif
 
+#if NRF_SAADC_HAS_CH_GAIN
 /** @brief Gain factor of the analog-to-digital converter input. */
 typedef enum
 {
+#if defined(SAADC_CH_CONFIG_GAIN_Gain1_6) || defined(__NRFX_DOXYGEN__)
     NRF_SAADC_GAIN1_6 = SAADC_CH_CONFIG_GAIN_Gain1_6, ///< Gain factor 1/6.
+#endif
+#if defined(SAADC_CH_CONFIG_GAIN_Gain1_5) || defined(__NRFX_DOXYGEN__)
     NRF_SAADC_GAIN1_5 = SAADC_CH_CONFIG_GAIN_Gain1_5, ///< Gain factor 1/5.
+#endif
+#if defined(SAADC_CH_CONFIG_GAIN_Gain1_4) || defined(__NRFX_DOXYGEN__)
     NRF_SAADC_GAIN1_4 = SAADC_CH_CONFIG_GAIN_Gain1_4, ///< Gain factor 1/4.
+#elif defined(SAADC_CH_CONFIG_GAIN_Gain2_8) || defined(__NRFX_DOXYGEN__)
+    NRF_SAADC_GAIN1_4 = SAADC_CH_CONFIG_GAIN_Gain2_8, ///< Gain factor 1/4.
+#endif
+#if defined(SAADC_CH_CONFIG_GAIN_Gain2_7) || defined(__NRFX_DOXYGEN__)
+    NRF_SAADC_GAIN2_7 = SAADC_CH_CONFIG_GAIN_Gain2_7, ///< Gain factor 2/7.
+#endif
+#if defined(SAADC_CH_CONFIG_GAIN_Gain1_3) || defined(__NRFX_DOXYGEN__)
     NRF_SAADC_GAIN1_3 = SAADC_CH_CONFIG_GAIN_Gain1_3, ///< Gain factor 1/3.
+#elif defined(SAADC_CH_CONFIG_GAIN_Gain2_6) || defined(__NRFX_DOXYGEN__)
+    NRF_SAADC_GAIN1_3 = SAADC_CH_CONFIG_GAIN_Gain2_6, ///< Gain factor 1/3.
+#endif
+#if defined(SAADC_CH_CONFIG_GAIN_Gain2_5) || defined(__NRFX_DOXYGEN__)
+    NRF_SAADC_GAIN2_5 = SAADC_CH_CONFIG_GAIN_Gain2_5, ///< Gain factor 2/5.
+#endif
+#if defined(SAADC_CH_CONFIG_GAIN_Gain1_2) || defined(__NRFX_DOXYGEN__)
     NRF_SAADC_GAIN1_2 = SAADC_CH_CONFIG_GAIN_Gain1_2, ///< Gain factor 1/2.
+#elif defined(SAADC_CH_CONFIG_GAIN_Gain2_4) || defined(__NRFX_DOXYGEN__)
+    NRF_SAADC_GAIN1_2 = SAADC_CH_CONFIG_GAIN_Gain2_4, ///< Gain factor 1/2.
+#endif
+#if defined(SAADC_CH_CONFIG_GAIN_Gain2_3) || defined(__NRFX_DOXYGEN__)
+    NRF_SAADC_GAIN2_3 = SAADC_CH_CONFIG_GAIN_Gain2_3, ///< Gain factor 2/3.
+#endif
     NRF_SAADC_GAIN1   = SAADC_CH_CONFIG_GAIN_Gain1,   ///< Gain factor 1.
     NRF_SAADC_GAIN2   = SAADC_CH_CONFIG_GAIN_Gain2,   ///< Gain factor 2.
+#if defined(SAADC_CH_CONFIG_GAIN_Gain4) || defined(__NRFX_DOXYGEN__)
     NRF_SAADC_GAIN4   = SAADC_CH_CONFIG_GAIN_Gain4,   ///< Gain factor 4.
+#endif
 } nrf_saadc_gain_t;
+#endif
 
 /** @brief Reference selection for the analog-to-digital converter. */
 typedef enum
 {
-    NRF_SAADC_REFERENCE_INTERNAL = SAADC_CH_CONFIG_REFSEL_Internal, ///< Internal reference (0.6 V).
+#if defined(SAADC_CH_CONFIG_REFSEL_Internal) || defined(__NRFX_DOXYGEN__)
+    NRF_SAADC_REFERENCE_INTERNAL = SAADC_CH_CONFIG_REFSEL_Internal, ///< Internal reference.
+#endif
+#if defined(SAADC_CH_CONFIG_REFSEL_VDD1_4) || defined(__NRFX_DOXYGEN__)
     NRF_SAADC_REFERENCE_VDD4     = SAADC_CH_CONFIG_REFSEL_VDD1_4    ///< VDD/4 as reference.
+#endif
+#if defined(SAADC_CH_CONFIG_REFSEL_External) || defined(__NRFX_DOXYGEN__)
+    NRF_SAADC_REFERENCE_EXTERNAL = SAADC_CH_CONFIG_REFSEL_External, ///< External reference.
+#endif
 } nrf_saadc_reference_t;
 
+#if NRF_SAADC_HAS_ACQTIME_ENUM
 /** @brief Analog-to-digital converter acquisition time. */
 typedef enum
 {
@@ -122,6 +381,9 @@ typedef enum
     NRF_SAADC_ACQTIME_20US = SAADC_CH_CONFIG_TACQ_20us, ///< 20 us.
     NRF_SAADC_ACQTIME_40US = SAADC_CH_CONFIG_TACQ_40us  ///< 40 us.
 } nrf_saadc_acqtime_t;
+#else
+typedef uint16_t nrf_saadc_acqtime_t;
+#endif
 
 /** @brief Analog-to-digital converter channel mode. */
 typedef enum
@@ -130,19 +392,42 @@ typedef enum
     NRF_SAADC_MODE_DIFFERENTIAL = SAADC_CH_CONFIG_MODE_Diff ///< Differential mode.
 } nrf_saadc_mode_t;
 
-/** @brief Analog-to-digital converter channel burst mode. */
+/** @brief Analog-to-digital converter burst mode. */
 typedef enum
 {
+#if NRF_SAADC_HAS_CH_BURST
     NRF_SAADC_BURST_DISABLED = SAADC_CH_CONFIG_BURST_Disabled, ///< Burst mode is disabled (normal operation).
     NRF_SAADC_BURST_ENABLED  = SAADC_CH_CONFIG_BURST_Enabled   ///< Burst mode is enabled. SAADC takes 2^OVERSAMPLE number of samples as fast as it can, and sends the average to Data RAM.
+#elif NRF_SAADC_HAS_BURST
+    NRF_SAADC_BURST_DISABLED = SAADC_BURST_BURST_Disabled,     ///< Burst mode is disabled (normal operation).
+    NRF_SAADC_BURST_ENABLED  = SAADC_BURST_BURST_Enabled       ///< Burst mode is enabled. SAADC takes 2^OVERSAMPLE number of samples as fast as it can, and sends the average to Data RAM.
+#endif
 } nrf_saadc_burst_t;
+
+#if NRF_SAADC_HAS_CH_CHOPPING
+/** @brief Analog-to-digital converter chopping mode. */
+typedef enum
+{
+    NRF_SAADC_CHOPPING_DISABLED = SAADC_CH_CONFIG_CHOPPING_Disabled, ///< Chopping mode is disabled.
+    NRF_SAADC_CHOPPING_ENABLED  = SAADC_CH_CONFIG_CHOPPING_Enabled   ///< Chopping mode is enabled, inputs will be switched on every second sample.
+} nrf_saadc_chopping_t;
+#endif
+
+#if NRF_SAADC_HAS_CH_HIGHSPEED
+/** @brief Analog-to-digital converter highspeed mode. */
+typedef enum
+{
+    NRF_SAADC_HIGHSPEED_DISABLED = SAADC_CH_CONFIG_HIGHSPEED_Disabled, ///< Highspeed mode is disabled.
+    NRF_SAADC_HIGHSPEED_ENABLED  = SAADC_CH_CONFIG_HIGHSPEED_Enabled   ///< Highspeed mode is enabled.
+} nrf_saadc_highspeed_t;
+#endif
 
 /** @brief Analog-to-digital converter tasks. */
 typedef enum
 {
     NRF_SAADC_TASK_START           = offsetof(NRF_SAADC_Type, TASKS_START),           ///< Start the ADC and prepare the result buffer in RAM.
-    NRF_SAADC_TASK_SAMPLE          = offsetof(NRF_SAADC_Type, TASKS_SAMPLE),          ///< Take one ADC sample. If scan is enabled, all channels are sampled.
     NRF_SAADC_TASK_STOP            = offsetof(NRF_SAADC_Type, TASKS_STOP),            ///< Stop the ADC and terminate any ongoing conversion.
+    NRF_SAADC_TASK_SAMPLE          = offsetof(NRF_SAADC_Type, TASKS_SAMPLE),          ///< Take one ADC sample. If scan is enabled, all channels are sampled.
     NRF_SAADC_TASK_CALIBRATEOFFSET = offsetof(NRF_SAADC_Type, TASKS_CALIBRATEOFFSET), ///< Starts offset auto-calibration.
 } nrf_saadc_task_t;
 
@@ -208,8 +493,12 @@ typedef enum
     NRF_SAADC_LIMIT_HIGH = 1  ///< High limit type.
 } nrf_saadc_limit_t;
 
+#if NRFX_API_VER_AT_LEAST(3, 2, 0) || defined(__NRFX_DOXYGEN__)
 /** @brief Type of a single ADC conversion result. */
-typedef int16_t nrf_saadc_value_t;
+typedef void nrf_saadc_value_t;
+#else
+typedef uint16_t nrf_saadc_value_t;
+#endif
 
 /** @brief Analog-to-digital converter configuration structure. */
 typedef struct
@@ -223,13 +512,28 @@ typedef struct
 /** @brief Analog-to-digital converter channel configuration structure. */
 typedef struct
 {
+#if NRF_SAADC_HAS_CH_CONFIG_RES
     nrf_saadc_resistor_t  resistor_p; ///< Resistor value on positive input.
     nrf_saadc_resistor_t  resistor_n; ///< Resistor value on negative input.
+#endif
+#if NRF_SAADC_HAS_CH_GAIN
     nrf_saadc_gain_t      gain;       ///< Gain control value.
+#endif
     nrf_saadc_reference_t reference;  ///< Reference control value.
     nrf_saadc_acqtime_t   acq_time;   ///< Acquisition time.
     nrf_saadc_mode_t      mode;       ///< SAADC mode. Single-ended or differential.
+#if NRF_SAADC_HAS_CH_BURST
     nrf_saadc_burst_t     burst;      ///< Burst mode configuration.
+#endif
+#if NRF_SAADC_HAS_CH_CHOPPING
+    nrf_saadc_chopping_t  chopping;   ///< Chopping mode configuration.
+#endif
+#if NRF_SAADC_HAS_CH_HIGHSPEED
+    nrf_saadc_highspeed_t highspeed;  ///< Highspeed mode configuration.
+#endif
+#if NRF_SAADC_HAS_CONVTIME
+    uint8_t               conv_time;  ///< Conversion time.
+#endif
 } nrf_saadc_channel_config_t;
 
 
@@ -254,7 +558,7 @@ NRF_STATIC_INLINE uint32_t nrf_saadc_task_address_get(NRF_SAADC_Type const * p_r
                                                       nrf_saadc_task_t       task);
 
 /**
- * @brief Function for retrieving the state of the UARTE event.
+ * @brief Function for retrieving the state of the SAADC event.
  *
  * @param[in] p_reg Pointer to the structure of registers of the peripheral.
  * @param[in] event Event to be checked.
@@ -309,6 +613,18 @@ NRF_STATIC_INLINE void nrf_saadc_subscribe_clear(NRF_SAADC_Type * p_reg,
                                                  nrf_saadc_task_t task);
 
 /**
+ * @brief Function for getting the subscribe configuration for a given
+ *        SAADC task.
+ *
+ * @param[in] p_reg Pointer to the structure of registers of the peripheral.
+ * @param[in] task  Task for which to read the configuration.
+ *
+ * @return SAADC subscribe configuration.
+ */
+NRF_STATIC_INLINE uint32_t nrf_saadc_subscribe_get(NRF_SAADC_Type const * p_reg,
+                                                   nrf_saadc_task_t       task);
+
+/**
  * @brief Function for setting the publish configuration for a given
  *        SAADC event.
  *
@@ -329,6 +645,18 @@ NRF_STATIC_INLINE void nrf_saadc_publish_set(NRF_SAADC_Type *  p_reg,
  */
 NRF_STATIC_INLINE void nrf_saadc_publish_clear(NRF_SAADC_Type *  p_reg,
                                                nrf_saadc_event_t event);
+
+/**
+ * @brief Function for getting the publish configuration for a given
+ *        SAADC event.
+ *
+ * @param[in] p_reg Pointer to the structure of registers of the peripheral.
+ * @param[in] event Event for which to read the configuration.
+ *
+ * @return SAADC publish configuration.
+ */
+NRF_STATIC_INLINE uint32_t nrf_saadc_publish_get(NRF_SAADC_Type const * p_reg,
+                                                 nrf_saadc_event_t      event);
 #endif // defined(DPPI_PRESENT) || defined(__NRFX_DOXYGEN__)
 
 /**
@@ -348,7 +676,7 @@ NRF_STATIC_INLINE nrf_saadc_event_t nrf_saadc_limit_event_get(uint8_t           
  * @param[in] p_reg   Pointer to the structure of registers of the peripheral.
  * @param[in] channel Channel number.
  * @param[in] pselp   Positive input.
- * @param[in] pseln   Negative input. Set to NRF_SAADC_INPUT_DISABLED in single ended mode.
+ * @param[in] pseln   Negative input. Set to @ref NRF_SAADC_INPUT_DISABLED in single ended mode.
  */
 NRF_STATIC_INLINE void nrf_saadc_channel_input_set(NRF_SAADC_Type *  p_reg,
                                                    uint8_t           channel,
@@ -367,6 +695,17 @@ NRF_STATIC_INLINE void nrf_saadc_channel_pos_input_set(NRF_SAADC_Type *  p_reg,
                                                        nrf_saadc_input_t pselp);
 
 /**
+ * @brief Function for configuring the negative input pin for the specified SAADC channel.
+ *
+ * @param[in] p_reg   Pointer to the structure of registers of the peripheral.
+ * @param[in] channel Channel number.
+ * @param[in] pseln   Negative input.
+ */
+NRF_STATIC_INLINE void nrf_saadc_channel_neg_input_set(NRF_SAADC_Type *  p_reg,
+                                                       uint8_t           channel,
+                                                       nrf_saadc_input_t pseln);
+
+/**
  * @brief Function for setting the SAADC channel monitoring limits.
  *
  * @param[in] p_reg   Pointer to the structure of registers of the peripheral.
@@ -380,10 +719,20 @@ NRF_STATIC_INLINE void nrf_saadc_channel_limits_set(NRF_SAADC_Type * p_reg,
                                                     int16_t          high);
 
 /**
+ * @brief Function for setting the configuration of SAADC interrupts.
+ *
+ * @param[in] p_reg Pointer to the structure of registers of the peripheral.
+ * @param[in] mask  Interrupts configuration to be set.
+ *                  Use @ref nrf_saadc_int_mask_t values for bit masking.
+ */
+NRF_STATIC_INLINE void nrf_saadc_int_set(NRF_SAADC_Type * p_reg, uint32_t mask);
+
+/**
  * @brief Function for enabling specified SAADC interrupts.
  *
  * @param[in] p_reg Pointer to the structure of registers of the peripheral.
  * @param[in] mask  Mask of interrupts to be enabled.
+ *                  Use @ref nrf_saadc_int_mask_t values for bit masking.
  */
 NRF_STATIC_INLINE void nrf_saadc_int_enable(NRF_SAADC_Type * p_reg, uint32_t mask);
 
@@ -392,6 +741,7 @@ NRF_STATIC_INLINE void nrf_saadc_int_enable(NRF_SAADC_Type * p_reg, uint32_t mas
  *
  * @param[in] p_reg Pointer to the structure of registers of the peripheral.
  * @param[in] mask  Mask of interrupts to be checked.
+ *                  Use @ref nrf_saadc_int_mask_t values for bit masking.
  *
  * @return Mask of enabled interrupts.
  */
@@ -402,6 +752,7 @@ NRF_STATIC_INLINE uint32_t nrf_saadc_int_enable_check(NRF_SAADC_Type const * p_r
  *
  * @param[in] p_reg Pointer to the structure of registers of the peripheral.
  * @param[in] mask  Mask of interrupts to be disabled.
+ *                  Use @ref nrf_saadc_int_mask_t values for bit masking.
  */
 NRF_STATIC_INLINE void nrf_saadc_int_disable(NRF_SAADC_Type * p_reg, uint32_t mask);
 
@@ -459,7 +810,7 @@ NRF_STATIC_INLINE bool nrf_saadc_enable_check(NRF_SAADC_Type const * p_reg);
  *
  * @param[in] p_reg    Pointer to the structure of registers of the peripheral.
  * @param[in] p_buffer Pointer to the result buffer.
- * @param[in] size     Size of the buffer (in 16-bit samples).
+ * @param[in] size     Size of the buffer (in samples).
  */
 NRF_STATIC_INLINE void nrf_saadc_buffer_init(NRF_SAADC_Type *    p_reg,
                                              nrf_saadc_value_t * p_buffer,
@@ -489,7 +840,7 @@ NRF_STATIC_INLINE nrf_saadc_value_t * nrf_saadc_buffer_pointer_get(NRF_SAADC_Typ
  *
  * @param[in] p_reg Pointer to the structure of registers of the peripheral.
  *
- * @return Number of 16-bit samples written to the buffer.
+ * @return Number of samples written to the buffer.
  */
 NRF_STATIC_INLINE uint16_t nrf_saadc_amount_get(NRF_SAADC_Type const * p_reg);
 
@@ -550,7 +901,8 @@ NRF_STATIC_INLINE uint32_t nrf_saadc_oversample_sample_count_get(nrf_saadc_overs
  *
  * @param[in] p_reg Pointer to the structure of registers of the peripheral.
  * @param[in] cc    Capture and compare value. Sample rate is 16 MHz/cc.
- *                  Valid @c CC range is from 80 to 2047.
+ *                  Valid @c CC range is from NRF_SAADC_SAMPLERATE_CC_MIN
+ *                  to NRF_SAADC_SAMPLERATE_CC_MAX.
  */
 NRF_STATIC_INLINE void nrf_saadc_continuous_mode_enable(NRF_SAADC_Type * p_reg,
                                                         uint16_t         cc);
@@ -574,6 +926,30 @@ NRF_STATIC_INLINE bool nrf_saadc_continuous_mode_enable_check(NRF_SAADC_Type con
  */
 NRF_STATIC_INLINE void nrf_saadc_continuous_mode_disable(NRF_SAADC_Type * p_reg);
 
+#if NRF_SAADC_HAS_LIN_CAL
+/**
+ * @brief Function for setting linearity calibration coefficient.
+ *
+ * @param[in] p_reg Pointer to the structure of registers of the peripheral.
+ * @param[in] index Coefficient number.
+ * @param[in] coeff Value of the coefficient.
+ */
+NRF_STATIC_INLINE void nrf_saadc_linearity_calibration_coeff_set(NRF_SAADC_Type * p_reg,
+                                                                 uint8_t          index,
+                                                                 uint32_t         coeff);
+
+/**
+ * @brief Function for getting linearity calibration coefficient.
+ *
+ * @param[in] p_reg Pointer to the structure of registers of the peripheral.
+ * @param[in] index Coefficient number.
+ *
+ * @return Value of the coefficient.
+ */
+NRF_STATIC_INLINE uint32_t nrf_saadc_linearity_calibration_coeff_get(NRF_SAADC_Type const * p_reg,
+                                                                     uint8_t                index);
+#endif
+
 /**
  * @brief Function for initializing the SAADC channel.
  *
@@ -584,7 +960,7 @@ NRF_STATIC_INLINE void nrf_saadc_continuous_mode_disable(NRF_SAADC_Type * p_reg)
 NRF_STATIC_INLINE void nrf_saadc_channel_init(NRF_SAADC_Type *                   p_reg,
                                               uint8_t                            channel,
                                               nrf_saadc_channel_config_t const * config);
-
+#if NRF_SAADC_HAS_CH_BURST
 /**
  * @brief Function for configuring the burst mode for the specified channel.
  *
@@ -592,9 +968,21 @@ NRF_STATIC_INLINE void nrf_saadc_channel_init(NRF_SAADC_Type *                  
  * @param[in] channel Channel number.
  * @param[in] burst   Burst mode setting.
  */
+NRF_STATIC_INLINE void nrf_saadc_channel_burst_set(NRF_SAADC_Type *  p_reg,
+                                                   uint8_t           channel,
+                                                   nrf_saadc_burst_t burst);
+#endif
+
+#if NRF_SAADC_HAS_BURST
+/**
+ * @brief Function for configuring peripheral burst mode.
+ *
+ * @param[in] p_reg Pointer to the structure of registers of the peripheral.
+ * @param[in] burst Burst mode setting.
+ */
 NRF_STATIC_INLINE void nrf_saadc_burst_set(NRF_SAADC_Type *  p_reg,
-                                           uint8_t           channel,
                                            nrf_saadc_burst_t burst);
+#endif
 
 /**
  * @brief Function for getting the minimum value of the conversion result.
@@ -605,7 +993,7 @@ NRF_STATIC_INLINE void nrf_saadc_burst_set(NRF_SAADC_Type *  p_reg,
  *
  * @return Minimum value of the conversion result.
  */
-NRF_STATIC_INLINE nrf_saadc_value_t nrf_saadc_value_min_get(nrf_saadc_resolution_t resolution);
+NRF_STATIC_INLINE int16_t nrf_saadc_value_min_get(nrf_saadc_resolution_t resolution);
 
 /**
  * @brief Function for getting the maximum value of the conversion result.
@@ -616,7 +1004,45 @@ NRF_STATIC_INLINE nrf_saadc_value_t nrf_saadc_value_min_get(nrf_saadc_resolution
  *
  * @return Maximum value of the conversion result.
  */
-NRF_STATIC_INLINE nrf_saadc_value_t nrf_saadc_value_max_get(nrf_saadc_resolution_t resolution);
+NRF_STATIC_INLINE int16_t nrf_saadc_value_max_get(nrf_saadc_resolution_t resolution);
+
+#if NRF_SAADC_HAS_CAL
+/**
+ * @brief Function for setting SAADC CAL trimming value.
+ *
+ * @param[in] p_reg Pointer to the structure of registers of the peripheral.
+ * @param[in] trim  Trimming value
+ */
+NRF_STATIC_INLINE void nrf_saadc_cal_set(NRF_SAADC_Type * p_reg, uint32_t trim);
+
+/**
+ * @brief Function for getting SAADC CAL trimming value.
+ *
+ * @param[in] p_reg Pointer to the structure of registers of the peripheral.
+ *
+ * @return Trimming value
+ */
+NRF_STATIC_INLINE uint32_t nrf_saadc_cal_get(NRF_SAADC_Type const * p_reg);
+#endif
+
+#if NRF_SAADC_HAS_CALREF
+/**
+ * @brief Function for setting SAADC CALREF trimming value.
+ *
+ * @param[in] p_reg Pointer to the structure of registers of the peripheral.
+ * @param[in] trim  Trimming value
+ */
+NRF_STATIC_INLINE void nrf_saadc_calref_set(NRF_SAADC_Type * p_reg, uint32_t trim);
+
+/**
+ * @brief Function for getting SAADC CALREF trimming value.
+ *
+ * @param[in] p_reg Pointer to the structure of registers of the peripheral.
+ *
+ * @return Trimming value
+ */
+NRF_STATIC_INLINE uint32_t nrf_saadc_calref_get(NRF_SAADC_Type const * p_reg);
+#endif
 
 #ifndef NRF_DECLARE_ONLY
 
@@ -628,27 +1054,24 @@ NRF_STATIC_INLINE void nrf_saadc_task_trigger(NRF_SAADC_Type * p_reg, nrf_saadc_
 NRF_STATIC_INLINE uint32_t nrf_saadc_task_address_get(NRF_SAADC_Type const * p_reg,
                                                       nrf_saadc_task_t       task)
 {
-    return (uint32_t)((uint8_t *)p_reg + (uint32_t)task);
+    return nrf_task_event_address_get(p_reg, task);
 }
 
 NRF_STATIC_INLINE bool nrf_saadc_event_check(NRF_SAADC_Type const * p_reg, nrf_saadc_event_t event)
 {
-    return (bool)*(volatile uint32_t *)((uint8_t *)p_reg + (uint32_t)event);
+    return nrf_event_check(p_reg, event);
 }
 
 NRF_STATIC_INLINE void nrf_saadc_event_clear(NRF_SAADC_Type * p_reg, nrf_saadc_event_t event)
 {
     *((volatile uint32_t *)((uint8_t *)p_reg + (uint32_t)event)) = 0x0UL;
-#if __CORTEX_M == 0x04
-    volatile uint32_t dummy = *((volatile uint32_t *)((uint8_t *)p_reg + (uint32_t)event));
-    (void)dummy;
-#endif
+    nrf_event_readback((uint8_t *)p_reg + (uint32_t)event);
 }
 
 NRF_STATIC_INLINE uint32_t  nrf_saadc_event_address_get(NRF_SAADC_Type const * p_reg,
                                                         nrf_saadc_event_t      event)
 {
-    return (uint32_t )((uint8_t *)p_reg + (uint32_t)event);
+    return nrf_task_event_address_get(p_reg, event);
 }
 
 #if defined(DPPI_PRESENT)
@@ -657,7 +1080,7 @@ NRF_STATIC_INLINE void nrf_saadc_subscribe_set(NRF_SAADC_Type * p_reg,
                                                uint8_t          channel)
 {
     *((volatile uint32_t *) ((uint8_t *) p_reg + (uint32_t) task + 0x80uL)) =
-            ((uint32_t)channel | SAADC_SUBSCRIBE_START_EN_Msk);
+            ((uint32_t)channel | NRF_SUBSCRIBE_PUBLISH_ENABLE);
 }
 
 NRF_STATIC_INLINE void nrf_saadc_subscribe_clear(NRF_SAADC_Type * p_reg, nrf_saadc_task_t task)
@@ -665,17 +1088,29 @@ NRF_STATIC_INLINE void nrf_saadc_subscribe_clear(NRF_SAADC_Type * p_reg, nrf_saa
     *((volatile uint32_t *) ((uint8_t *) p_reg + (uint32_t) task + 0x80uL)) = 0;
 }
 
+NRF_STATIC_INLINE uint32_t nrf_saadc_subscribe_get(NRF_SAADC_Type const * p_reg,
+                                                   nrf_saadc_task_t       task)
+{
+    return *((volatile uint32_t const *) ((uint8_t const *) p_reg + (uint32_t) task + 0x80uL));
+}
+
 NRF_STATIC_INLINE void nrf_saadc_publish_set(NRF_SAADC_Type *  p_reg,
                                              nrf_saadc_event_t event,
                                              uint8_t           channel)
 {
     *((volatile uint32_t *) ((uint8_t *) p_reg + (uint32_t) event + 0x80uL)) =
-            ((uint32_t)channel | SAADC_PUBLISH_STARTED_EN_Msk);
+            ((uint32_t)channel | NRF_SUBSCRIBE_PUBLISH_ENABLE);
 }
 
 NRF_STATIC_INLINE void nrf_saadc_publish_clear(NRF_SAADC_Type * p_reg, nrf_saadc_event_t event)
 {
     *((volatile uint32_t *) ((uint8_t *) p_reg + (uint32_t) event + 0x80uL)) = 0;
+}
+
+NRF_STATIC_INLINE uint32_t nrf_saadc_publish_get(NRF_SAADC_Type const * p_reg,
+                                                 nrf_saadc_event_t      event)
+{
+    return *((volatile uint32_t const *) ((uint8_t const *) p_reg + (uint32_t) event + 0x80uL));
 }
 #endif // defined(DPPI_PRESENT)
 
@@ -697,15 +1132,66 @@ NRF_STATIC_INLINE void nrf_saadc_channel_input_set(NRF_SAADC_Type *  p_reg,
                                                    nrf_saadc_input_t pselp,
                                                    nrf_saadc_input_t pseln)
 {
-    p_reg->CH[channel].PSELN = pseln;
-    p_reg->CH[channel].PSELP = pselp;
+    nrf_saadc_channel_pos_input_set(p_reg, channel, pselp);
+    nrf_saadc_channel_neg_input_set(p_reg, channel, pseln);
 }
 
 NRF_STATIC_INLINE void nrf_saadc_channel_pos_input_set(NRF_SAADC_Type *  p_reg,
                                                        uint8_t           channel,
                                                        nrf_saadc_input_t pselp)
 {
-    p_reg->CH[channel].PSELP = pselp;
+    uint32_t pselp_reg = pselp;
+#if NRF_SAADC_HAS_AIN_AS_PIN
+    if (pselp == NRF_SAADC_INPUT_DISABLED)
+    {
+        pselp_reg = 0;
+    }
+#if NRF_SAADC_HAS_CH_PSELP_INTERNAL
+    else if (pselp >> SAADC_CH_PSELP_INTERNAL_Pos)
+    {
+        /* Substract shifted '1' before setting register value,
+         * as it was artifically added before in the internal input definition */
+        pselp_reg  = (pselp - (1 << SAADC_CH_PSELP_INTERNAL_Pos)) |
+                     (SAADC_CH_PSELP_CONNECT_Internal << SAADC_CH_PSELP_CONNECT_Pos);
+    }
+#endif
+    else
+    {
+        pselp_reg  = (NRF_PIN_NUMBER_TO_PIN(pselp)  << SAADC_CH_PSELP_PIN_Pos)  |
+                     (NRF_PIN_NUMBER_TO_PORT(pselp) << SAADC_CH_PSELP_PORT_Pos) |
+                     (SAADC_CH_PSELP_CONNECT_AnalogInput << SAADC_CH_PSELP_CONNECT_Pos);
+    }
+#endif
+    p_reg->CH[channel].PSELP = pselp_reg;
+}
+
+NRF_STATIC_INLINE void nrf_saadc_channel_neg_input_set(NRF_SAADC_Type *  p_reg,
+                                                       uint8_t           channel,
+                                                       nrf_saadc_input_t pseln)
+{
+    uint32_t pseln_reg = pseln;
+#if NRF_SAADC_HAS_AIN_AS_PIN
+    if (pseln == NRF_SAADC_INPUT_DISABLED)
+    {
+        pseln_reg = 0;
+    }
+#if NRF_SAADC_HAS_CH_PSELN_INTERNAL
+    else if (pseln >> SAADC_CH_PSELN_INTERNAL_Pos)
+    {
+        /* Substract shifted '1' before setting register value,
+         * as it was artifically added before in the internal input definition */
+        pseln_reg  = (pseln - (1 << SAADC_CH_PSELN_INTERNAL_Pos)) |
+                     (SAADC_CH_PSELN_CONNECT_Internal << SAADC_CH_PSELN_CONNECT_Pos);
+    }
+#endif
+    else
+    {
+        pseln_reg  = (NRF_PIN_NUMBER_TO_PIN(pseln)  << SAADC_CH_PSELN_PIN_Pos)  |
+                     (NRF_PIN_NUMBER_TO_PORT(pseln) << SAADC_CH_PSELN_PORT_Pos) |
+                     (SAADC_CH_PSELN_CONNECT_AnalogInput << SAADC_CH_PSELN_CONNECT_Pos);
+    }
+#endif
+    p_reg->CH[channel].PSELN = pseln_reg;
 }
 
 NRF_STATIC_INLINE void nrf_saadc_channel_limits_set(NRF_SAADC_Type * p_reg,
@@ -716,6 +1202,11 @@ NRF_STATIC_INLINE void nrf_saadc_channel_limits_set(NRF_SAADC_Type * p_reg,
     p_reg->CH[channel].LIMIT = (
             (((uint32_t) low << SAADC_CH_LIMIT_LOW_Pos) & SAADC_CH_LIMIT_LOW_Msk)
           | (((uint32_t) high << SAADC_CH_LIMIT_HIGH_Pos) & SAADC_CH_LIMIT_HIGH_Msk));
+}
+
+NRF_STATIC_INLINE void nrf_saadc_int_set(NRF_SAADC_Type * p_reg, uint32_t mask)
+{
+    p_reg->INTEN = mask;
 }
 
 NRF_STATIC_INLINE void nrf_saadc_int_enable(NRF_SAADC_Type * p_reg, uint32_t mask)
@@ -767,7 +1258,11 @@ NRF_STATIC_INLINE void nrf_saadc_buffer_init(NRF_SAADC_Type *    p_reg,
                                              uint32_t            size)
 {
     p_reg->RESULT.PTR = (uint32_t)p_buffer;
+#if defined(DMA_BUFFER_UNIFIED_BYTE_ACCESS)
+    p_reg->RESULT.MAXCNT = size * 2;
+#else
     p_reg->RESULT.MAXCNT = size;
+#endif
 }
 
 NRF_STATIC_INLINE void nrf_saadc_buffer_pointer_set(NRF_SAADC_Type *    p_reg,
@@ -783,7 +1278,11 @@ NRF_STATIC_INLINE nrf_saadc_value_t * nrf_saadc_buffer_pointer_get(NRF_SAADC_Typ
 
 NRF_STATIC_INLINE uint16_t nrf_saadc_amount_get(NRF_SAADC_Type const * p_reg)
 {
-    return p_reg->RESULT.AMOUNT;
+#if defined(DMA_BUFFER_UNIFIED_BYTE_ACCESS)
+    return ((uint16_t)p_reg->RESULT.AMOUNT / 2);
+#else
+    return (uint16_t)p_reg->RESULT.AMOUNT;
+#endif
 }
 
 NRF_STATIC_INLINE void nrf_saadc_resolution_set(NRF_SAADC_Type *       p_reg,
@@ -815,7 +1314,7 @@ NRF_STATIC_INLINE uint32_t nrf_saadc_oversample_sample_count_get(nrf_saadc_overs
 
 NRF_STATIC_INLINE void nrf_saadc_continuous_mode_enable(NRF_SAADC_Type * p_reg, uint16_t cc)
 {
-    NRFX_ASSERT((cc >= 80) && (cc <= 2047));
+    NRFX_ASSERT((cc >= NRF_SAADC_SAMPLERATE_CC_MIN) && (cc <= NRF_SAADC_SAMPLERATE_CC_MAX));
     p_reg->SAMPLERATE = (SAADC_SAMPLERATE_MODE_Timers << SAADC_SAMPLERATE_MODE_Pos)
                         | ((uint32_t)cc << SAADC_SAMPLERATE_CC_Pos);
 }
@@ -831,29 +1330,79 @@ NRF_STATIC_INLINE void nrf_saadc_continuous_mode_disable(NRF_SAADC_Type * p_reg)
     p_reg->SAMPLERATE = SAADC_SAMPLERATE_MODE_Task << SAADC_SAMPLERATE_MODE_Pos;
 }
 
+#if NRF_SAADC_HAS_LIN_CAL
+NRF_STATIC_INLINE void nrf_saadc_linearity_calibration_coeff_set(NRF_SAADC_Type * p_reg,
+                                                                 uint8_t          index,
+                                                                 uint32_t         coeff)
+{
+    NRFX_ASSERT(index < NRF_SAADC_LIN_CAL_MAX_COUNT);
+    NRFX_ASSERT(coeff <= NRF_SAADC_LIN_CAL_MAX);
+    p_reg->TRIM.LINCALCOEFF[index] = coeff;
+}
+
+NRF_STATIC_INLINE uint32_t nrf_saadc_linearity_calibration_coeff_get(NRF_SAADC_Type const * p_reg,
+                                                                     uint8_t                index)
+{
+    NRFX_ASSERT(index < NRF_SAADC_LIN_CAL_MAX_COUNT);
+    return p_reg->TRIM.LINCALCOEFF[index];
+}
+#endif
+
 NRF_STATIC_INLINE void nrf_saadc_channel_init(NRF_SAADC_Type *                   p_reg,
                                               uint8_t                            channel,
                                               nrf_saadc_channel_config_t const * config)
 {
+#if !NRF_SAADC_HAS_ACQTIME_ENUM
+    NRFX_ASSERT(config->acq_time <= NRF_SAADC_ACQTIME_MAX);
+#endif
+#if NRF_SAADC_HAS_CONVTIME
+    NRFX_ASSERT(config->conv_time <= NRF_SAADC_CONVTIME_MAX);
+#endif
     p_reg->CH[channel].CONFIG =
-            ((config->resistor_p   << SAADC_CH_CONFIG_RESP_Pos)   & SAADC_CH_CONFIG_RESP_Msk)
-            | ((config->resistor_n << SAADC_CH_CONFIG_RESN_Pos)   & SAADC_CH_CONFIG_RESN_Msk)
+            ((config->reference    << SAADC_CH_CONFIG_REFSEL_Pos) & SAADC_CH_CONFIG_REFSEL_Msk)
+#if NRF_SAADC_HAS_CH_GAIN
             | ((config->gain       << SAADC_CH_CONFIG_GAIN_Pos)   & SAADC_CH_CONFIG_GAIN_Msk)
-            | ((config->reference  << SAADC_CH_CONFIG_REFSEL_Pos) & SAADC_CH_CONFIG_REFSEL_Msk)
+#endif
             | ((config->acq_time   << SAADC_CH_CONFIG_TACQ_Pos)   & SAADC_CH_CONFIG_TACQ_Msk)
-            | ((config->mode       << SAADC_CH_CONFIG_MODE_Pos)   & SAADC_CH_CONFIG_MODE_Msk)
-            | ((config->burst      << SAADC_CH_CONFIG_BURST_Pos)  & SAADC_CH_CONFIG_BURST_Msk);
+#if NRF_SAADC_HAS_CH_CONFIG_RES
+            | ((config->resistor_p << SAADC_CH_CONFIG_RESP_Pos)   & SAADC_CH_CONFIG_RESP_Msk)
+            | ((config->resistor_n << SAADC_CH_CONFIG_RESN_Pos)   & SAADC_CH_CONFIG_RESN_Msk)
+#endif
+#if NRF_SAADC_HAS_CONVTIME
+            | ((config->conv_time  << SAADC_CH_CONFIG_TCONV_Pos)  & SAADC_CH_CONFIG_TCONV_Msk)
+#endif
+#if NRF_SAADC_HAS_CH_BURST
+            | ((config->burst      << SAADC_CH_CONFIG_BURST_Pos)  & SAADC_CH_CONFIG_BURST_Msk)
+#endif
+#if NRF_SAADC_HAS_CH_CHOPPING
+            | ((config->chopping   << SAADC_CH_CONFIG_CHOPPING_Pos) & SAADC_CH_CONFIG_CHOPPING_Msk)
+#endif
+#if NRF_SAADC_HAS_CH_HIGHSPEED
+            | ((config->highspeed  << SAADC_CH_CONFIG_HIGHSPEED_Pos) &
+                                      SAADC_CH_CONFIG_HIGHSPEED_Msk)
+#endif
+            | ((config->mode       << SAADC_CH_CONFIG_MODE_Pos)   & SAADC_CH_CONFIG_MODE_Msk);
 }
 
-NRF_STATIC_INLINE void nrf_saadc_burst_set(NRF_SAADC_Type *  p_reg,
-                                           uint8_t           channel,
-                                           nrf_saadc_burst_t burst)
+#if NRF_SAADC_HAS_CH_BURST
+NRF_STATIC_INLINE void nrf_saadc_channel_burst_set(NRF_SAADC_Type *  p_reg,
+                                                   uint8_t           channel,
+                                                   nrf_saadc_burst_t burst)
 {
     p_reg->CH[channel].CONFIG = (p_reg->CH[channel].CONFIG & ~SAADC_CH_CONFIG_BURST_Msk) |
                                 (burst << SAADC_CH_CONFIG_BURST_Pos);
 }
+#endif
 
-NRF_STATIC_INLINE nrf_saadc_value_t nrf_saadc_value_min_get(nrf_saadc_resolution_t resolution)
+#if NRF_SAADC_HAS_BURST
+NRF_STATIC_INLINE void nrf_saadc_burst_set(NRF_SAADC_Type *  p_reg,
+                                           nrf_saadc_burst_t burst)
+{
+    p_reg->BURST = burst;
+}
+#endif
+
+NRF_STATIC_INLINE int16_t nrf_saadc_value_min_get(nrf_saadc_resolution_t resolution)
 {
     uint8_t res_bits = 0;
     switch (resolution)
@@ -873,10 +1422,10 @@ NRF_STATIC_INLINE nrf_saadc_value_t nrf_saadc_value_min_get(nrf_saadc_resolution
         default:
             NRFX_ASSERT(false);
     }
-    return (nrf_saadc_value_t)(-(1 << res_bits));
+    return (int16_t)(-(1 << res_bits));
 }
 
-NRF_STATIC_INLINE nrf_saadc_value_t nrf_saadc_value_max_get(nrf_saadc_resolution_t resolution)
+NRF_STATIC_INLINE int16_t nrf_saadc_value_max_get(nrf_saadc_resolution_t resolution)
 {
     uint8_t res_bits = 0;
     switch (resolution)
@@ -896,8 +1445,32 @@ NRF_STATIC_INLINE nrf_saadc_value_t nrf_saadc_value_max_get(nrf_saadc_resolution
         default:
             NRFX_ASSERT(false);
     }
-    return (nrf_saadc_value_t)((1 << res_bits) - 1);
+    return (int16_t)((1 << res_bits) - 1);
 }
+
+#if NRF_SAADC_HAS_CAL
+NRF_STATIC_INLINE void nrf_saadc_cal_set(NRF_SAADC_Type * p_reg, uint32_t trim)
+{
+    p_reg->CAL = trim;
+}
+
+NRF_STATIC_INLINE uint32_t nrf_saadc_cal_get(NRF_SAADC_Type const * p_reg)
+{
+    return p_reg->CAL;
+}
+#endif
+
+#if NRF_SAADC_HAS_CALREF
+NRF_STATIC_INLINE void nrf_saadc_calref_set(NRF_SAADC_Type * p_reg, uint32_t trim)
+{
+    p_reg->CALREF = trim;
+}
+
+NRF_STATIC_INLINE uint32_t nrf_saadc_calref_get(NRF_SAADC_Type const * p_reg)
+{
+    return p_reg->CALREF;
+}
+#endif
 
 #endif // NRF_DECLARE_ONLY
 

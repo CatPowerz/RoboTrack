@@ -1,6 +1,8 @@
 /*
- * Copyright (c) 2012 - 2019, Nordic Semiconductor ASA
+ * Copyright (c) 2012 - 2025, Nordic Semiconductor ASA
  * All rights reserved.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -45,9 +47,26 @@ extern "C" {
  * @brief   Hardware access layer (HAL) for managing the Non-Volatile Memory Controller (NVMC) peripheral.
  */
 
-#if defined(NVMC_ERASEPAGEPARTIALCFG_DURATION_Msk) || defined(__NRFX_DOXYGEN__)
+#if defined(NVMC_ERASEPAGEPARTIALCFG_DURATION_Msk) || defined(NVMC_CONFIG_WEN_PEen) || \
+    defined(__NRFX_DOXYGEN__)
 /** @brief Symbol indicating whether the option of page partial erase is present. */
-#define NRF_NVMC_PARTIAL_ERASE_PRESENT
+#define NRF_NVMC_HAS_PARTIAL_ERASE 1
+#else
+#define NRF_NVMC_HAS_PARTIAL_ERASE 0
+#endif
+
+#if defined(NVMC_CONFIGNS_WEN_Msk) || defined (__NRFX_DOXYGEN__)
+/** @brief Symbol indicating whether NVMC has non-secure operations available. */
+#define NRF_NVMC_HAS_NON_SECURE_OPERATIONS 1
+#else
+#define NRF_NVMC_HAS_NON_SECURE_OPERATIONS 0
+#endif
+
+#if defined(NVMC_ERASEUICR_ERASEUICR_Msk) || defined (__NRFX_DOXYGEN__)
+/** @brief Symbol indicating whether NVMC has UICR erase available. */
+#define NRF_NVMC_HAS_UICR_ERASE 1
+#else
+#define NRF_NVMC_HAS_UICR_ERASE 0
 #endif
 
 /** @brief NVMC modes. */
@@ -61,7 +80,7 @@ typedef enum
 #endif
 } nrf_nvmc_mode_t;
 
-#if defined(NVMC_CONFIGNS_WEN_Msk) || defined(__NRFX_DOXYGEN__)
+#if NRF_NVMC_HAS_NON_SECURE_OPERATIONS
 /** @brief Non-secure NVMC modes. */
 typedef enum
 {
@@ -120,7 +139,7 @@ NRF_STATIC_INLINE bool nrf_nvmc_write_ready_check(NRF_NVMC_Type const * p_reg);
 NRF_STATIC_INLINE void nrf_nvmc_mode_set(NRF_NVMC_Type * p_reg,
                                          nrf_nvmc_mode_t mode);
 
-#if defined(NVMC_CONFIGNS_WEN_Msk) || defined(__NRFX_DOXYGEN__)
+#if NRF_NVMC_HAS_NON_SECURE_OPERATIONS
 /**
  * @brief Function for setting the NVMC mode for non-secure Flash page operations.
  *
@@ -130,6 +149,79 @@ NRF_STATIC_INLINE void nrf_nvmc_mode_set(NRF_NVMC_Type * p_reg,
 NRF_STATIC_INLINE void nrf_nvmc_nonsecure_mode_set(NRF_NVMC_Type *    p_reg,
                                                    nrf_nvmc_ns_mode_t mode);
 #endif
+
+/**
+ * @brief Function for writing a 32-bit word to flash.
+ *
+ * @note Before calling this function, the caller must ensure that:
+ *     - the @p address is word-aligned,
+ *     - write mode is enabled, using @ref nrf_nvmc_mode_set,
+ *     - the NVMC is ready to accept another write, using
+ *       @ref nrf_nvmc_ready_check or @ref nrf_nvmc_write_ready_check,
+ *     - read-only mode is enabled as soon as writing is no longer needed,
+ *       using @ref nrf_nvmc_mode_set.
+ *
+ * @warning It is recommended to use @ref nrfx_nvmc_word_write function instead.
+ *
+ * Using this function when accessing the flash gives the possibility
+ * to run the code in an environment where the flash is simulated.
+ *
+ * @param[in] address  Address of the word to write.
+ * @param[in] value    Value to write.
+ */
+NRF_STATIC_INLINE void nrf_nvmc_word_write(uint32_t address,
+                                           uint32_t value);
+
+/**
+ * @brief Function for reading a byte from the flash.
+ *
+ * Using this function when accessing the flash gives the possibility
+ * to run the code in an environment where the flash is simulated.
+ *
+ * @param[in] address Address of the byte to read.
+ *
+ * @return Value read from flash.
+ */
+NRF_STATIC_INLINE uint8_t nrf_nvmc_byte_read(uint32_t address);
+
+/**
+ * @brief Function for reading a 16-bit halfword from the flash.
+ *
+ * Using this function when accessing the flash gives the possibility
+ * to run the code in an environment where the flash is simulated.
+ *
+ * @param[in] address Address of the halfword to read.
+ *
+ * @return Value read from flash.
+ */
+NRF_STATIC_INLINE uint16_t nrf_nvmc_halfword_read(uint32_t address);
+
+/**
+ * @brief Function for reading a 32-bit word from the flash.
+ *
+ * Using this function when accessing the flash gives the possibility
+ * to run the code in an environment where the flash is simulated.
+ *
+ * @param[in] address Address of the word to read.
+ *
+ * @return Value read from flash.
+ */
+NRF_STATIC_INLINE uint32_t nrf_nvmc_word_read(uint32_t address);
+
+/**
+ * @brief Function for reading a given number of bytes from the flash into the specified buffer.
+ *
+ * Using this function when accessing the flash gives the possibility
+ * to run the code in an environment where the flash is simulated.
+ *
+ * @param[in] dst       Pointer to the buffer to store the data.
+ * @param[in] address   Address of the first byte to read.
+ * @param[in] num_bytes Number of bytes to read.
+ *
+ */
+NRF_STATIC_INLINE void nrf_nvmc_buffer_read(void *   dst,
+                                            uint32_t address,
+                                            uint32_t num_bytes);
 
 /**
  * @brief Function for starting a single page erase in the Flash memory.
@@ -143,7 +235,7 @@ NRF_STATIC_INLINE void nrf_nvmc_nonsecure_mode_set(NRF_NVMC_Type *    p_reg,
 NRF_STATIC_INLINE void nrf_nvmc_page_erase_start(NRF_NVMC_Type * p_reg,
                                                  uint32_t        page_addr);
 
-#if defined(NVMC_ERASEUICR_ERASEUICR_Msk) || defined(__NRFX_DOXYGEN__)
+#if NRF_NVMC_HAS_UICR_ERASE
 /**
  * @brief Function for starting the user information configuration registers (UICR) erase.
  *
@@ -161,7 +253,7 @@ NRF_STATIC_INLINE void nrf_nvmc_uicr_erase_start(NRF_NVMC_Type * p_reg);
  */
 NRF_STATIC_INLINE void nrf_nvmc_erase_all_start(NRF_NVMC_Type * p_reg);
 
-#if defined(NRF_NVMC_PARTIAL_ERASE_PRESENT)
+#if NRF_NVMC_HAS_PARTIAL_ERASE
 /**
  * @brief Function for configuring the page partial erase duration in milliseconds.
  *
@@ -190,7 +282,7 @@ NRF_STATIC_INLINE uint32_t nrf_nvmc_partial_erase_duration_get(NRF_NVMC_Type con
  */
 NRF_STATIC_INLINE void nrf_nvmc_page_partial_erase_start(NRF_NVMC_Type * p_reg,
                                                          uint32_t        page_addr);
-#endif // defined(NRF_NVMC_PARTIAL_ERASE_PRESENT)
+#endif // NRF_NVMC_HAS_PARTIAL_ERASE
 
 #if defined(NVMC_FEATURE_CACHE_PRESENT)
 /**
@@ -272,13 +364,41 @@ NRF_STATIC_INLINE void nrf_nvmc_mode_set(NRF_NVMC_Type * p_reg,
     p_reg->CONFIG = (uint32_t)mode;
 }
 
-#if defined(NVMC_CONFIGNS_WEN_Msk)
+#if NRF_NVMC_HAS_NON_SECURE_OPERATIONS
 NRF_STATIC_INLINE void nrf_nvmc_nonsecure_mode_set(NRF_NVMC_Type *    p_reg,
                                                    nrf_nvmc_ns_mode_t mode)
 {
     p_reg->CONFIGNS = (uint32_t)mode;
 }
 #endif
+
+NRF_STATIC_INLINE void nrf_nvmc_word_write(uint32_t address,
+                                           uint32_t value)
+{
+    *(volatile uint32_t *)address = value;
+}
+
+NRF_STATIC_INLINE uint8_t nrf_nvmc_byte_read(uint32_t address)
+{
+    return *(volatile uint8_t *)address;
+}
+
+NRF_STATIC_INLINE uint16_t nrf_nvmc_halfword_read(uint32_t address)
+{
+    return *(volatile uint16_t *)address;
+}
+
+NRF_STATIC_INLINE uint32_t nrf_nvmc_word_read(uint32_t address)
+{
+    return *(volatile uint32_t *)address;
+}
+
+NRF_STATIC_INLINE void nrf_nvmc_buffer_read(void *   dst,
+                                            uint32_t address,
+                                            uint32_t num_bytes)
+{
+    memcpy(dst, (void *)address, num_bytes);
+}
 
 NRF_STATIC_INLINE void nrf_nvmc_page_erase_start(NRF_NVMC_Type * p_reg,
                                                  uint32_t        page_addr)
@@ -300,7 +420,7 @@ NRF_STATIC_INLINE void nrf_nvmc_page_erase_start(NRF_NVMC_Type * p_reg,
     }
 #elif defined(NRF52_SERIES)
     p_reg->ERASEPAGE = page_addr;
-#elif defined(NRF9160_XXAA) || defined(NRF5340_XXAA_APPLICATION) || defined(NRF5340_XXAA_NETWORK)
+#elif defined(NRF53_SERIES) || defined(NRF91_SERIES)
     *(volatile uint32_t *)page_addr = 0xFFFFFFFF;
     (void)p_reg;
 #else
@@ -308,7 +428,7 @@ NRF_STATIC_INLINE void nrf_nvmc_page_erase_start(NRF_NVMC_Type * p_reg,
 #endif
 }
 
-#if defined(NVMC_ERASEUICR_ERASEUICR_Msk)
+#if NRF_NVMC_HAS_UICR_ERASE
 NRF_STATIC_INLINE void nrf_nvmc_uicr_erase_start(NRF_NVMC_Type * p_reg)
 {
     p_reg->ERASEUICR = 1;
@@ -320,7 +440,7 @@ NRF_STATIC_INLINE void nrf_nvmc_erase_all_start(NRF_NVMC_Type * p_reg)
     p_reg->ERASEALL = 1;
 }
 
-#if defined(NRF_NVMC_PARTIAL_ERASE_PRESENT)
+#if NRF_NVMC_HAS_PARTIAL_ERASE
 NRF_STATIC_INLINE void nrf_nvmc_partial_erase_duration_set(NRF_NVMC_Type * p_reg,
                                                            uint32_t        duration_ms)
 {
@@ -337,19 +457,35 @@ NRF_STATIC_INLINE void nrf_nvmc_page_partial_erase_start(NRF_NVMC_Type * p_reg,
 {
 #if defined(NVMC_ERASEPAGEPARTIAL_ERASEPAGEPARTIAL_Msk)
     p_reg->ERASEPAGEPARTIAL = page_addr;
-#elif defined(NRF9160_XXAA) || defined(NRF5340_XXAA_APPLICATION) || defined(NRF5340_XXAA_NETWORK)
+#elif defined(NRF53_SERIES) || defined(NRF91_SERIES)
     nrf_nvmc_page_erase_start(p_reg, page_addr);
 #else
     #error "Unknown device."
 #endif
 }
-#endif // defined(NRF_NVMC_PARTIAL_ERASE_PRESENT)
+#endif // NRF_NVMC_HAS_PARTIAL_ERASE
 
 #if defined(NVMC_FEATURE_CACHE_PRESENT)
 NRF_STATIC_INLINE void nrf_nvmc_icache_config_set(NRF_NVMC_Type *          p_reg,
                                                   nrf_nvmc_icache_config_t config)
 {
-    p_reg->ICACHECNF = (uint32_t)config;
+#if defined(NRF5340_XXAA_NETWORK) || defined(NRF91_SERIES)
+    // Apply workaround for the anomalies:
+    // - 6 for the nRF53.
+    // - 21 for the nRF91.
+    if (config == NRF_NVMC_ICACHE_DISABLE)
+    {
+        NRFX_CRITICAL_SECTION_ENTER();
+        __ISB();
+        p_reg->ICACHECNF = (uint32_t)NRF_NVMC_ICACHE_DISABLE;
+        __ISB();
+        NRFX_CRITICAL_SECTION_EXIT();
+    }
+    else
+#endif
+    {
+        p_reg->ICACHECNF = (uint32_t)config;
+    }
 }
 
 NRF_STATIC_INLINE bool nrf_nvmc_icache_enable_check(NRF_NVMC_Type const * p_reg)

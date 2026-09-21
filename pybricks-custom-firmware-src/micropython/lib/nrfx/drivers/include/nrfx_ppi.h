@@ -1,6 +1,8 @@
 /*
- * Copyright (c) 2015 - 2019, Nordic Semiconductor ASA
+ * Copyright (c) 2015 - 2025, Nordic Semiconductor ASA
  * All rights reserved.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -46,13 +48,13 @@
 extern "C" {
 #endif
 
-#if !defined (NRFX_PPI_CHANNELS_USED) || defined(__NRFX_DOXYGEN__)
-/** @brief Bitfield representing PPI channels used by external modules. */
+#if !defined (NRFX_PPI_CHANNELS_USED) && !defined(__NRFX_DOXYGEN__)
+/* Bitfield representing PPI channels used by external modules. */
 #define NRFX_PPI_CHANNELS_USED 0
 #endif
 
-#if !defined(NRFX_PPI_GROUPS_USED) || defined(__NRFX_DOXYGEN__)
-/** @brief Bitfield representing PPI groups used by external modules. */
+#if !defined(NRFX_PPI_GROUPS_USED) && !defined(__NRFX_DOXYGEN__)
+/* Bitfield representing PPI groups used by external modules. */
 #define NRFX_PPI_GROUPS_USED 0
 #endif
 
@@ -80,6 +82,8 @@ void nrfx_ppi_free_all(void);
  * @brief Function for allocating a PPI channel.
  * @details This function allocates the first unused PPI channel.
  *
+ * @note Function is thread safe as it uses @ref nrfx_flag32_alloc.
+ *
  * @param[out] p_channel Pointer to the PPI channel that has been allocated.
  *
  * @retval NRFX_SUCCESS      The channel was successfully allocated.
@@ -90,6 +94,8 @@ nrfx_err_t nrfx_ppi_channel_alloc(nrf_ppi_channel_t * p_channel);
 /**
  * @brief Function for freeing a PPI channel.
  * @details This function also disables the chosen channel.
+ *
+ * @note Function is thread safe as it uses @ref nrfx_flag32_free.
  *
  * @param[in] channel PPI channel to be freed.
  *
@@ -149,6 +155,8 @@ nrfx_err_t nrfx_ppi_channel_disable(nrf_ppi_channel_t channel);
  * @brief Function for allocating a PPI channel group.
  * @details This function allocates the first unused PPI group.
  *
+ * @note Function is thread safe as it uses @ref nrfx_flag32_alloc.
+ *
  * @param[out] p_group Pointer to the PPI channel group that has been allocated.
  *
  * @retval NRFX_SUCCESS      The channel group was successfully allocated.
@@ -159,6 +167,8 @@ nrfx_err_t nrfx_ppi_group_alloc(nrf_ppi_channel_group_t * p_group);
 /**
  * @brief Function for freeing a PPI channel group.
  * @details This function also disables the chosen group.
+ *
+ * @note Function is thread safe as it uses @ref nrfx_flag32_free.
  *
  * @param[in] group PPI channel group to be freed.
  *
@@ -272,7 +282,7 @@ nrfx_err_t nrfx_ppi_group_disable(nrf_ppi_channel_group_t group);
  *
  * @return Task address.
  */
-NRFX_STATIC_INLINE uint32_t nrfx_ppi_task_addr_get(nrf_ppi_task_t task);
+NRFX_STATIC_INLINE uint32_t nrfx_ppi_task_address_get(nrf_ppi_task_t task);
 
 /**
  * @brief Function for getting the address of the enable task of a PPI group.
@@ -281,7 +291,7 @@ NRFX_STATIC_INLINE uint32_t nrfx_ppi_task_addr_get(nrf_ppi_task_t task);
  *
  * @return Task address.
  */
-NRFX_STATIC_INLINE uint32_t nrfx_ppi_task_addr_group_enable_get(nrf_ppi_channel_group_t group);
+NRFX_STATIC_INLINE uint32_t nrfx_ppi_task_group_enable_address_get(nrf_ppi_channel_group_t group);
 
 /**
  * @brief Function for getting the address of the enable task of a PPI group.
@@ -290,7 +300,7 @@ NRFX_STATIC_INLINE uint32_t nrfx_ppi_task_addr_group_enable_get(nrf_ppi_channel_
  *
  * @return Task address.
  */
-NRFX_STATIC_INLINE uint32_t nrfx_ppi_task_addr_group_disable_get(nrf_ppi_channel_group_t group);
+NRFX_STATIC_INLINE uint32_t nrfx_ppi_task_group_disable_address_get(nrf_ppi_channel_group_t group);
 
 #ifndef NRFX_DECLARE_ONLY
 NRFX_STATIC_INLINE uint32_t nrfx_ppi_channel_to_mask(nrf_ppi_channel_t channel)
@@ -315,17 +325,17 @@ NRFX_STATIC_INLINE nrfx_err_t nrfx_ppi_group_clear(nrf_ppi_channel_group_t group
     return nrfx_ppi_channels_remove_from_group(NRFX_PPI_ALL_APP_CHANNELS_MASK, group);
 }
 
-NRFX_STATIC_INLINE uint32_t nrfx_ppi_task_addr_get(nrf_ppi_task_t task)
+NRFX_STATIC_INLINE uint32_t nrfx_ppi_task_address_get(nrf_ppi_task_t task)
 {
     return nrf_ppi_task_address_get(NRF_PPI, task);
 }
 
-NRFX_STATIC_INLINE uint32_t nrfx_ppi_task_addr_group_enable_get(nrf_ppi_channel_group_t group)
+NRFX_STATIC_INLINE uint32_t nrfx_ppi_task_group_enable_address_get(nrf_ppi_channel_group_t group)
 {
     return nrf_ppi_task_group_enable_address_get(NRF_PPI, group);
 }
 
-NRFX_STATIC_INLINE uint32_t nrfx_ppi_task_addr_group_disable_get(nrf_ppi_channel_group_t group)
+NRFX_STATIC_INLINE uint32_t nrfx_ppi_task_group_disable_address_get(nrf_ppi_channel_group_t group)
 {
     return nrf_ppi_task_group_disable_address_get(NRF_PPI, group);
 }

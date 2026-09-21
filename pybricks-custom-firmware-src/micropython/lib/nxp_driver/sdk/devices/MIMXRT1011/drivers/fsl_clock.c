@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 - 2021 NXP
+ * Copyright 2019 - 2021, 2024 NXP
  * All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
@@ -1001,30 +1001,30 @@ bool CLOCK_IsUsb1PfdEnabled(clock_pfd_t pfd)
 uint32_t CLOCK_GetSysPfdFreq(clock_pfd_t pfd)
 {
     uint32_t freq = CLOCK_GetPllFreq(kCLOCK_PllSys);
+    uint64_t tmp64 = (uint64_t)freq * 18UL;
 
     switch (pfd)
     {
         case kCLOCK_Pfd0:
-            freq /= ((CCM_ANALOG->PFD_528 & CCM_ANALOG_PFD_528_PFD0_FRAC_MASK) >> CCM_ANALOG_PFD_528_PFD0_FRAC_SHIFT);
+            freq = (uint32_t)(tmp64 / (uint64_t)((CCM_ANALOG->PFD_528 & CCM_ANALOG_PFD_528_PFD0_FRAC_MASK) >> CCM_ANALOG_PFD_528_PFD0_FRAC_SHIFT));
             break;
 
         case kCLOCK_Pfd1:
-            freq /= ((CCM_ANALOG->PFD_528 & CCM_ANALOG_PFD_528_PFD1_FRAC_MASK) >> CCM_ANALOG_PFD_528_PFD1_FRAC_SHIFT);
+            freq = (uint32_t)(tmp64 / (uint64_t)((CCM_ANALOG->PFD_528 & CCM_ANALOG_PFD_528_PFD1_FRAC_MASK) >> CCM_ANALOG_PFD_528_PFD1_FRAC_SHIFT));
             break;
 
         case kCLOCK_Pfd2:
-            freq /= ((CCM_ANALOG->PFD_528 & CCM_ANALOG_PFD_528_PFD2_FRAC_MASK) >> CCM_ANALOG_PFD_528_PFD2_FRAC_SHIFT);
+            freq = (uint32_t)(tmp64 / (uint64_t)((CCM_ANALOG->PFD_528 & CCM_ANALOG_PFD_528_PFD2_FRAC_MASK) >> CCM_ANALOG_PFD_528_PFD2_FRAC_SHIFT));
             break;
 
         case kCLOCK_Pfd3:
-            freq /= ((CCM_ANALOG->PFD_528 & CCM_ANALOG_PFD_528_PFD3_FRAC_MASK) >> CCM_ANALOG_PFD_528_PFD3_FRAC_SHIFT);
+            freq = (uint32_t)(tmp64 / (uint64_t)((CCM_ANALOG->PFD_528 & CCM_ANALOG_PFD_528_PFD3_FRAC_MASK) >> CCM_ANALOG_PFD_528_PFD3_FRAC_SHIFT));
             break;
 
         default:
             freq = 0U;
             break;
     }
-    freq *= 18U;
 
     return freq;
 }
@@ -1040,30 +1040,30 @@ uint32_t CLOCK_GetSysPfdFreq(clock_pfd_t pfd)
 uint32_t CLOCK_GetUsb1PfdFreq(clock_pfd_t pfd)
 {
     uint32_t freq = CLOCK_GetPllFreq(kCLOCK_PllUsb1);
+    uint64_t tmp64 = (uint64_t)freq * 18UL;
 
     switch (pfd)
     {
         case kCLOCK_Pfd0:
-            freq /= ((CCM_ANALOG->PFD_480 & CCM_ANALOG_PFD_480_PFD0_FRAC_MASK) >> CCM_ANALOG_PFD_480_PFD0_FRAC_SHIFT);
+            freq = (uint32_t)(tmp64 / (uint64_t)((CCM_ANALOG->PFD_480 & CCM_ANALOG_PFD_480_PFD0_FRAC_MASK) >> CCM_ANALOG_PFD_480_PFD0_FRAC_SHIFT));
             break;
 
         case kCLOCK_Pfd1:
-            freq /= ((CCM_ANALOG->PFD_480 & CCM_ANALOG_PFD_480_PFD1_FRAC_MASK) >> CCM_ANALOG_PFD_480_PFD1_FRAC_SHIFT);
+            freq = (uint32_t)(tmp64 / (uint64_t)((CCM_ANALOG->PFD_480 & CCM_ANALOG_PFD_480_PFD1_FRAC_MASK) >> CCM_ANALOG_PFD_480_PFD1_FRAC_SHIFT));
             break;
 
         case kCLOCK_Pfd2:
-            freq /= ((CCM_ANALOG->PFD_480 & CCM_ANALOG_PFD_480_PFD2_FRAC_MASK) >> CCM_ANALOG_PFD_480_PFD2_FRAC_SHIFT);
+            freq = (uint32_t)(tmp64 / (uint64_t)((CCM_ANALOG->PFD_480 & CCM_ANALOG_PFD_480_PFD2_FRAC_MASK) >> CCM_ANALOG_PFD_480_PFD2_FRAC_SHIFT));
             break;
 
         case kCLOCK_Pfd3:
-            freq /= ((CCM_ANALOG->PFD_480 & CCM_ANALOG_PFD_480_PFD3_FRAC_MASK) >> CCM_ANALOG_PFD_480_PFD3_FRAC_SHIFT);
+            freq = (uint32_t)(tmp64 / (uint64_t)((CCM_ANALOG->PFD_480 & CCM_ANALOG_PFD_480_PFD3_FRAC_MASK) >> CCM_ANALOG_PFD_480_PFD3_FRAC_SHIFT));
             break;
 
         default:
             freq = 0U;
             break;
     }
-    freq *= 18U;
 
     return freq;
 }
@@ -1076,20 +1076,16 @@ uint32_t CLOCK_GetUsb1PfdFreq(clock_pfd_t pfd)
  */
 void CLOCK_SetClockOutput1(clock_output1_selection_t selection, clock_output_divider_t divider)
 {
-    uint32_t tmp32;
-
-    tmp32 = CCM->CCOSR;
     if (selection == kCLOCK_DisableClockOutput1)
     {
-        tmp32 &= ~CCM_CCOSR_CLKO1_EN_MASK;
+        CCM->CCOSR &= ~(CCM_CCOSR_CLKO1_EN_MASK | CCM_CCOSR_CLKO1_SEL_MASK | CCM_CCOSR_CLKO1_DIV_MASK);
     }
     else
     {
-        tmp32 |= CCM_CCOSR_CLKO1_EN_MASK;
-        tmp32 &= ~(CCM_CCOSR_CLKO1_SEL_MASK | CCM_CCOSR_CLKO1_DIV_MASK);
-        tmp32 |= CCM_CCOSR_CLKO1_SEL(selection) | CCM_CCOSR_CLKO1_DIV(divider);
+        CCM->CCOSR &= ~(CCM_CCOSR_CLKO1_EN_MASK | CCM_CCOSR_CLKO1_SEL_MASK | CCM_CCOSR_CLKO1_DIV_MASK);
+        CCM->CCOSR |= CCM_CCOSR_CLKO1_SEL(selection) | CCM_CCOSR_CLKO1_DIV(divider);
+        CCM->CCOSR |= CCM_CCOSR_CLKO1_EN_MASK;
     }
-    CCM->CCOSR = tmp32;
 }
 
 /*!

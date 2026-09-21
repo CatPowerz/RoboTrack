@@ -152,7 +152,6 @@ $(BUILD_PREFIX)/font_mono_8x5_8.c: $(PBIO_DIR)/src/image/fonts/mono_8x5.png $(FO
 CFLAGS += -std=gnu99 -g -O0 -Wall -Werror
 CFLAGS += $(TINY_TEST_INC) $(LEGO_INC) $(LWRB_INC) $(BTSTACK_INC) $(PBIO_INC) $(TEST_INC)
 CFLAGS += -I$(BUILD_DIR)
-CFLAGS += -DPBIO_TEST_BUILD=1
 
 # Parallelize permutation-heavy tests (e.g. the trajectory tests) across all
 # available CPU cores. Coverage may be inaccurate for that one test, but that's
@@ -166,6 +165,20 @@ endif
 SRC = $(TINY_TEST_SRC) $(LEGO_SRC) $(LWRB_SRC) $(BTSTACK_SRC) $(PBIO_SRC) $(TEST_SRC)
 DEP = $(addprefix $(BUILD_PREFIX)/,$(SRC:.c=.d))
 OBJ = $(addprefix $(BUILD_PREFIX)/,$(SRC:.c=.o))
+
+# Short git hash of this repository, made available to pbio code via a
+# generated header, same as in bricks/_common/common.mk.
+PYBRICKS_GIT_HASH ?= $(shell git rev-parse --short HEAD)
+
+$(BUILD_DIR)/pbio_version_hash.h: FORCE
+	$(Q)mkdir -p $(dir $@)
+	$(Q)echo '#define PBIO_VERSION_HASH "$(PYBRICKS_GIT_HASH)"' > $@.tmp
+	$(Q)if cmp -s $@.tmp $@ 2>/dev/null; then rm $@.tmp; else echo "GEN $@"; mv $@.tmp $@; fi
+
+.PHONY: FORCE
+FORCE:
+
+$(DEP) $(OBJ): | $(BUILD_DIR)/pbio_version_hash.h
 
 clean:
 	$(Q)rm -rf $(BUILD_DIR)

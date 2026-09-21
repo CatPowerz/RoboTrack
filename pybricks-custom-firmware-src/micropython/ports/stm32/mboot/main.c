@@ -443,7 +443,7 @@ void mp_hal_pin_config_speed(uint32_t port_pin, uint32_t speed) {
 #elif defined(STM32H5)
 #define INTERNAL_FLASH_LAYOUT "@Internal Flash  /0x08000000/???*08Kg"
 #define INTERNAL_FLASH_LAYOUT_HAS_TEMPLATE (1)
-#elif defined(STM32H743xx)
+#elif defined(STM32H743xx) || defined(STM32H753xx)
 #define INTERNAL_FLASH_LAYOUT "@Internal Flash  /0x08000000/16*128Kg"
 #elif defined(STM32H750xx)
 #define INTERNAL_FLASH_LAYOUT "@Internal Flash  /0x08000000/01*128Kg"
@@ -1589,6 +1589,12 @@ void stm32_main(uint32_t initial_r0) {
     }
 
 enter_bootloader:
+
+    #if defined(STM32N6)
+    // Enable USB OTG peripherals during sleep, so they run during WFI.
+    LL_AHB5_GRP1_EnableClockLowPower(LL_AHB5_GRP1_PERIPH_OTG1);
+    LL_AHB5_GRP1_EnableClockLowPower(LL_AHB5_GRP1_PERIPH_OTG2);
+    #endif
 
     #if defined(STM32H5)
     // MPU is needed for H5 to access the unique id.

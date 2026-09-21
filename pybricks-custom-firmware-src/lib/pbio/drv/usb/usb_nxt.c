@@ -18,7 +18,7 @@
 #include <stdint.h>
 #include <string.h>
 
-#include <pbdrv/usb.h>
+#include <pbio/serial.h>
 
 #include <pbio/os.h>
 #include <pbio/util.h>
@@ -32,7 +32,7 @@
 
 #include <lego/usb.h>
 
-#include "usb.h"
+#include <pbdrv/usb.h>
 
 #include "usb_ch9.h"
 #include "usb_common_desc.h"
@@ -323,6 +323,7 @@ static void pbdrv_usb_nxt_write_data(int endpoint, const void *ptr_, uint32_t le
 
 static uint8_t pbdrv_usb_rx_buf[MAX_RCV_SIZE];
 static volatile uint32_t pbdrv_usb_rx_len;
+static uint32_t pbdrv_usb_rx_pos;
 
 /*
  * Read one data packet from the USB controller.
@@ -448,10 +449,12 @@ static void pbdrv_usb_handle_std_request(pbdrv_usb_setup_packet_t *packet) {
                             desc = &pbdrv_usb_str_desc_mfg;
                             size = sizeof(pbdrv_usb_str_desc_mfg.s);
                             break;
-                        case STRING_DESC_PRODUCT:
-                            desc = &pbdrv_usb_str_desc_prod;
-                            size = sizeof(pbdrv_usb_str_desc_prod.s);
+                        case STRING_DESC_PRODUCT: {
+                            const pbdrv_usb_str_prod_union_t *prod_desc = pbdrv_usb_get_str_desc_prod();
+                            desc = prod_desc;
+                            size = prod_desc->s.bLength;
                             break;
+                        }
                         case STRING_DESC_SERIAL:
                             desc = &pbdrv_usb_str_desc_serial;
                             size = sizeof(pbdrv_usb_str_desc_serial);
@@ -537,7 +540,7 @@ static void pbdrv_usb_nxt_handle_class_request(pbdrv_usb_setup_packet_t *packet)
             // DTR asserted means a host app opened the serial port. This is
             // the USB analog of a BLE host subscribing to notifications, and
             // is how we detect connect/disconnect.
-            pbdrv_usb_on_dtr_changed(
+            pbio_serial_port_changed(PBSYS_HOST_TRANSPORT_TYPE_USB,
                 (packet->wValue & USB_CDC_CONTROL_LINE_STATE_DTR) != 0);
             pbdrv_usb_nxt_send_null();
             break;
@@ -759,7 +762,7 @@ void pbdrv_usb_nxt_deinit(void) {
     nx_systick_wait_ms(200);
 }
 
-void pbdrv_usb_init_device(void) {
+void pbdrv_usb_init(void) {
 
     extern char bluetooth_address_string[PBIO_ARRAY_SIZE(pbdrv_usb_str_desc_serial.wString)];
     for (uint8_t i = 0; i < PBIO_ARRAY_SIZE(pbdrv_usb_str_desc_serial.wString); i++) {
@@ -819,7 +822,7 @@ void pbdrv_usb_init_device(void) {
     *AT91C_PIOA_CODR = (1 << 16);
 }
 
-void pbdrv_usb_deinit_device(void) {
+void pbdrv_usb_deinit(void) {
     pbdrv_usb_nxt_deinit();
 }
 
@@ -835,7 +838,7 @@ pbdrv_usb_bcd_t pbdrv_usb_get_bcd(void) {
     return PBDRV_USB_BCD_NONE;
 }
 
-pbio_error_t pbdrv_usb_tx_chunk(pbio_os_state_t *state, const uint8_t *data, uint32_t size) {
+pbio_error_t pbdrv_usb_tx_message(pbio_os_state_t *state, const uint8_t *data, uint32_t size) {
 
     static pbio_os_timer_t timer;
 
@@ -867,23 +870,32 @@ pbio_error_t pbdrv_usb_tx_reset(pbio_os_state_t *state) {
     return PBIO_SUCCESS;
 }
 
-uint32_t pbdrv_usb_get_data_and_start_receive(uint8_t *data) {
+uint32_t pbdrv_usb_rx_read(uint8_t *data, uint32_t size) {
 
     if (!pbdrv_usb_rx_len) {
         return 0;
     }
 
     // Copy data saved during interrupt to usb process.
-    memcpy(data, pbdrv_usb_rx_buf, pbdrv_usb_rx_len);
-    uint32_t result = pbdrv_usb_rx_len;
-    pbdrv_usb_rx_len = 0;
+    uint32_t count = pbdrv_usb_rx_len - pbdrv_usb_rx_pos;
+    if (count > size) {
+        count = size;
+    }
+    memcpy(data, &pbdrv_usb_rx_buf[pbdrv_usb_rx_pos], count);
+    pbdrv_usb_rx_pos += count;
 
-    // Get ready to receive the next message.
+    if (pbdrv_usb_rx_pos < pbdrv_usb_rx_len) {
+        return count;
+    }
+
+    // Packet fully drained, get ready to receive the next one.
+    pbdrv_usb_rx_pos = 0;
+    pbdrv_usb_rx_len = 0;
     if (pbdrv_usb_nxt_configured) {
         AT91C_UDP_CSR[EP_BULK_OUT] |= AT91C_UDP_EPEDS | AT91C_UDP_EPTYPE_BULK_OUT;
     }
 
-    return result;
+    return count;
 }
 
 #endif // PBDRV_CONFIG_USB_NXT

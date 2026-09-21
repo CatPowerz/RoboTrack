@@ -52,7 +52,7 @@
 #define ATT_CLIENT 1u
 #define ATT_MAX    2u
 
-struct {
+static struct {
     btstack_packet_handler_t packet_handler;
     bool                  waiting_for_can_send;
 } subscriptions[ATT_MAX];
@@ -139,6 +139,8 @@ static void att_dispatch_handle_att_pdu(uint8_t packet_type, uint16_t channel, u
     uint8_t method;
     bool for_server;
     bool invalid;
+
+    if (size == 0u) return;
 
     // parse opcode
     opcode  = packet[0u];

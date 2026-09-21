@@ -16,10 +16,11 @@
 #include <pbio/util.h>
 
 #include <pbio/os.h>
-#include <pbio/port_interface.h>
+#include <pbio/port.h>
 #include <pbio/port_dcm.h>
 #include <pbio/port_lump.h>
 
+#include <pbsys/telemetry.h>
 
 #define DEBUG 0
 #if DEBUG
@@ -619,6 +620,78 @@ pbio_error_t pbio_port_set_mode(pbio_port_t *port, pbio_port_mode_t mode) {
         default:
             return PBIO_ERROR_NOT_SUPPORTED;
     }
+}
+
+pbsys_telemetry_error_t pbio_port_get_telemetry(uint8_t index, pbsys_telemetry_packet_t *tel, uint32_t *size) {
+
+    pbio_port_t *port = pbio_port_by_index(index);
+    if (!port) {
+        return PBSYS_TELEMETRY_ERROR_NO_REPORT;
+    }
+
+    // All ports use the index as position.
+    tel->manufacturer = PBSYS_TELEMETRY_MANUFACTURER_LEGO;
+    tel->location = index;
+
+    // All encoded motor types report the same data.
+    pbio_servo_t *srv;
+    lego_device_type_id_t id = LEGO_DEVICE_TYPE_ID_ANY_ENCODED_MOTOR;
+    if (pbio_port_get_servo(port, &id, &srv) == PBIO_SUCCESS) {
+        if (*size < sizeof(uint32_t) + sizeof(uint16_t) + sizeof(uint8_t)) {
+            return PBSYS_TELEMETRY_ERROR_NO_ROOM;
+        }
+        tel->id = id;
+        tel->mode = 0;
+
+        int32_t angle, speed;
+        if (pbio_servo_get_state_user(srv, &angle, &speed) != PBIO_SUCCESS) {
+            // Servo may not be configured because no user program has run yet.
+            // We can still get the angle from the tacho directly.
+            pbio_angle_t tacho;
+            if (pbio_tacho_get_angle(&srv->tacho, &tacho) == PBIO_SUCCESS) {
+                pbio_set_uint32_le(&tel->payload[0], tacho.rotations * 360 + tacho.millidegrees / 1000);
+                *size = sizeof(uint32_t);
+                return PBSYS_TELEMETRY_SUCCESS;
+            }
+            return PBSYS_TELEMETRY_ERROR_NO_REPORT;
+        }
+        pbio_set_uint32_le(&tel->payload[0], angle);
+        pbio_set_uint16_le(&tel->payload[4], speed);
+        uint32_t stall_duration;
+        bool stalled;
+        tel->payload[6] = pbio_servo_is_stalled(srv, &stalled, &stall_duration) != PBIO_SUCCESS ? 0 :
+            (stalled << 1) | pbio_control_is_done(&srv->control);
+
+        // Reports 32-bit angle, 16-bit speed, 1 byte status (stalled || done (lsb)).
+        *size = sizeof(uint32_t) + sizeof(uint16_t) + sizeof(uint8_t);
+        return PBSYS_TELEMETRY_SUCCESS;
+    } else if (port->mode == PBIO_PORT_MODE_QUADRATURE) {
+        // If motor detection failed but it is a quadrature port, it is a motor
+        // port with no device.
+        tel->id = LEGO_DEVICE_TYPE_ID_NONE;
+        tel->mode = 0;
+        *size = 0;
+        return PBSYS_TELEMETRY_SUCCESS;
+    }
+
+    // Allows visualizer to mark port as custom port mode.
+    if (port->mode == PBIO_PORT_MODE_I2C || port->mode == PBIO_PORT_MODE_UART) {
+        tel->manufacturer = PBSYS_TELEMETRY_MANUFACTURER_UKNOWN;
+        tel->id = port->mode == PBIO_PORT_MODE_I2C ? PBSYS_TELEMETRY_DEVICE_UKNOWN_I2C : PBSYS_TELEMETRY_DEVICE_UKNOWN_UART;
+        tel->mode = 0;
+        *size = 0;
+        return PBSYS_TELEMETRY_SUCCESS;
+    }
+
+    // Only DCM otherwise has telemetry info for us.
+    if (port->mode != PBIO_PORT_MODE_LEGO_DCM) {
+        return PBSYS_TELEMETRY_ERROR_NO_REPORT;
+    }
+
+    // Delegate telemetry to LUMP or passive manager.
+    return pbio_port_dcm_test_type_id(port, LEGO_DEVICE_TYPE_ID_ANY_LUMP_UART) ?
+           pbio_port_lump_get_telemetry(port->lump_dev, tel, size) :
+           pbio_port_dcm_get_telemetry(port->connection_manager, tel, size);
 }
 
 #endif // PBIO_CONFIG_PORT

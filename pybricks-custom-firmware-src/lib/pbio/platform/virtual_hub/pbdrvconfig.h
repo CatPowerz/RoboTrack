@@ -5,13 +5,15 @@
 #define PBDRV_CONFIG_BATTERY_TEST                           (1)
 
 #define PBDRV_CONFIG_BLOCK_DEVICE                           (1)
-#define PBDRV_CONFIG_BLOCK_DEVICE_RAM_SIZE                  (50 * 1024)
-#define PBDRV_CONFIG_BLOCK_DEVICE_TEST                      (1)
+#define PBDRV_CONFIG_BLOCK_DEVICE_RAM_SIZE                  (1 * 1024 * 1024)
+#define PBDRV_CONFIG_BLOCK_DEVICE_VIRTUAL                   (1)
+#define PBDRV_CONFIG_BLOCK_DEVICE_VIRTUAL_SIZE              (1 * 1024 * 1024 * 3 / 4)
 
 // Use Bluetooth simulation locally.
 #ifndef PBDRV_CONFIG_RUN_ON_CI
 #define PBDRV_CONFIG_BLUETOOTH                              (1)
-#define PBDRV_CONFIG_BLUETOOTH_NUM_CLASSIC_CONNECTIONS      (2)
+#define PBDRV_CONFIG_BLUETOOTH_CLASSIC                      (1)
+#define PBDRV_CONFIG_BLUETOOTH_MAX_MTU_SIZE                 515
 #define PBDRV_CONFIG_BLUETOOTH_NUM_PERIPHERALS              (2)
 #define PBDRV_CONFIG_BLUETOOTH_BTSTACK                      (1)
 #define PBDRV_CONFIG_BLUETOOTH_BTSTACK_NUM_LE_HOSTS         (1)
@@ -62,4 +64,3 @@
 #define PBDRV_CONFIG_USB                                    (1)
 #define PBDRV_CONFIG_USB_SIMULATION                         (1)
 #define PBDRV_CONFIG_USB_MFG_STR                            u"Pybricks"
-#define PBDRV_CONFIG_USB_PROD_STR                           u"Virtual Hub"

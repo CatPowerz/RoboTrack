@@ -1,6 +1,8 @@
 /*
 
-Copyright (c) 2010 - 2018, Nordic Semiconductor ASA All rights reserved.
+Copyright (c) 2010 - 2025, Nordic Semiconductor ASA All rights reserved.
+
+SPDX-License-Identifier: BSD-3-Clause
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -169,6 +171,19 @@ POSSIBILITY OF SUCH DAMAGE.
     #define SPIS_AMOUNTTX_AMOUNTTX_Msk  SPIS_TXD_AMOUNT_AMOUNT_Msk
 #endif
 
+/* UART */
+#ifndef PSELRTS
+    #define PSELRTS       PSEL.RTS
+#endif
+#ifndef PSELTXD
+    #define PSELTXD       PSEL.TXD
+#endif
+#ifndef PSELCTS
+    #define PSELCTS       PSEL.CTS
+#endif
+#ifndef PSELRXD
+    #define PSELRXD       PSEL.RXD
+#endif
 
 /* From nrf51_deprecated.h. Several macros changed in different versions of nRF52 headers. By defining the following, any code written for any version of nRF52 headers will still compile. */
 

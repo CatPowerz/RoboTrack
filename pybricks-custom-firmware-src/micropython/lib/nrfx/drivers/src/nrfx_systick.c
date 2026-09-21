@@ -1,6 +1,8 @@
 /*
- * Copyright (c) 2016 - 2019, Nordic Semiconductor ASA
+ * Copyright (c) 2016 - 2025, Nordic Semiconductor ASA
  * All rights reserved.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -63,7 +65,7 @@
  *
  * See @ref nrfx_systick_delay_ms source code for details.
  */
-#define NRFX_SYSTICK_MS_STEP (64U)
+#define NRFX_SYSTICK_MS_STEP (NRFX_SYSTICK_TICKS_MAX / (SystemCoreClock / NRFX_SYSTICK_MS))
 
 /**
  * @brief Checks if the given time is in correct range

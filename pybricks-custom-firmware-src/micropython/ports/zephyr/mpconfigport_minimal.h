@@ -43,6 +43,7 @@
 #define MICROPY_ENABLE_COMPILER     (1)
 #define MICROPY_ENABLE_EXTERNAL_IMPORT (1)
 #define MICROPY_STACK_CHECK         (1)
+#define MICROPY_STACK_CHECK_MARGIN  (512)
 #define MICROPY_ENABLE_GC           (1)
 #define MICROPY_HELPER_REPL         (1)
 #define MICROPY_REPL_AUTO_INDENT    (1)
@@ -59,7 +60,6 @@
 #define MICROPY_PY_BUILTINS_STR_OP_MODULO (1)
 #define MICROPY_PY_BUILTINS_BYTEARRAY (1)
 #define MICROPY_PY_BUILTINS_DICT_FROMKEYS (1)
-#define MICROPY_PY_SYS              (1)
 
 #ifdef CONFIG_BOARD
 #define MICROPY_HW_BOARD_NAME "zephyr-" CONFIG_BOARD
@@ -73,10 +73,12 @@
 #define MICROPY_HW_MCU_NAME "unknown-cpu"
 #endif
 
-typedef int mp_int_t; // must be pointer size
-typedef unsigned mp_uint_t; // must be pointer size
 typedef long mp_off_t;
 
 #define MP_STATE_PORT MP_STATE_VM
 
-#define MICROPY_EVENT_POLL_HOOK
+// Compatibility switches
+
+#ifdef CONFIG_NEWLIB_LIBC
+#define MICROPY_PY_MATH_POW_FIX_NAN (1)
+#endif

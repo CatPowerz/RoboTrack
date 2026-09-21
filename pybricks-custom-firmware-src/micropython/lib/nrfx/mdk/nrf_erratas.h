@@ -1,6 +1,8 @@
 /*
 
-Copyright (c) 2010 - 2018, Nordic Semiconductor ASA All rights reserved.
+Copyright (c) 2010 - 2025, Nordic Semiconductor ASA All rights reserved.
+
+SPDX-License-Identifier: BSD-3-Clause
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -30,71 +32,23 @@ POSSIBILITY OF SUCH DAMAGE.
 
 */
 
-#ifndef NRF_ERRATAS_H__
-#define NRF_ERRATAS_H__
+#ifndef NRF_ERRATAS_H
+#define NRF_ERRATAS_H
 
 #include "nrf.h"
 
+/* Check MDK version to make sure we have the required macros */
+NRF_MDK_VERSION_ASSERT_AT_LEAST(8,34,0);
+
 /*lint ++flb "Enter library region */
 
-#if defined(NRF51422_XXAA) ||\
-    defined(NRF51422_XXAB) ||\
-    defined(NRF51422_XXAC)
-    #include "nrf51422_erratas.h"
-#elif defined(NRF51801_XXAB)
-    #include "nrf51801_erratas.h"
-#elif defined(NRF51802_XXAA)
-    #include "nrf51802_erratas.h"
-#elif defined(NRF51822_XXAA) ||\
-    defined(NRF51822_XXAB) ||\
-    defined(NRF51822_XXAC)
-    #include "nrf51822_erratas.h"
-#elif defined(NRF51824_XXAA)
-    #include "nrf51824_erratas.h"
-#elif defined(NRF51)
-    #include "nrf51_erratas.h"
-#elif defined(NRF52805_XXAA)
-    #include "nrf52805_erratas.h"
-#elif defined(NRF52810_XXAA)
-    #include "nrf52810_erratas.h"
-#elif defined(NRF52811_XXAA)
-    #include "nrf52811_erratas.h"
-#elif defined(NRF52832_XXAA) ||\
-    defined(NRF52832_XXAB)
-    #include "nrf52832_erratas.h"
-#elif defined(NRF52833_XXAA)
-    #include "nrf52833_erratas.h"
-#elif defined(NRF52840_XXAA)
-    #include "nrf52840_erratas.h"
-#elif defined(NRF5340_XXAA_APPLICATION)
-    #include "nrf5340_application_erratas.h"
-#elif defined(NRF5340_XXAA_NETWORK)
-    #include "nrf5340_network_erratas.h"
-#elif defined(NRF9160_XXAA)
-    #include "nrf9160_erratas.h"
-#else
-    #error "Device must be defined. See nrf.h."
-#endif /* NRF51422_XXAA,
-          NRF51422_XXAB,
-          NRF51422_XXAC,
-          NRF51801_XXAB,
-          NRF51802_XXAA,
-          NRF51822_XXAA,
-          NRF51822_XXAB,
-          NRF51822_XXAC,
-          NRF51824_XXAA,
-          NRF51,
-          NRF52805_XXAA,
-          NRF52810_XXAA,
-          NRF52811_XXAA,
-          NRF52832_XXAA,
-          NRF52832_XXAB,
-          NRF52833_XXAA,
-          NRF52840_XXAA,
-          NRF5340_XXAA_APPLICATION,
-          NRF5340_XXAA_NETWORK,
-          NRF9160_XXAA */
+#include "nrf51_erratas.h"
+#include "nrf52_erratas.h"
+#include "nrf53_erratas.h"
+#include "nrf54l_erratas.h"
+#include "nrf54h_erratas.h"
+#include "nrf91_erratas.h"
 
 /*lint --flb "Leave library region" */
 
-#endif // NRF_ERRATAS_H__
+#endif // NRF_ERRATAS_H

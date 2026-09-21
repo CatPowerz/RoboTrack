@@ -1,20 +1,20 @@
 /*
 ** ###################################################################
 **     Processors:          MIMXRT1015CAF4A
+**                          MIMXRT1015CAF4B
 **                          MIMXRT1015DAF5A
+**                          MIMXRT1015DAF5B
 **
 **     Compiler:            GNU C Compiler
-**     Reference manual:    IMXRT1015RM Rev.0, 12/2018 | IMXRT1015SRM Rev.3
+**     Reference manual:    IMXRT1015RM Rev.1, 02/2021 | IMXRT102XSRM Rev.0
 **     Version:             rev. 1.0, 2019-01-18
-**     Build:               b210226
+**     Build:               b230821
 **
 **     Abstract:
 **         Linker file for the GNU C Compiler
 **
 **     Copyright 2016 Freescale Semiconductor, Inc.
-**     Copyright 2016-2021 NXP
-**     All rights reserved.
-**
+**     Copyright 2016-2023 NXP
 **     SPDX-License-Identifier: BSD-3-Clause
 **
 **     http:                 www.nxp.com
@@ -56,7 +56,7 @@ SECTIONS
     . = ALIGN(4);
   } > m_flash_config
 
-  ivt_begin= ORIGIN(m_flash_config) + LENGTH(m_flash_config);
+  ivt_begin = ORIGIN(m_flash_config) + LENGTH(m_flash_config);
 
   .ivt : AT(ivt_begin)
   {
@@ -188,6 +188,7 @@ SECTIONS
     *(m_usb_dma_init_data)
     *(.data)                 /* .data sections */
     *(.data*)                /* .data* sections */
+    *(DataQuickAccess)       /* quick access data section */
     KEEP(*(.jcr*))
     . = ALIGN(4);
     __data_end__ = .;        /* define a global symbol at data end */
@@ -266,4 +267,3 @@ SECTIONS
 
   ASSERT(__StackLimit >= __HeapLimit, "region m_data overflowed with stack and heap")
 }
-

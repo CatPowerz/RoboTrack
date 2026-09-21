@@ -1,6 +1,6 @@
 /*
 
-Copyright (c) 2009-2018 ARM Limited. All rights reserved.
+Copyright (c) 2009-2025 ARM Limited. All rights reserved.
 
     SPDX-License-Identifier: Apache-2.0
 
@@ -26,25 +26,25 @@ NOTICE: This file has been modified by Nordic Semiconductor ASA.
 #include <stdint.h>
 #include <stdbool.h>
 #include "nrf.h"
-#include "nrf_erratas.h"
+#include "nrf51_erratas.h"
 #include "system_nrf51.h"
 
 /*lint ++flb "Enter library region" */
 
 
-#define __SYSTEM_CLOCK      (16000000UL)     /*!< nRF51 devices use a fixed System Clock Frequency of 16MHz */
+#define __SYSTEM_CLOCK_DEFAULT      (16000000UL)     /*!< nRF51 devices use a fixed System Clock Frequency of 16MHz */
 
 #if defined ( __CC_ARM )
-    uint32_t SystemCoreClock __attribute__((used)) = __SYSTEM_CLOCK;
+    uint32_t SystemCoreClock __attribute__((used)) = __SYSTEM_CLOCK_DEFAULT;
 #elif defined ( __ICCARM__ )
-    __root uint32_t SystemCoreClock = __SYSTEM_CLOCK;
+    __root uint32_t SystemCoreClock = __SYSTEM_CLOCK_DEFAULT;
 #elif defined   ( __GNUC__ )
-    uint32_t SystemCoreClock __attribute__((used)) = __SYSTEM_CLOCK;
+    uint32_t SystemCoreClock __attribute__((used)) = __SYSTEM_CLOCK_DEFAULT;
 #endif
 
 void SystemCoreClockUpdate(void)
 {
-    SystemCoreClock = __SYSTEM_CLOCK;
+    SystemCoreClock = __SYSTEM_CLOCK_DEFAULT;
 }
 
 void SystemInit(void)
@@ -57,16 +57,16 @@ void SystemInit(void)
        https://infocenter.nordicsemi.com/index.jsp The side effect of executing these instructions in the devices
        that do not need it is that the new peripherals in the second generation devices (LPCOMP for
        example) will not be available. */
-    if (errata_26())
+    if (nrf51_errata_26())
     {
-        *(uint32_t volatile *)0x40000504 = 0xC007FFDF;
-        *(uint32_t volatile *)0x40006C18 = 0x00008000;
+        *(uint32_t volatile *)0x40000504ul = 0xC007FFDFul;
+        *(uint32_t volatile *)0x40006C18ul = 0x00008000ul;
     }
 
     /* Disable PROTENSET registers under debug, as indicated by PAN 59 "MPU: Reset value of DISABLEINDEBUG
        register is incorrect" found at Product Anomaly document for your device found at
        https://infocenter.nordicsemi.com/index.jsp There is no side effect of using these instruction if not needed. */
-    if (errata_59())
+    if (nrf51_errata_59())
     {
         NRF_MPU->DISABLEINDEBUG = MPU_DISABLEINDEBUG_DISABLEINDEBUG_Disabled << MPU_DISABLEINDEBUG_DISABLEINDEBUG_Pos;
     }
@@ -74,13 +74,13 @@ void SystemInit(void)
     /* Execute the following code to eliminate excessive current in sleep mode with RAM retention in nRF51802 devices,
        as indicated by PAN 76 "System: Excessive current in sleep mode with retention" found at Product Anomaly document
        for your device found at https://infocenter.nordicsemi.com/index.jsp */
-    if (errata_76()){
-        if (*(uint32_t volatile *)0x4006EC00 != 1){
-            *(uint32_t volatile *)0x4006EC00 = 0x9375;
-            while (*(uint32_t volatile *)0x4006EC00 != 1){
+    if (nrf51_errata_76()){
+        if (*(uint32_t volatile *)0x4006EC00ul != 1ul){
+            *(uint32_t volatile *)0x4006EC00ul = 0x9375ul;
+            while (*(uint32_t volatile *)0x4006EC00ul != 1ul){
             }
         }
-        *(uint32_t volatile *)0x4006EC14 = 0xC0;
+        *(uint32_t volatile *)0x4006EC14ul = 0xC0ul;
     }
 }
 

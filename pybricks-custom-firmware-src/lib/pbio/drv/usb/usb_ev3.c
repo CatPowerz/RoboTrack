@@ -14,10 +14,10 @@
 
 #include <pbdrv/cache.h>
 #include <pbdrv/compiler.h>
-#include <pbdrv/usb.h>
+#include <pbio/serial.h>
 #include <pbio/os.h>
 
-#include "usb.h"
+#include <pbdrv/usb.h>
 
 #include <tiam1808/armv5/am1808/interrupt.h>
 #include <tiam1808/cppi41dma.h>
@@ -517,10 +517,12 @@ static bool usb_get_descriptor(uint16_t wValue) {
                     pbdrv_usb_setup_data_to_send_sz = sizeof(pbdrv_usb_str_desc_mfg.s);
                     return true;
 
-                case STRING_DESC_PRODUCT:
-                    pbdrv_usb_setup_data_to_send = pbdrv_usb_str_desc_prod.u;
-                    pbdrv_usb_setup_data_to_send_sz = sizeof(pbdrv_usb_str_desc_prod.s);
+                case STRING_DESC_PRODUCT: {
+                    const pbdrv_usb_str_prod_union_t *prod_desc = pbdrv_usb_get_str_desc_prod();
+                    pbdrv_usb_setup_data_to_send = prod_desc->u;
+                    pbdrv_usb_setup_data_to_send_sz = prod_desc->s.bLength;
                     return true;
+                }
 
                 case STRING_DESC_SERIAL:
                     pbdrv_usb_ev3_ep0_buffer.b[0] = 2 * 2 * 6 + 2;
@@ -772,7 +774,7 @@ static void usb_device_intr(void) {
                         case USB_CDC_REQ_SET_CONTROL_LINE_STATE:
                             // DTR asserted means a host app opened the serial
                             // port (analogous to a BLE host subscribing).
-                            pbdrv_usb_on_dtr_changed(
+                            pbio_serial_port_changed(PBSYS_HOST_TRANSPORT_TYPE_USB,
                                 (setup_pkt.s.wValue & USB_CDC_CONTROL_LINE_STATE_DTR) != 0);
                             handled = true;
                             break;
@@ -895,7 +897,9 @@ static void usb_device_intr(void) {
     HWREG(USB_0_OTGBASE + USB_0_END_OF_INTR) = 0;
 }
 
-uint32_t pbdrv_usb_get_data_and_start_receive(uint8_t *data) {
+static uint32_t usb_rx_pos;
+
+uint32_t pbdrv_usb_rx_read(uint8_t *data, uint32_t size) {
 
     if (!usb_rx_is_ready) {
         return 0;
@@ -908,23 +912,33 @@ uint32_t pbdrv_usb_get_data_and_start_receive(uint8_t *data) {
 
     uint32_t usb_rx_sz = PBDRV_UNCACHED(cppi_descriptors[CPPI_DESC_RX].word0).pktLength;
 
-    // Skip empty commands.
-    if (usb_rx_sz) {
+    if (usb_rx_pos == 0 && usb_rx_sz) {
         pbdrv_cache_prepare_after_dma(ep1_rx_buf, sizeof(ep1_rx_buf));
-        memcpy(data, ep1_rx_buf, usb_rx_sz);
     }
 
-    // Re-queue RX buffer after processing is complete
+    uint32_t count = usb_rx_sz - usb_rx_pos;
+    if (count > size) {
+        count = size;
+    }
+    memcpy(data, &ep1_rx_buf[usb_rx_pos], count);
+    usb_rx_pos += count;
+
+    if (usb_rx_pos < usb_rx_sz) {
+        return count;
+    }
+
+    // Packet fully drained (or empty), re-queue the RX buffer.
+    usb_rx_pos = 0;
     usb_rx_is_ready = false;
     usb_setup_rx_dma_desc();
 
-    return usb_rx_sz;
+    return count;
 }
 
-void pbdrv_usb_deinit_device(void) {
+void pbdrv_usb_deinit(void) {
 }
 
-void pbdrv_usb_init_device(void) {
+void pbdrv_usb_init(void) {
     // If we came straight from a firmware update, we need to send a disconnect
     // to the host, then reset the USB controller.
     USBDevDisconnect(USB0_BASE);
@@ -1043,7 +1057,7 @@ pbio_error_t pbdrv_usb_tx_reset(pbio_os_state_t *state) {
     PBIO_OS_ASYNC_END(PBIO_SUCCESS);
 }
 
-pbio_error_t pbdrv_usb_tx_chunk(pbio_os_state_t *state, const uint8_t *data, uint32_t size) {
+pbio_error_t pbdrv_usb_tx_message(pbio_os_state_t *state, const uint8_t *data, uint32_t size) {
 
     static pbio_os_timer_t timer;
 

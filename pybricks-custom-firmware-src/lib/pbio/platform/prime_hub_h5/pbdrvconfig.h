@@ -30,7 +30,6 @@
 #define PBDRV_CONFIG_BATTERY_ADC_TEMPERATURE_CH     2
 
 #define PBDRV_CONFIG_BLUETOOTH                      (1)
-#define PBDRV_CONFIG_BLUETOOTH_NUM_CLASSIC_CONNECTIONS (0)
 #define PBDRV_CONFIG_BLUETOOTH_NUM_PERIPHERALS      (2)
 #define PBDRV_CONFIG_BLUETOOTH_MAX_MTU_SIZE         515
 #define PBDRV_CONFIG_BLUETOOTH_BTSTACK              (1)
@@ -126,7 +125,6 @@
 #define PBDRV_CONFIG_USB_VID                        LEGO_USB_VID
 #define PBDRV_CONFIG_USB_PID                        LEGO_USB_PID_SPIKE_PRIME
 #define PBDRV_CONFIG_USB_MFG_STR                    LEGO_USB_MFG_STR
-#define PBDRV_CONFIG_USB_PROD_STR                   LEGO_USB_PROD_STR_TECHNIC_LARGE_HUB " + Pybricks"
 #define PBDRV_CONFIG_USB_STM32F4                    (1)
 #define PBDRV_CONFIG_USB_CHARGE_ONLY                (0)
 

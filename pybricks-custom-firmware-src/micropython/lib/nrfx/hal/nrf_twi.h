@@ -1,6 +1,8 @@
 /*
- * Copyright (c) 2015 - 2019, Nordic Semiconductor ASA
+ * Copyright (c) 2015 - 2025, Nordic Semiconductor ASA
  * All rights reserved.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -44,6 +46,15 @@ extern "C" {
  * @ingroup nrf_twi
  * @brief   Hardware access layer for managing the TWI peripheral.
  */
+
+/**
+ * @brief Macro getting pointer to the structure of registers of the TWI peripheral.
+ *
+ * @param[in] idx TWI instance index.
+ *
+ * @return Pointer to the structure of registers of the TWI peripheral.
+ */
+#define NRF_TWI_INST_GET(idx) NRFX_CONCAT(NRF_, TWI, idx)
 
 /** @brief TWI tasks. */
 typedef enum
@@ -186,6 +197,7 @@ NRF_STATIC_INLINE void nrf_twi_shorts_disable(NRF_TWI_Type * p_reg,
  *
  * @param[in] p_reg Pointer to the structure of registers of the peripheral.
  * @param[in] mask  Mask of interrupts to be enabled.
+ *                  Use @ref nrf_twi_int_mask_t values for bit masking.
  */
 NRF_STATIC_INLINE void nrf_twi_int_enable(NRF_TWI_Type * p_reg,
                                           uint32_t       mask);
@@ -195,6 +207,7 @@ NRF_STATIC_INLINE void nrf_twi_int_enable(NRF_TWI_Type * p_reg,
  *
  * @param[in] p_reg Pointer to the structure of registers of the peripheral.
  * @param[in] mask  Mask of interrupts to be disabled.
+ *                  Use @ref nrf_twi_int_mask_t values for bit masking.
  */
 NRF_STATIC_INLINE void nrf_twi_int_disable(NRF_TWI_Type * p_reg,
                                            uint32_t       mask);
@@ -204,6 +217,7 @@ NRF_STATIC_INLINE void nrf_twi_int_disable(NRF_TWI_Type * p_reg,
  *
  * @param[in] p_reg Pointer to the structure of registers of the peripheral.
  * @param[in] mask  Mask of interrupts to be checked.
+ *                  Use @ref nrf_twi_int_mask_t values for bit masking.
  *
  * @return Mask of enabled interrupts.
  */
@@ -235,20 +249,36 @@ NRF_STATIC_INLINE void nrf_twi_pins_set(NRF_TWI_Type * p_reg,
                                         uint32_t       sda_pin);
 
 /**
- * @brief Function for retrieving the SCL pin number.
+ * @brief Function for setting the SCL pin.
+ *
+ * @param[in] p_reg Pointer to the structure of registers of the peripheral.
+ * @param[in] pin   SCL pin number.
+ */
+NRF_STATIC_INLINE void nrf_twi_scl_pin_set(NRF_TWI_Type * p_reg, uint32_t pin);
+
+/**
+ * @brief Function for setting the SDA pin
+ *
+ * @param[in] p_reg Pointer to the structure of registers of the peripheral.
+ * @param[in] pin   SDA pin number.
+ */
+NRF_STATIC_INLINE void nrf_twi_sda_pin_set(NRF_TWI_Type * p_reg, uint32_t pin);
+
+/**
+ * @brief Function for retrieving the SCL pin selection.
  *
  * @param[in] p_reg Pointer to the structure of registers of the peripheral.
  *
- * @return SCL pin number.
+ * @return SCL pin selection.
  */
 NRF_STATIC_INLINE uint32_t nrf_twi_scl_pin_get(NRF_TWI_Type const * p_reg);
 
 /**
- * @brief Function for retrieving the SDA pin number.
+ * @brief Function for retrieving the SDA pin selection.
  *
  * @param[in] p_reg Pointer to the structure of registers of the peripheral.
  *
- * @return SDA pin number.
+ * @return SDA pin selection.
  */
 NRF_STATIC_INLINE uint32_t nrf_twi_sda_pin_get(NRF_TWI_Type const * p_reg);
 
@@ -317,29 +347,26 @@ NRF_STATIC_INLINE void nrf_twi_task_trigger(NRF_TWI_Type * p_reg,
 NRF_STATIC_INLINE uint32_t nrf_twi_task_address_get(NRF_TWI_Type const * p_reg,
                                                     nrf_twi_task_t       task)
 {
-    return (uint32_t)((uint8_t *)p_reg + (uint32_t)task);
+    return nrf_task_event_address_get(p_reg, task);
 }
 
 NRF_STATIC_INLINE void nrf_twi_event_clear(NRF_TWI_Type  * p_reg,
                                            nrf_twi_event_t event)
 {
     *((volatile uint32_t *)((uint8_t *)p_reg + (uint32_t)event)) = 0x0UL;
-#if __CORTEX_M == 0x04
-    volatile uint32_t dummy = *((volatile uint32_t *)((uint8_t *)p_reg + (uint32_t)event));
-    (void)dummy;
-#endif
+    nrf_event_readback((uint8_t *)p_reg + (uint32_t)event);
 }
 
 NRF_STATIC_INLINE bool nrf_twi_event_check(NRF_TWI_Type const * p_reg,
                                            nrf_twi_event_t      event)
 {
-    return (bool)*(volatile uint32_t *)((uint8_t *)p_reg + (uint32_t)event);
+    return nrf_event_check(p_reg, event);
 }
 
 NRF_STATIC_INLINE uint32_t nrf_twi_event_address_get(NRF_TWI_Type const * p_reg,
                                                      nrf_twi_event_t      event)
 {
-    return (uint32_t)((uint8_t *)p_reg + (uint32_t)event);
+    return nrf_task_event_address_get(p_reg, event);
 }
 
 NRF_STATIC_INLINE void nrf_twi_shorts_enable(NRF_TWI_Type * p_reg,
@@ -395,6 +422,24 @@ NRF_STATIC_INLINE void nrf_twi_pins_set(NRF_TWI_Type * p_reg,
     p_reg->PSEL.SDA = sda_pin;
 #else
     p_reg->PSELSDA = sda_pin;
+#endif
+}
+
+NRF_STATIC_INLINE void nrf_twi_scl_pin_set(NRF_TWI_Type * p_reg, uint32_t pin)
+{
+#if defined(TWI_PSEL_SCL_CONNECT_Pos)
+    p_reg->PSEL.SCL = pin;
+#else
+    p_reg->PSELSCL = pin;
+#endif
+}
+
+NRF_STATIC_INLINE void nrf_twi_sda_pin_set(NRF_TWI_Type * p_reg, uint32_t pin)
+{
+#if defined(TWI_PSEL_SDA_CONNECT_Pos)
+    p_reg->PSEL.SDA = pin;
+#else
+    p_reg->PSELSDA = pin;
 #endif
 }
 

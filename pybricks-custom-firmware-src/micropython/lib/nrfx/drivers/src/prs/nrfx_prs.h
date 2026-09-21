@@ -1,6 +1,8 @@
 /*
- * Copyright (c) 2017 - 2019, Nordic Semiconductor ASA
+ * Copyright (c) 2017 - 2025, Nordic Semiconductor ASA
  * All rights reserved.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -51,7 +53,7 @@ extern "C" {
     #define NRFX_PRS_BOX_0_ADDR     NRF_SPI0
     // SPI1, SPIS1, TWI1
     #define NRFX_PRS_BOX_1_ADDR     NRF_SPI1
-#elif defined(NRF52810_XXAA)
+#elif defined(NRF52805_XXAA) || defined(NRF52810_XXAA)
     // TWIM0, TWIS0, TWI0
     #define NRFX_PRS_BOX_0_ADDR     NRF_TWIM0
     // SPIM0, SPIS0, SPI0
@@ -65,6 +67,13 @@ extern "C" {
     #define NRFX_PRS_BOX_1_ADDR     NRF_SPIM0
     // UART0, UARTE0
     #define NRFX_PRS_BOX_2_ADDR     NRF_UART0
+#elif defined(NRF52820_XXAA)
+    // SPIM0, SPIS0, TWIM0, TWIS0, SPI0, TWI0
+    #define NRFX_PRS_BOX_0_ADDR     NRF_SPIM0
+    // SPIM1, SPIS1, TWIM1, TWIS1, SPI1, TWI1
+    #define NRFX_PRS_BOX_1_ADDR     NRF_SPIM1
+    // UARTE0, UART0
+    #define NRFX_PRS_BOX_2_ADDR     NRF_UARTE0
 #elif defined(NRF52832_XXAA) || defined(NRF52832_XXAB) || \
       defined(NRF52833_XXAA) || defined(NRF52840_XXAA)
     // SPIM0, SPIS0, TWIM0, TWIS0, SPI0, TWI0
@@ -82,12 +91,104 @@ extern "C" {
     #define NRFX_PRS_BOX_0_ADDR     NRF_UARTE0
     // SPIM1, SPIS1, TWIM1, TWIS1, UARTE1
     #define NRFX_PRS_BOX_1_ADDR     NRF_UARTE1
+    // SPIM2, SPIS2, TWIM2, TWIS2, UARTE2
+    #define NRFX_PRS_BOX_2_ADDR     NRF_UARTE2
+    // SPIM3, SPIS3, TWIM3, TWIS3, UARTE3
+    #define NRFX_PRS_BOX_3_ADDR     NRF_UARTE3
     // COMP, LPCOMP
-    #define NRFX_PRS_BOX_2_ADDR     NRF_COMP
+    #define NRFX_PRS_BOX_4_ADDR     NRF_COMP
 #elif defined(NRF5340_XXAA_NETWORK)
     // SPIM0, SPIS0, TWIM0, TWIS0, UARTE0
     #define NRFX_PRS_BOX_0_ADDR     NRF_UARTE0
-#elif defined(NRF9160_XXAA)
+#elif defined(NRF54H20_XXAA)
+    // SPIM130, SPIS130, TWIM130, TWIS130, UARTE130
+    #define NRFX_PRS_BOX_0_ADDR     NRF_UARTE130
+    // SPIM131, SPIS131, TWIM131, TWIS131, UARTE131
+    #define NRFX_PRS_BOX_1_ADDR     NRF_UARTE131
+    // SPIM132, SPIS132, TWIM132, TWIS132, UARTE132
+    #define NRFX_PRS_BOX_2_ADDR     NRF_UARTE132
+    // SPIM133, SPIS133, TWIM133, TWIS133, UARTE133
+    #define NRFX_PRS_BOX_3_ADDR     NRF_UARTE133
+    // SPIM134, SPIS134, TWIM134, TWIS134, UARTE134
+    #define NRFX_PRS_BOX_4_ADDR     NRF_UARTE134
+    // SPIM135, SPIS135, TWIM135, TWIS135, UARTE135
+    #define NRFX_PRS_BOX_5_ADDR     NRF_UARTE135
+    // SPIM136, SPIS136, TWIM136, TWIS136, UARTE136
+    #define NRFX_PRS_BOX_6_ADDR     NRF_UARTE136
+    // SPIM137, SPIS137, TWIM137, TWIS137, UARTE137
+    #define NRFX_PRS_BOX_7_ADDR     NRF_UARTE137
+    // SPIM120, UARTE120
+    #define NRFX_PRS_BOX_8_ADDR     NRF_UARTE120
+    // COMP, LPCOMP
+    #define NRFX_PRS_BOX_9_ADDR     NRF_COMP
+#elif defined(NRF54L05_XXAA) || defined(NRF54L10_XXAA) || defined(NRF54L15_XXAA)
+    // SPIM00, SPIS00, UARTE00
+    #define NRFX_PRS_BOX_0_ADDR     NRF_UARTE00
+    // SPIM20, SPIS20, TWIM20, TWIS20, UARTE20
+    #define NRFX_PRS_BOX_1_ADDR     NRF_UARTE20
+    // SPIM21, SPIS21, TWIM21, TWIS21, UARTE21
+    #define NRFX_PRS_BOX_2_ADDR     NRF_UARTE21
+    // SPIM22, SPIS22, TWIM22, TWIS22, UARTE22
+    #define NRFX_PRS_BOX_3_ADDR     NRF_UARTE22
+    // SPIM30, SPIS30, TWIM30, TWIS30, UARTE30
+    #define NRFX_PRS_BOX_4_ADDR     NRF_UARTE30
+    // COMP, LPCOMP
+    #define NRFX_PRS_BOX_5_ADDR     NRF_COMP
+#elif defined(NRF54LM20A_ENGA_XXAA)
+    // SPIM00, SPIS00, UARTE00
+    #define NRFX_PRS_BOX_0_ADDR     NRF_UARTE00
+    // SPIM20, SPIS20, TWIM20, TWIS20, UARTE20
+    #define NRFX_PRS_BOX_1_ADDR     NRF_UARTE20
+    // SPIM21, SPIS21, TWIM21, TWIS21, UARTE21
+    #define NRFX_PRS_BOX_2_ADDR     NRF_UARTE21
+    // SPIM22, SPIS22, TWIM22, TWIS22, UARTE22
+    #define NRFX_PRS_BOX_3_ADDR     NRF_UARTE22
+    // SPIM23, SPIS23, TWIM23, TWIS23, UARTE23
+    #define NRFX_PRS_BOX_4_ADDR     NRF_UARTE23
+    // SPIM24, SPIS24, TWIM24, TWIS24, UARTE23
+    #define NRFX_PRS_BOX_5_ADDR     NRF_UARTE24
+    // SPIM30, SPIS30, TWIM30, TWIS30, UARTE30
+    #define NRFX_PRS_BOX_6_ADDR     NRF_UARTE30
+    // COMP, LPCOMP
+    #define NRFX_PRS_BOX_7_ADDR     NRF_COMP
+#elif defined(NRF54LS05B_ENGA_XXAA)
+    // SPIM20, SPIS20, TWIM20, TWIS20, UARTE20
+    #define NRFX_PRS_BOX_0_ADDR     NRF_UARTE20
+    // SPIM21, SPIS21, TWIM21, TWIS21, UARTE21
+    #define NRFX_PRS_BOX_1_ADDR     NRF_UARTE21
+    // SPIM32, SPIS32, TWIM32, TWIS32, UARTE32
+    #define NRFX_PRS_BOX_2_ADDR     NRF_UARTE22
+#elif defined(NRF54LV10A_ENGA_XXAA)
+    // SPIM20, SPIS20, TWIM20, TWIS20, UARTE20
+    #define NRFX_PRS_BOX_0_ADDR     NRF_UARTE20
+    // SPIM21, SPIS21, TWIM21, TWIS21, UARTE21
+    #define NRFX_PRS_BOX_1_ADDR     NRF_UARTE21
+    // SPIM30, SPIS30, TWIM30, TWIS30, UARTE30
+    #define NRFX_PRS_BOX_2_ADDR     NRF_UARTE30
+    // COMP, LPCOMP
+    #define NRFX_PRS_BOX_3_ADDR     NRF_COMP
+#elif defined(NRF7120_ENGA_XXAA)
+    // SPIM00, UARTE00
+    #define NRFX_PRS_BOX_0_ADDR     NRF_UARTE00
+    // SPIM01
+    #define NRFX_PRS_BOX_1_ADDR     NRF_SPIM01
+    // SPIM02
+    #define NRFX_PRS_BOX_2_ADDR     NRF_SPIM02
+    // SPIM20, SPIS20, TWIM20, TWIS20, UARTE20
+    #define NRFX_PRS_BOX_3_ADDR     NRF_UARTE20
+    // SPIM21, SPIS21, TWIM21, TWIS21, UARTE21
+    #define NRFX_PRS_BOX_4_ADDR     NRF_UARTE21
+    // SPIM22, SPIS22, TWIM22, TWIS22, UARTE22
+    #define NRFX_PRS_BOX_5_ADDR     NRF_UARTE22
+    // SPIM23, SPIS23, TWIM23, TWIS23, UARTE23
+    #define NRFX_PRS_BOX_6_ADDR     NRF_UARTE23
+    // SPIM24, SPIS24, TWIM24, TWIS24, UARTE24
+    #define NRFX_PRS_BOX_7_ADDR     NRF_UARTE24
+    // SPIM30, SPIS30, TWIM30, TWIS30, UARTE30
+    #define NRFX_PRS_BOX_8_ADDR     NRF_UARTE30
+    // COMP, LPCOMP
+    #define NRFX_PRS_BOX_9_ADDR     NRF_COMP
+#elif defined(NRF91_SERIES)
     // UARTE0, SPIM0, SPIS0, TWIM0, TWIS0
     #define NRFX_PRS_BOX_0_ADDR     NRF_UARTE0
     // UARTE1, SPIM1, SPIS1, TWIM1, TWIS1
@@ -96,7 +197,28 @@ extern "C" {
     #define NRFX_PRS_BOX_2_ADDR     NRF_UARTE2
     // UARTE3, SPIM3, SPIS3, TWIM3, TWIS3
     #define NRFX_PRS_BOX_3_ADDR     NRF_UARTE3
-#else
+#elif defined(NRF9230_ENGB_XXAA)
+    // SPIM130, SPIS130, TWIM130, TWIS130, UARTE130
+    #define NRFX_PRS_BOX_0_ADDR     NRF_UARTE130
+    // SPIM131, SPIS131, TWIM131, TWIS131, UARTE131
+    #define NRFX_PRS_BOX_1_ADDR     NRF_UARTE131
+    // SPIM132, SPIS132, TWIM132, TWIS132, UARTE132
+    #define NRFX_PRS_BOX_2_ADDR     NRF_UARTE132
+    // SPIM133, SPIS133, TWIM133, TWIS133, UARTE133
+    #define NRFX_PRS_BOX_3_ADDR     NRF_UARTE133
+    // SPIM134, SPIS134, TWIM134, TWIS134, UARTE134
+    #define NRFX_PRS_BOX_4_ADDR     NRF_UARTE134
+    // SPIM135, SPIS135, TWIM135, TWIS135, UARTE135
+    #define NRFX_PRS_BOX_5_ADDR     NRF_UARTE135
+    // SPIM136, SPIS136, TWIM136, TWIS136, UARTE136
+    #define NRFX_PRS_BOX_6_ADDR     NRF_UARTE136
+    // SPIM137, SPIS137, TWIM137, TWIS137, UARTE137
+    #define NRFX_PRS_BOX_7_ADDR     NRF_UARTE137
+    // SPIS120, UARTE120
+    #define NRFX_PRS_BOX_8_ADDR     NRF_UARTE120
+    // COMP, LPCOMP
+    #define NRFX_PRS_BOX_9_ADDR     NRF_COMP
+#elif !defined(NRF_PRS_BOX_EXT)
     #error "Unknown device."
 #endif
 
@@ -135,12 +257,20 @@ void nrfx_prs_release(void const * p_base_addr);
 
 /** @} */
 
-void nrfx_prs_box_0_irq_handler(void);
-void nrfx_prs_box_1_irq_handler(void);
-void nrfx_prs_box_2_irq_handler(void);
-void nrfx_prs_box_3_irq_handler(void);
-void nrfx_prs_box_4_irq_handler(void);
-
+/*
+ * Declare interrupt handlers for all enabled driver instances in the following format:
+ * nrfx_\<periph_name\>_\<idx\>_irq_handler (for example, nrfx_prs_box_0_irq_handler).
+ *
+ * A specific interrupt handler for the driver instance can be retrieved by using
+ * the NRFX_PRS_BOX_INST_HANDLER_GET macro.
+ *
+ * Here is a sample of using the NRFX_PRS_BOX_INST_HANDLER_GET macro to map an interrupt handler
+ * in a Zephyr application:
+ *
+ * IRQ_CONNECT(NRFX_IRQ_NUMBER_GET(NRF_PRS_BOX_INST_GET(\<instance_index\>)), \<priority\>,
+ *                    NRFX_PRS_BOX_INST_HANDLER_GET(\<instance_index\>), 0, 0);
+ */
+NRFX_INSTANCE_IRQ_HANDLERS_DECLARE(PRS_BOX_, prs_box)
 
 #ifdef __cplusplus
 }

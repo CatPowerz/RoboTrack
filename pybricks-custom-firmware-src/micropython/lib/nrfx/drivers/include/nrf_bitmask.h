@@ -1,6 +1,8 @@
 /*
- * Copyright (c) 2016 - 2019, Nordic Semiconductor ASA
+ * Copyright (c) 2016 - 2025, Nordic Semiconductor ASA
  * All rights reserved.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -45,11 +47,20 @@ extern "C" {
  * @brief   Bitmask managing module.
  */
 
+/**
+ * @brief Get number of bytes needed to store the given bitmask.
+ *
+ * @param[in] bits_count Number of bits in the bitmask.
+ *
+ * @return Number of bytes to store requested bit mask.
+ */
+#define BITMASK_BYTES_CALCULATE(bits_count) NRFX_CEIL_DIV(bits_count, 8)
+
 /** @brief Macro for getting index of byte in byte stream where @c abs_bit is put. */
 #define BITMASK_BYTE_GET(abs_bit) ((abs_bit)/8)
 
 /** @brief Macro for getting relative index of bit in byte. */
-#define BITMASK_RELBIT_GET(abs_bit) ((abs_bit) & 0x00000007)
+#define BITMASK_RELBIT_GET(abs_bit) ((abs_bit) & 0x7UL)
 
 /**
  * @brief Function for checking if bit in the multi-byte bit mask is set.
@@ -79,7 +90,7 @@ __STATIC_INLINE void nrf_bitmask_bit_set(uint32_t bit, void * p_mask)
     uint8_t * p_mask8 = (uint8_t *)p_mask;
     uint32_t byte_idx = BITMASK_BYTE_GET(bit);
     bit = BITMASK_RELBIT_GET(bit);
-    p_mask8[byte_idx] |= (1 << bit);
+    p_mask8[byte_idx] |= (uint8_t)(1U << bit);
 }
 
 /**
@@ -93,7 +104,7 @@ __STATIC_INLINE void nrf_bitmask_bit_clear(uint32_t bit, void * p_mask)
     uint8_t * p_mask8 = (uint8_t *)p_mask;
     uint32_t byte_idx = BITMASK_BYTE_GET(bit);
     bit = BITMASK_RELBIT_GET(bit);
-    p_mask8[byte_idx] &= ~(1 << bit);
+    p_mask8[byte_idx] &= (uint8_t)~(1U << bit);
 }
 
 /**

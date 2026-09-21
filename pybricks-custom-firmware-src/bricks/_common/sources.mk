@@ -114,8 +114,8 @@ PBIO_SRC_C = $(addprefix lib/pbio/,\
 	drv/block_device/block_device_ev3.c \
 	drv/block_device/block_device_flash_stm32.c \
 	drv/block_device/block_device_test.c \
+	drv/block_device/block_device_virtual.c \
 	drv/block_device/block_device_w25qxx_stm32.c \
-	drv/bluetooth/bluetooth.c \
 	drv/bluetooth/bluetooth_btstack.c \
 	drv/bluetooth/bluetooth_btstack_ev3.c \
 	drv/bluetooth/bluetooth_btstack_posix.c \
@@ -191,7 +191,6 @@ PBIO_SRC_C = $(addprefix lib/pbio/,\
 	drv/uart/uart_stm32f0.c \
 	drv/uart/uart_stm32_ll_irq.c \
 	drv/uart/uart_stm32l4_ll_dma.c \
-	drv/usb/usb.c \
 	drv/usb/usb_common_desc.c \
 	drv/usb/usb_ev3.c \
 	drv/usb/usb_nxt.c \
@@ -202,6 +201,7 @@ PBIO_SRC_C = $(addprefix lib/pbio/,\
 	platform/$(PBIO_PLATFORM)/platform.c \
 	src/angle.c \
 	src/battery.c \
+	src/bluetooth.c \
 	src/busy_count.c \
 	src/cobs.c \
 	src/color/conversion.c \
@@ -237,6 +237,7 @@ PBIO_SRC_C = $(addprefix lib/pbio/,\
 	src/servo.c \
 	src/tacho.c \
 	src/trajectory.c \
+	src/serial.c \
 	src/util.c \
 	sys/battery_temp.c \
 	sys/battery.c \

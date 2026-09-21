@@ -1,6 +1,8 @@
 /*
- * Copyright (c) 2015 - 2019, Nordic Semiconductor ASA
+ * Copyright (c) 2015 - 2025, Nordic Semiconductor ASA
  * All rights reserved.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -34,7 +36,7 @@
 
 #include <nrfx.h>
 #include <hal/nrf_spis.h>
-#include <hal/nrf_gpio.h>
+#include <haly/nrfy_gpio.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -56,18 +58,8 @@ typedef struct
 
 #ifndef __NRFX_DOXYGEN__
 enum {
-#if NRFX_CHECK(NRFX_SPIS0_ENABLED)
-    NRFX_SPIS0_INST_IDX,
-#endif
-#if NRFX_CHECK(NRFX_SPIS1_ENABLED)
-    NRFX_SPIS1_INST_IDX,
-#endif
-#if NRFX_CHECK(NRFX_SPIS2_ENABLED)
-    NRFX_SPIS2_INST_IDX,
-#endif
-#if NRFX_CHECK(NRFX_SPIS3_ENABLED)
-    NRFX_SPIS3_INST_IDX,
-#endif
+    /* List all enabled driver instances (in the format NRFX_\<instance_name\>_INST_IDX). */
+    NRFX_INSTANCE_ENUM_LIST(SPIS)
     NRFX_SPIS_ENABLED_COUNT
 };
 #endif
@@ -75,16 +67,9 @@ enum {
 /** @brief Macro for creating an instance of the SPI slave driver. */
 #define NRFX_SPIS_INSTANCE(id)                               \
 {                                                            \
-    .p_reg        = NRFX_CONCAT_2(NRF_SPIS, id),             \
-    .drv_inst_idx = NRFX_CONCAT_3(NRFX_SPIS, id, _INST_IDX), \
+    .p_reg        = NRFX_CONCAT(NRF_, SPIS, id),             \
+    .drv_inst_idx = NRFX_CONCAT(NRFX_SPIS, id, _INST_IDX),   \
 }
-
-/**
- * @brief This value can be provided instead of a pin number for the signals MOSI
- *        and MISO to specify that the given signal is not used and therefore
- *        does not need to be connected to a pin.
- */
-#define NRFX_SPIS_PIN_NOT_USED  0xFF
 
 /** @brief SPI slave driver event types. */
 typedef enum
@@ -97,9 +82,13 @@ typedef enum
 /** @brief SPI slave driver event structure. */
 typedef struct
 {
-    nrfx_spis_evt_type_t evt_type;  //!< Type of the event.
-    size_t               rx_amount; //!< Number of bytes received in the last transaction. This parameter is only valid for @ref NRFX_SPIS_XFER_DONE events.
-    size_t               tx_amount; //!< Number of bytes transmitted in the last transaction. This parameter is only valid for @ref NRFX_SPIS_XFER_DONE events.
+    nrfx_spis_evt_type_t evt_type;    //!< Type of the event.
+    size_t               rx_amount;   //!< Number of bytes received in the last transaction. This parameter is only valid for @ref NRFX_SPIS_XFER_DONE events.
+    size_t               tx_amount;   //!< Number of bytes transmitted in the last transaction. This parameter is only valid for @ref NRFX_SPIS_XFER_DONE events.
+    void *               p_tx_buf;    //!< Pointer to the TX buffer used in the last transaction. This parameter is only valid for @ref NRFX_SPIS_XFER_DONE events.
+    void *               p_rx_buf;    //!< Pointer to the RX buffer used in the last transaction. This parameter is only valid for @ref NRFX_SPIS_XFER_DONE events.
+    size_t               tx_buf_size; //!< Size of the TX buffer used int the last transaction. This parameter is only valid for @ref NRFX_SPIS_XFER_DONE events.
+    size_t               rx_buf_size; //!< Size of the RX buffer used int the last transaction. This parameter is only valid for @ref NRFX_SPIS_XFER_DONE events.
 } nrfx_spis_evt_t;
 
 /**
@@ -118,39 +107,55 @@ typedef struct
  * @param[in] _pin_miso MISO pin.
  * @param[in] _pin_csn  CSN pin.
  */
-#define NRFX_SPIS_DEFAULT_CONFIG(_pin_sck, _pin_mosi, _pin_miso, _pin_csn)  \
-{                                                                           \
-    .miso_pin     = _pin_miso,                                              \
-    .mosi_pin     = _pin_mosi,                                              \
-    .sck_pin      = _pin_sck,                                               \
-    .csn_pin      = _pin_csn,                                               \
-    .mode         = NRF_SPIS_MODE_0,                                        \
-    .bit_order    = NRF_SPIS_BIT_ORDER_MSB_FIRST,                           \
-    .csn_pullup   = NRF_GPIO_PIN_NOPULL,                                    \
-    .miso_drive   = NRF_GPIO_PIN_S0S1,                                      \
-    .def          = 0xFF,                                                   \
-    .orc          = 0xFE,                                                   \
-    .irq_priority = NRFX_SPIS_DEFAULT_CONFIG_IRQ_PRIORITY,                  \
+#define NRFX_SPIS_DEFAULT_CONFIG(_pin_sck, _pin_mosi, _pin_miso, _pin_csn)   \
+{                                                                            \
+    .miso_pin      = _pin_miso,                                              \
+    .mosi_pin      = _pin_mosi,                                              \
+    .sck_pin       = _pin_sck,                                               \
+    .csn_pin       = _pin_csn,                                               \
+    .mode          = NRF_SPIS_MODE_0,                                        \
+    .bit_order     = NRF_SPIS_BIT_ORDER_MSB_FIRST,                           \
+    .csn_pullup    = NRF_GPIO_PIN_NOPULL,                                    \
+    .miso_drive    = NRF_GPIO_PIN_S0S1,                                      \
+    .def           = 0xFF,                                                   \
+    .orc           = 0xFE,                                                   \
+    .irq_priority  = NRFX_SPIS_DEFAULT_CONFIG_IRQ_PRIORITY,                  \
+    .skip_gpio_cfg = false,                                                  \
+    .skip_psel_cfg = false,                                                  \
 }
 
 /** @brief SPI peripheral device configuration data. */
 typedef struct
 {
-    uint32_t             miso_pin;      //!< SPI MISO pin (optional).
-                                        /**< Set @ref NRFX_SPIS_PIN_NOT_USED
+    uint32_t             miso_pin;      ///< SPI MISO pin (optional).
+                                        /**< Set @ref NRF_SPIS_PIN_NOT_CONNECTED
                                          *   if this signal is not needed. */
-    uint32_t             mosi_pin;      //!< SPI MOSI pin (optional).
-                                        /**< Set @ref NRFX_SPIS_PIN_NOT_USED
+    uint32_t             mosi_pin;      ///< SPI MOSI pin (optional).
+                                        /**< Set @ref NRF_SPIS_PIN_NOT_CONNECTED
                                          *   if this signal is not needed. */
-    uint32_t             sck_pin;       //!< SPI SCK pin.
-    uint32_t             csn_pin;       //!< SPI CSN pin.
-    nrf_spis_mode_t      mode;          //!< SPI mode.
-    nrf_spis_bit_order_t bit_order;     //!< SPI transaction bit order.
-    nrf_gpio_pin_pull_t  csn_pullup;    //!< CSN pin pull-up configuration.
-    nrf_gpio_pin_drive_t miso_drive;    //!< MISO pin drive configuration.
-    uint8_t              def;           //!< Character clocked out in case of an ignored transaction.
-    uint8_t              orc;           //!< Character clocked out after an over-read of the transmit buffer.
-    uint8_t              irq_priority;  //!< Interrupt priority.
+    uint32_t             sck_pin;       ///< SPI SCK pin.
+    uint32_t             csn_pin;       ///< SPI CSN pin.
+    nrf_spis_mode_t      mode;          ///< SPI mode.
+    nrf_spis_bit_order_t bit_order;     ///< SPI transaction bit order.
+    nrf_gpio_pin_pull_t  csn_pullup;    ///< CSN pin pull-up configuration.
+    nrf_gpio_pin_drive_t miso_drive;    ///< MISO pin drive configuration.
+    uint8_t              def;           ///< Character clocked out in case of an ignored transaction.
+    uint8_t              orc;           ///< Character clocked out after an over-read of the transmit buffer.
+    uint8_t              irq_priority;  ///< Interrupt priority.
+    bool                 skip_gpio_cfg; ///< Skip GPIO configuration of pins.
+                                        /**< When set to true, the driver does not modify
+                                         *   any GPIO parameters of the used pins. Those
+                                         *   parameters are supposed to be configured
+                                         *   externally before the driver is initialized. */
+    bool                 skip_psel_cfg; ///< Skip pin selection configuration.
+                                        /**< When set to true, the driver does not modify
+                                         *   pin select registers in the peripheral.
+                                         *   Those registers are supposed to be set up
+                                         *   externally before the driver is initialized.
+                                         *   @note When both GPIO configuration and pin
+                                         *   selection are to be skipped, the structure
+                                         *   fields that specify pins can be omitted,
+                                         *   as they are ignored anyway. */
 } nrfx_spis_config_t;
 
 
@@ -179,7 +184,9 @@ typedef void (*nrfx_spis_event_handler_t)(nrfx_spis_evt_t const * p_event,
  * @param[in] p_context     Context passed to the event handler.
  *
  * @retval NRFX_SUCCESS             The initialization was successful.
- * @retval NRFX_ERROR_INVALID_STATE The instance is already initialized.
+ * @retval NRFX_ERROR_ALREADY       The driver is already initialized.
+ * @retval NRFX_ERROR_INVALID_STATE The driver is already initialized.
+ *                                  Deprecated - use @ref NRFX_ERROR_ALREADY instead.
  * @retval NRFX_ERROR_INVALID_PARAM Invalid parameter is supplied.
  * @retval NRFX_ERROR_BUSY          Some other peripheral with the same
  *                                  instance ID is already in use. This is
@@ -195,11 +202,34 @@ nrfx_err_t nrfx_spis_init(nrfx_spis_t const *        p_instance,
                           void *                     p_context);
 
 /**
+ * @brief Function for reconfiguring the SPI slave driver instance.
+ *
+ * @param[in] p_instance Pointer to the driver instance structure.
+ * @param[in] p_config   Pointer to the structure with the configuration.
+ *
+ * @retval NRFX_SUCCESS             Reconfiguration was successful.
+ * @retval NRFX_ERROR_BUSY          The driver is during transfer.
+ * @retval NRFX_ERROR_INVALID_STATE The driver is uninitialized.
+ */
+nrfx_err_t nrfx_spis_reconfigure(nrfx_spis_t const *        p_instance,
+                                 nrfx_spis_config_t const * p_config);
+
+/**
  * @brief Function for uninitializing the SPI slave driver instance.
  *
  * @param[in] p_instance Pointer to the driver instance structure.
  */
 void nrfx_spis_uninit(nrfx_spis_t const * p_instance);
+
+/**
+ * @brief Function for checking if the SPIS driver instance is initialized.
+ *
+ * @param[in] p_instance Pointer to the driver instance structure.
+ *
+ * @retval true  Instance is already initialized.
+ * @retval false Instance is not initialized.
+ */
+bool nrfx_spis_init_check(nrfx_spis_t const * p_instance);
 
 /**
  * @brief Function for preparing the SPI slave instance for a single SPI transaction.
@@ -240,14 +270,31 @@ nrfx_err_t nrfx_spis_buffers_set(nrfx_spis_t const * p_instance,
                                  uint8_t *           p_rx_buffer,
                                  size_t              rx_buffer_length);
 
+/**
+ * @brief Macro returning SPIS interrupt handler.
+ *
+ * param[in] idx SPIS index.
+ *
+ * @return Interrupt handler.
+ */
+#define NRFX_SPIS_INST_HANDLER_GET(idx) NRFX_CONCAT_3(nrfx_spis_, idx, _irq_handler)
+
 /** @} */
 
-
-void nrfx_spis_0_irq_handler(void);
-void nrfx_spis_1_irq_handler(void);
-void nrfx_spis_2_irq_handler(void);
-void nrfx_spis_3_irq_handler(void);
-
+/*
+ * Declare interrupt handlers for all enabled driver instances in the following format:
+ * nrfx_\<periph_name\>_\<idx\>_irq_handler (for example, nrfx_spis_0_irq_handler).
+ *
+ * A specific interrupt handler for the driver instance can be retrieved by using
+ * the NRFX_SPIS_INST_HANDLER_GET macro.
+ *
+ * Here is a sample of using the NRFX_SPIS_INST_HANDLER_GET macro to map an interrupt handler
+ * in a Zephyr application:
+ *
+ * IRQ_CONNECT(NRFX_IRQ_NUMBER_GET(NRF_SPIS_INST_GET(\<instance_index\>)), \<priority\>,
+ *             NRFX_SPIS_INST_HANDLER_GET(\<instance_index\>), 0, 0);
+ */
+NRFX_INSTANCE_IRQ_HANDLERS_DECLARE(SPIS, spis)
 
 #ifdef __cplusplus
 }

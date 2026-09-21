@@ -11,7 +11,7 @@
 
 #include <lwrb/lwrb.h>
 
-#include <pbdrv/usb.h>
+#include <pbio/serial.h>
 #include <pbio/error.h>
 #include <pbio/int_math.h>
 #include <pbio/os.h>
@@ -21,7 +21,9 @@
 #include "hardware/uart.h"
 #include "pico/stdlib.h"
 
-#include "usb.h"
+#include <pbdrv/usb.h>
+
+#include <pbsys/config.h>
 
 static lwrb_t pbdrv_usb_simulation_pico_in_ringbuf;
 static volatile bool pbdrv_usb_simulation_tx_ready;
@@ -29,6 +31,7 @@ static volatile bool pbdrv_usb_simulation_tx_ready;
 // Size of the UART receive ring buffer. This is a mock with no real USB
 // hardware, so the value is arbitrary.
 #define PBDRV_USB_SIMULATION_PICO_RX_RINGBUF_SIZE (128)
+#define BUFFER_SIZE (PBIO_COBS_ENCODED_BUFFER_SIZE(PBSYS_CONFIG_HOST_EVENT_OUT_SIZE))
 
 pbio_error_t pbdrv_usb_wait_until_configured(pbio_os_state_t *state) {
     return PBIO_ERROR_NOT_SUPPORTED;
@@ -42,7 +45,7 @@ pbdrv_usb_bcd_t pbdrv_usb_get_bcd(void) {
     return PBDRV_USB_BCD_NONE;
 }
 
-pbio_error_t pbdrv_usb_tx_chunk(pbio_os_state_t *state, const uint8_t *data, uint32_t size) {
+pbio_error_t pbdrv_usb_tx_message(pbio_os_state_t *state, const uint8_t *data, uint32_t size) {
 
     PBIO_OS_ASYNC_BEGIN(state);
 
@@ -52,17 +55,18 @@ pbio_error_t pbdrv_usb_tx_chunk(pbio_os_state_t *state, const uint8_t *data, uin
     // REVISIT: This assumes that we do one chunk per stdout event. That is
     // currently true for the logic in usb.c, but we should revise this to make
     // it like the RX path if we turn it into an actual stream.
-    static uint8_t msg[PBDRV_USB_MAX_DECODED_MESSAGE_SIZE];
+    static uint8_t msg[BUFFER_SIZE];
     static uint32_t msg_size;
-    msg_size = pbio_cobs_decode(data, size - 1, msg, sizeof(msg));
+    uint8_t msg_type;
+    msg_size = pbio_cobs_decode_prefixed(data, size - 1, &msg_type, msg, sizeof(msg));
 
-    if (msg_size < 2 || msg[0] != PBIO_PYBRICKS_IN_EP_MSG_EVENT ||
-        msg[1] != PBIO_PYBRICKS_EVENT_WRITE_STDOUT) {
+    if (msg_size < 1 || msg_type != PBIO_PYBRICKS_IN_EP_MSG_EVENT ||
+        msg[0] != PBIO_PYBRICKS_EVENT_WRITE_STDOUT) {
         return PBIO_SUCCESS;
     }
 
     static int i;
-    for (i = 2; i < msg_size; i++) {
+    for (i = 1; i < msg_size; i++) {
         if (!uart_is_writable(uart_default)) {
             pbdrv_usb_simulation_tx_ready = false;
             // Enable TX interrupt to be notified when ready.
@@ -80,29 +84,33 @@ pbio_error_t pbdrv_usb_tx_reset(pbio_os_state_t *state) {
     return PBIO_SUCCESS;
 }
 
-static uint8_t pbdrv_usb_simulation_pico_in_buf[PBDRV_USB_MAX_ENCODED_MESSAGE_SIZE];
+static uint8_t pbdrv_usb_simulation_pico_in_buf[BUFFER_SIZE];
 static uint32_t pbdrv_usb_simulation_pico_in_size;
+static uint32_t pbdrv_usb_simulation_pico_in_pos;
 
-uint32_t pbdrv_usb_get_data_and_start_receive(uint8_t *data) {
-    uint32_t size = pbdrv_usb_simulation_pico_in_size;
-
-    // Invalid size.
-    if (size > sizeof(pbdrv_usb_simulation_pico_in_buf)) {
-        pbdrv_usb_simulation_pico_in_size = 0;
-        return 0;
-    }
+uint32_t pbdrv_usb_rx_read(uint8_t *data, uint32_t size) {
 
     // Nothing received yet.
-    if (size == 0) {
+    if (pbdrv_usb_simulation_pico_in_size == 0) {
         return 0;
     }
 
-    memcpy(data, pbdrv_usb_simulation_pico_in_buf, size);
+    uint32_t count = pbdrv_usb_simulation_pico_in_size - pbdrv_usb_simulation_pico_in_pos;
+    if (count > size) {
+        count = size;
+    }
+    memcpy(data, &pbdrv_usb_simulation_pico_in_buf[pbdrv_usb_simulation_pico_in_pos], count);
+    pbdrv_usb_simulation_pico_in_pos += count;
 
-    // Reset to indicate we wait for new data.
+    if (pbdrv_usb_simulation_pico_in_pos < pbdrv_usb_simulation_pico_in_size) {
+        return count;
+    }
+
+    // Fully drained, reset to indicate we wait for new data.
+    pbdrv_usb_simulation_pico_in_pos = 0;
     pbdrv_usb_simulation_pico_in_size = 0;
 
-    return size;
+    return count;
 }
 
 // Simulates incoming USB data by reading from native host stdin. In
@@ -112,29 +120,27 @@ static pbio_error_t pbdrv_usb_test_process_thread(pbio_os_state_t *state, void *
 
     // Fake a subscribe message so the common driver starts sending events,
     // just as a real host would after opening the port. It is COBS-encoded
-    // like real host traffic.
-    static const uint8_t subscribe_msg[] = {
-        PBIO_PYBRICKS_OUT_EP_MSG_SUBSCRIBE, 1,
-    };
-    pbdrv_usb_simulation_pico_in_size = pbio_cobs_encode(
-        subscribe_msg, sizeof(subscribe_msg), pbdrv_usb_simulation_pico_in_buf);
+    // like real host traffic. The payload is a single byte: 1 to subscribe.
+    static const uint8_t subscribe_payload[] = { 1 };
+    pbdrv_usb_simulation_pico_in_size = pbio_cobs_encode_prefixed(
+        PBIO_PYBRICKS_OUT_EP_MSG_SUBSCRIBE, subscribe_payload,
+        sizeof(subscribe_payload), pbdrv_usb_simulation_pico_in_buf);
 
     for (;;) {
         static size_t available;
         PBIO_OS_AWAIT_UNTIL(state, pbdrv_usb_simulation_pico_in_size == 0 &&
             (available = lwrb_get_full(&pbdrv_usb_simulation_pico_in_ringbuf)) > 0);
 
-        available = pbio_int_math_clamp(available, PBDRV_USB_MAX_DECODED_MESSAGE_SIZE - 3);
-
         // Wrap the raw UART bytes as a write stdin command and COBS-encode it,
         // the same way a real host would, so the common driver can decode it.
-        static uint8_t cmd[PBDRV_USB_MAX_DECODED_MESSAGE_SIZE];
-        cmd[0] = PBIO_PYBRICKS_OUT_EP_MSG_COMMAND;
-        cmd[1] = 0; // correlation tag (opaque; unused here)
-        cmd[2] = PBIO_PYBRICKS_COMMAND_WRITE_STDIN;
-        lwrb_read(&pbdrv_usb_simulation_pico_in_ringbuf, &cmd[3], available);
-        pbdrv_usb_simulation_pico_in_size = pbio_cobs_encode(
-            cmd, 3 + available, pbdrv_usb_simulation_pico_in_buf);
+        static uint8_t cmd[PBSYS_CONFIG_HOST_EVENT_OUT_SIZE];
+        cmd[0] = 0; // correlation tag (opaque; unused here)
+        cmd[1] = PBIO_PYBRICKS_COMMAND_WRITE_STDIN;
+        available = pbio_int_math_clamp(available, sizeof(cmd) - 2);
+        lwrb_read(&pbdrv_usb_simulation_pico_in_ringbuf, &cmd[2], available);
+        pbdrv_usb_simulation_pico_in_size = pbio_cobs_encode_prefixed(
+            PBIO_PYBRICKS_OUT_EP_MSG_COMMAND, cmd, 2 + available,
+            pbdrv_usb_simulation_pico_in_buf);
     }
 
     PBIO_OS_ASYNC_END(PBIO_SUCCESS);
@@ -158,7 +164,7 @@ static void pbdrv_usb_simulation_pico_uart_rx_irq(void) {
     pbio_os_request_poll();
 }
 
-void pbdrv_usb_init_device(void) {
+void pbdrv_usb_init(void) {
     static uint8_t in_ringbuf_data[PBDRV_USB_SIMULATION_PICO_RX_RINGBUF_SIZE];
     lwrb_init(&pbdrv_usb_simulation_pico_in_ringbuf, in_ringbuf_data, sizeof(in_ringbuf_data));
 
@@ -172,10 +178,10 @@ void pbdrv_usb_init_device(void) {
 
     // No physical port to detect, so assert DTR right away. The process thread
     // also fakes a subscribe message, so the connection becomes active.
-    pbdrv_usb_on_dtr_changed(true);
+    pbio_serial_port_changed(PBSYS_HOST_TRANSPORT_TYPE_USB, true);
 }
 
-void pbdrv_usb_deinit_device(void) {
+void pbdrv_usb_deinit(void) {
 }
 
 #endif // PBDRV_CONFIG_USB_SIMULATION_PICO

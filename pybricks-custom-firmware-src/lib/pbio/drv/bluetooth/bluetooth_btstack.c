@@ -15,8 +15,10 @@
 #include <ble/gatt-service/nordic_spp_service_server.h>
 #include <btstack.h>
 #include <btstack_run_loop.h>
+#include <lwrb/lwrb.h>
 
-#include <pbdrv/bluetooth.h>
+#include <pbio/bluetooth.h>
+#include <pbio/serial.h>
 #include <pbdrv/clock.h>
 
 #include <pbio/os.h>
@@ -24,7 +26,9 @@
 #include <pbio/util.h>
 #include <pbio/version.h>
 
-#include "bluetooth.h"
+#include <pbdrv/bluetooth.h>
+#include <pbsys/host.h>
+#include "bluetooth_address.h"
 #include "bluetooth_btstack.h"
 
 #include "genhdr/pybricks_service.h"
@@ -47,7 +51,17 @@
 static void btstack_hci_dump_reset(void) {
 }
 static void btstack_hci_dump_log_packet(uint8_t packet_type, uint8_t in, uint8_t *packet, uint16_t len) {
-    pbio_debug("HCI %s packet type: %02x, len: %u\n", in ? "in" : "out", packet_type, len);
+    pbio_debug("HCI %s packet type: %02x, len: %u :", in ? "in" : "out", packet_type, len);
+    // Dump the bytes so L2CAP/signaling contents can be decoded. Cap to keep
+    // the log readable; ACL signaling packets are small anyway.
+    uint16_t dump_len = len > 32 ? 32 : len;
+    for (uint16_t i = 0; i < dump_len; i++) {
+        pbio_debug(" %02x", packet[i]);
+    }
+    if (dump_len < len) {
+        pbio_debug(" ...");
+    }
+    pbio_debug("\n");
 }
 static void btstack_hci_dump_log_message(int log_level, const char *format, va_list argptr) {
     pbio_debug_va(format, argptr);
@@ -63,7 +77,7 @@ static const hci_dump_t pbdrv_bluetooth_btstack_hci_dump = {
 /**
  * BTstack state that we need to maintain for each peripheral.
  */
-static struct _pbdrv_bluetooth_peripheral_platform_state_t {
+static struct _pbio_bluetooth_peripheral_platform_state_t {
     /**
      * Current connection state, needed to unset callback on disconnect.
      */
@@ -73,25 +87,50 @@ static struct _pbdrv_bluetooth_peripheral_platform_state_t {
      *  are set up such that only one char is discovered at a time
      */
     gatt_client_characteristic_t current_char;
+    /** Advertisement matched during scan; address and data recorded in peri. */
+    bool adv_matched;
+    /** Scan response matched during scan; name and data recorded in peri. */
+    bool scan_rsp_matched;
+    /** SM pairing or re-encryption completed. */
+    bool pairing_complete;
+    /** Pairing completed via re-encryption rather than a new pairing. */
+    bool pairing_via_reencryption;
+    /** Status byte from the SM pairing or re-encryption complete event. */
+    uint8_t pairing_status;
+    /** Last GATT client operation completed. */
+    bool gatt_query_complete;
+    /** ATT status of the last completed GATT client operation. */
+    uint8_t gatt_att_status;
 } peripheral_platform_state[PBDRV_CONFIG_BLUETOOTH_NUM_PERIPHERALS];
 
-static pbdrv_bluetooth_peripheral_t _peripherals[PBDRV_CONFIG_BLUETOOTH_NUM_PERIPHERALS];
+static pbio_bluetooth_peripheral_t _peripherals[PBDRV_CONFIG_BLUETOOTH_NUM_PERIPHERALS];
 
-pbdrv_bluetooth_peripheral_t *pbdrv_bluetooth_peripheral_get_by_index(uint8_t index) {
+pbio_bluetooth_peripheral_t *pbdrv_bluetooth_peripheral_get_by_index(uint8_t index) {
     if (index >= PBDRV_CONFIG_BLUETOOTH_NUM_PERIPHERALS) {
         return NULL;
     }
     return &_peripherals[index];
 }
 
-// hub name goes in special section so that it can be modified when flashing firmware
-#if !PBIO_TEST_BUILD
-__attribute__((section(".name")))
-#endif
-char pbdrv_bluetooth_hub_name[16] = "Pybricks Hub";
-
-static uint8_t *event_packet;
 static const pbdrv_bluetooth_btstack_platform_data_t *pdata = &pbdrv_bluetooth_btstack_platform_data;
+
+/**
+ * Event outcomes recorded by the packet handlers for the driver thread to
+ * consume. The thread clears a flag before issuing the command that triggers
+ * it, then awaits the flag.
+ */
+static struct {
+    /** LE set advertise enable command completed (fires for disable too). */
+    bool advertise_enable_complete;
+    /** LE set advertising data command completed. */
+    bool advertising_data_complete;
+    /**
+     * Peripheral currently scanning/connecting. Advertising reports and the
+     * connection complete event are recorded here. NULL when not scanning.
+     * Once it has a handle, we can look it up directly for normal operations.
+     */
+    pbio_bluetooth_peripheral_t *scanning_peri;
+} recorded_events;
 
 /**
  * State of a connected host (Pybricks Code or similar).
@@ -129,6 +168,16 @@ static pbdrv_bluetooth_btstack_host_connection_t *pbdrv_bluetooth_btstack_get_ho
     return NULL;
 }
 
+static pbio_bluetooth_peripheral_t *pbdrv_bluetooth_btstack_get_peripheral(hci_con_handle_t con_handle) {
+    for (uint8_t i = 0; i < PBDRV_CONFIG_BLUETOOTH_NUM_PERIPHERALS; i++) {
+        pbio_bluetooth_peripheral_t *peri = pbdrv_bluetooth_peripheral_get_by_index(i);
+        if (peri && peri->con_handle == con_handle) {
+            return peri;
+        }
+    }
+    return NULL;
+}
+
 /**
  * Converts BTStack error to most appropriate PBIO error.
  * @param [in]  status      The BTStack error
@@ -155,11 +204,7 @@ static pbio_error_t att_error_to_pbio_error(uint8_t status) {
 
 static pbio_pybricks_error_t pybricks_data_received(hci_con_handle_t tx_con_handle, const uint8_t *data, uint16_t size) {
     // Treating all incoming host data the same.
-    if (pbdrv_bluetooth_receive_handler) {
-        return pbdrv_bluetooth_receive_handler(data, size);
-    }
-
-    return ATT_ERROR_UNLIKELY_ERROR;
+    return pbio_bluetooth_receive_handler(data, size);
 }
 
 static void pybricks_configured(hci_con_handle_t tx_con_handle, uint16_t value) {
@@ -168,45 +213,17 @@ static void pybricks_configured(hci_con_handle_t tx_con_handle, uint16_t value) 
         return;
     }
     host->pybricks_configured = !!value;
-    pbdrv_bluetooth_host_connection_changed();
-}
-
-static bool hci_event_is_type(uint8_t *packet, uint8_t event_type) {
-    return packet && hci_event_packet_get_type(packet) == event_type;
-}
-
-/**
- * Shortcut to check if a LE connection event for a peripheral role occurred.
- */
-static bool hci_event_le_peripheral_did_connect(uint8_t *packet) {
-    return
-        hci_event_is_type(event_packet, HCI_EVENT_LE_META) &&
-        hci_event_le_meta_get_subevent_code(event_packet) == HCI_SUBEVENT_LE_CONNECTION_COMPLETE &&
-        hci_subevent_le_connection_complete_get_role(event_packet) == HCI_ROLE_MASTER;
-}
-
-/**
- * Shortcut to check if a pairing or reencryption complete event for a given
- * handle occurred. Indicates end of pairing process.
- */
-static bool hci_event_le_peripheral_pairing_did_complete(uint8_t *packet, uint16_t handle) {
-    if (hci_event_is_type(event_packet, SM_EVENT_PAIRING_COMPLETE)) {
-        return sm_event_pairing_complete_get_handle(event_packet) == handle;
-    }
-    if (hci_event_is_type(event_packet, SM_EVENT_REENCRYPTION_COMPLETE)) {
-        return sm_event_reencryption_complete_get_handle(event_packet) == handle;
-    }
-    return false;
+    pbio_bluetooth_host_connection_changed();
 }
 
 /**
  * Wrapper for gap_disconnect that is safe to call if already disconnected.
  */
-static void pbdrv_bluetooth_peripheral_disconnect_now(pbdrv_bluetooth_peripheral_t *peri) {
+static void pbdrv_bluetooth_peripheral_disconnect_now(pbio_bluetooth_peripheral_t *peri) {
     if (peri->con_handle == HCI_CON_HANDLE_INVALID) {
-        // Already disconnected. We must check this because otherwise
-        // gap_disconnect() will synchronously call the disconnection complete
-        // handler and re-enter the event loop recursively.
+        // Nothing to do. The synchronous callback from gap_disconnect() is no
+        // longer a reentrancy hazard since packet handlers only record state,
+        // but skipping avoids a needless error on an invalid handle.
         return;
     }
     gap_disconnect(peri->con_handle);
@@ -216,26 +233,7 @@ static void pbdrv_bluetooth_peripheral_disconnect_now(pbdrv_bluetooth_peripheral
 static pbio_os_state_t bluetooth_thread_state;
 static pbio_error_t bluetooth_thread_err;
 
-/**
- * Runs tasks that may be waiting for event.
- *
- * This drives the common Bluetooth process synchronously with incoming events
- * so that each of the protothreads can wait for states.
- *
- * @param [in]  packet  Pointer to the raw packet data.
- */
-static void propagate_event(uint8_t *packet) {
-
-    event_packet = packet;
-
-    if (bluetooth_thread_err == PBIO_ERROR_AGAIN) {
-        bluetooth_thread_err = pbdrv_bluetooth_process_thread(&bluetooth_thread_state, NULL);
-    }
-
-    event_packet = NULL;
-}
-
-bool pbdrv_bluetooth_peripheral_is_connected(pbdrv_bluetooth_peripheral_t *peri) {
+bool pbdrv_bluetooth_peripheral_is_connected(pbio_bluetooth_peripheral_t *peri) {
     return peri->con_handle != HCI_CON_HANDLE_INVALID;
 }
 
@@ -291,7 +289,7 @@ static void nordic_spp_packet_handler(uint8_t packet_type, uint16_t channel, uin
             break;
     }
 
-    propagate_event(packet);
+    pbio_os_request_poll();
 }
 
 /**
@@ -326,13 +324,34 @@ static bool pbdrv_bluetooth_btstack_ble_supported(void) {
     return chipset_info && chipset_info->supports_ble;
 }
 
-// currently, this function just handles the Powered Up handset control.
-static void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *packet, uint16_t size) {
+// Defined alongside the scan and connect thread below.
+static void scan_and_connect_match_advertising_report(pbio_bluetooth_peripheral_t *peri, uint8_t *packet);
+
+/**
+ * Main handler for HCI and BLE events, recording state for the driver
+ * thread to consume. Events of dedicated subsystems (security manager, GATT
+ * client operations, inquiry scan) have their own handlers below.
+ */
+static void main_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *packet, uint16_t size) {
 
     // Platform-specific platform handler has priority.
     pbdrv_bluetooth_btstack_platform_packet_handler(packet_type, channel, packet, size);
 
     switch (hci_event_packet_get_type(packet)) {
+        case BTSTACK_EVENT_STATE:
+            if (btstack_event_state_get_state(packet) == HCI_STATE_WORKING) {
+                // Set a static random address derived from the chip address
+                // and firmware version, so it persists across reboots but
+                // changes on firmware update. Bluetooth Classic is unaffected
+                // as it always uses the chip's public address.
+                bd_addr_t static_addr;
+                uint8_t derived[6];
+                gap_local_bd_addr(static_addr);
+                pbdrv_bluetooth_derive_static_address(derived, static_addr);
+                reverse_48(derived, static_addr);
+                gap_random_address_set(static_addr);
+            }
+            break;
         case HCI_EVENT_COMMAND_COMPLETE: {
             const uint8_t *rp = hci_event_command_complete_get_return_parameters(packet);
             switch (hci_event_command_complete_get_command_opcode(packet)) {
@@ -342,30 +361,22 @@ static void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *packe
                     chipset_info = pbdrv_bluetooth_btstack_set_chipset(&info);
                     break;
                 }
+                case HCI_OPCODE_HCI_LE_SET_ADVERTISE_ENABLE:
+                    recorded_events.advertise_enable_complete = true;
+                    pbio_os_request_poll();
+                    break;
+                case HCI_OPCODE_HCI_LE_SET_ADVERTISING_DATA:
+                    recorded_events.advertising_data_complete = true;
+                    pbio_os_request_poll();
+                    break;
                 default:
                     break;
             }
             break;
         }
-        case GATT_EVENT_SERVICE_QUERY_RESULT: {
-            // Service discovery not used.
-            gatt_client_service_t service;
-            gatt_event_service_query_result_get_service(packet, &service);
-            break;
-        }
-        case GATT_EVENT_CHARACTERISTIC_QUERY_RESULT:
-            DEBUG_PRINT("GATT_EVENT_CHARACTERISTIC_QUERY_RESULT\n");
-            break;
-        case GATT_EVENT_CHARACTERISTIC_VALUE_QUERY_RESULT: {
-            DEBUG_PRINT("GATT_EVENT_CHARACTERISTIC_VALUE_QUERY_RESULT\n");
-            break;
-        }
-        case GATT_EVENT_QUERY_COMPLETE:
-            DEBUG_PRINT("GATT_EVENT_QUERY_COMPLETE\n");
-            break;
         case GATT_EVENT_NOTIFICATION:
             for (uint8_t i = 0; i < PBDRV_CONFIG_BLUETOOTH_NUM_PERIPHERALS; i++) {
-                pbdrv_bluetooth_peripheral_t *peri = pbdrv_bluetooth_peripheral_get_by_index(i);
+                pbio_bluetooth_peripheral_t *peri = pbdrv_bluetooth_peripheral_get_by_index(i);
                 if (!peri || !peri->config.notification_handler) {
                     continue;
                 }
@@ -394,21 +405,26 @@ static void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *packe
                 // don't start advertising again on disconnect
                 gap_advertisements_enable(false);
                 pbdrv_bluetooth_advertising_state = PBDRV_BLUETOOTH_ADVERTISING_STATE_NONE;
+            } else if (recorded_events.scanning_peri &&
+                       hci_subevent_le_connection_complete_get_status(packet) == ERROR_CODE_SUCCESS) {
+                // Hub is central: record handle for the scan and connect thread.
+                recorded_events.scanning_peri->con_handle =
+                    hci_subevent_le_connection_complete_get_connection_handle(packet);
             }
             break;
         case HCI_EVENT_DISCONNECTION_COMPLETE: {
-            DEBUG_PRINT("HCI_EVENT_DISCONNECTION_COMPLETE\n");
+            DEBUG_PRINT("HCI_EVENT_DISCONNECTION_COMPLETE reason=0x%02x\n", hci_event_disconnection_complete_get_reason(packet));
             uint16_t handle = hci_event_disconnection_complete_get_connection_handle(packet);
             pbdrv_bluetooth_btstack_host_connection_t *host = pbdrv_bluetooth_btstack_get_host_connection(handle);
             if (host) {
                 host->con_handle = HCI_CON_HANDLE_INVALID;
                 host->pybricks_configured = false;
                 host->uart_configured = false;
-                pbdrv_bluetooth_host_connection_changed();
+                pbio_bluetooth_host_connection_changed();
                 DEBUG_PRINT("Host with handle %u disconnected\n", handle);
             } else {
                 for (uint8_t i = 0; i < PBDRV_CONFIG_BLUETOOTH_NUM_PERIPHERALS; i++) {
-                    pbdrv_bluetooth_peripheral_t *peri = pbdrv_bluetooth_peripheral_get_by_index(i);
+                    pbio_bluetooth_peripheral_t *peri = pbdrv_bluetooth_peripheral_get_by_index(i);
                     if (peri && handle == peri->con_handle) {
                         DEBUG_PRINT("Peripheral %u with handle %u disconnected\n", i, peri->con_handle);
                         gatt_client_stop_listening_for_characteristic_value_updates(&peri->platform_state->notification);
@@ -429,6 +445,10 @@ static void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *packe
                 pbdrv_bluetooth_observe_callback(event_type, data, data_length, rssi);
             }
 
+            if (recorded_events.scanning_peri) {
+                scan_and_connect_match_advertising_report(recorded_events.scanning_peri, packet);
+            }
+
             #if DEBUG
             bd_addr_t address;
             gap_event_advertising_report_get_address(packet, address);
@@ -441,7 +461,7 @@ static void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *packe
             break;
     }
 
-    propagate_event(packet);
+    pbio_os_request_poll();
 }
 
 // Security manager callbacks. This is adapted from the BTstack examples.
@@ -482,9 +502,18 @@ static void sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *pa
         case SM_EVENT_PAIRING_STARTED:
             DEBUG_PRINT("Pairing started\n");
             break;
-        case SM_EVENT_PAIRING_COMPLETE:
-            DEBUG_PRINT("Pairing complete\n");
+        case SM_EVENT_PAIRING_COMPLETE: {
+            DEBUG_PRINT("Pairing complete with status %u and reason %u.\n",
+                sm_event_pairing_complete_get_status(packet),
+                sm_event_pairing_complete_get_reason(packet));
+            pbio_bluetooth_peripheral_t *peri = pbdrv_bluetooth_btstack_get_peripheral(sm_event_pairing_complete_get_handle(packet));
+            if (peri) {
+                peri->platform_state->pairing_via_reencryption = false;
+                peri->platform_state->pairing_status = sm_event_pairing_complete_get_status(packet);
+                peri->platform_state->pairing_complete = true;
+            }
             break;
+        }
         case SM_EVENT_REENCRYPTION_STARTED: {
             bd_addr_t addr;
             sm_event_reencryption_complete_get_address(packet, addr);
@@ -492,14 +521,75 @@ static void sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *pa
                 sm_event_reencryption_started_get_addr_type(packet), bd_addr_to_str(addr));
             break;
         }
-        case SM_EVENT_REENCRYPTION_COMPLETE:
-            DEBUG_PRINT("Re-encryption complete.\n");
+        case SM_EVENT_REENCRYPTION_COMPLETE: {
+            DEBUG_PRINT("Re-encryption complete with status %u.\n",
+                sm_event_reencryption_complete_get_status(packet));
+            pbio_bluetooth_peripheral_t *peri = pbdrv_bluetooth_btstack_get_peripheral(sm_event_reencryption_complete_get_handle(packet));
+            if (peri) {
+                peri->platform_state->pairing_via_reencryption = true;
+                peri->platform_state->pairing_status = sm_event_reencryption_complete_get_status(packet);
+                peri->platform_state->pairing_complete = true;
+            }
             break;
+        }
         default:
             break;
     }
 
-    propagate_event(packet);
+    pbio_os_request_poll();
+}
+
+/**
+ * Handles events from GATT client operations on peripherals, recording the
+ * results for the driver thread to consume. Results are keyed to a
+ * peripheral by connection handle.
+ */
+static void gatt_op_handler(uint8_t packet_type, uint16_t channel, uint8_t *packet, uint16_t size) {
+    UNUSED(packet_type);
+    UNUSED(channel);
+    UNUSED(size);
+
+    switch (hci_event_packet_get_type(packet)) {
+        case GATT_EVENT_CHARACTERISTIC_QUERY_RESULT: {
+            pbio_bluetooth_peripheral_t *peri = pbdrv_bluetooth_btstack_get_peripheral(
+                gatt_event_characteristic_query_result_get_handle(packet));
+            // During discovery, save only the first characteristic that has
+            // at least the requested properties.
+            if (!peri || peri->char_disc.handle) {
+                break;
+            }
+            gatt_client_characteristic_t *current_char = &peri->platform_state->current_char;
+            gatt_event_characteristic_query_result_get_characteristic(packet, current_char);
+            if ((current_char->properties & peri->char_disc.properties) == peri->char_disc.properties) {
+                DEBUG_PRINT("Found characteristic handle: 0x%04x with properties 0x%04x \n", current_char->value_handle, current_char->properties);
+                peri->char_disc.handle = current_char->value_handle;
+                peri->char_disc.handle_max = current_char->end_handle;
+            }
+            break;
+        }
+        case GATT_EVENT_CHARACTERISTIC_VALUE_QUERY_RESULT: {
+            pbio_bluetooth_peripheral_t *peri = pbdrv_bluetooth_btstack_get_peripheral(
+                gatt_event_characteristic_value_query_result_get_handle(packet));
+            if (peri && gatt_event_characteristic_value_query_result_get_value_handle(packet) == peri->char_handle) {
+                peri->char_size = gatt_event_characteristic_value_query_result_get_value_length(packet);
+                memcpy(peri->char_data, gatt_event_characteristic_value_query_result_get_value(packet), peri->char_size);
+            }
+            break;
+        }
+        case GATT_EVENT_QUERY_COMPLETE: {
+            pbio_bluetooth_peripheral_t *peri = pbdrv_bluetooth_btstack_get_peripheral(
+                gatt_event_query_complete_get_handle(packet));
+            if (peri) {
+                peri->platform_state->gatt_att_status = gatt_event_query_complete_get_att_status(packet);
+                peri->platform_state->gatt_query_complete = true;
+            }
+            break;
+        }
+        default:
+            break;
+    }
+
+    pbio_os_request_poll();
 }
 
 // ATT Client Read Callback for Dynamic Data
@@ -511,9 +601,9 @@ static uint16_t att_read_callback(hci_con_handle_t con_handle, uint16_t attribut
 
     switch (attribute_handle) {
         case ATT_CHARACTERISTIC_GAP_DEVICE_NAME_01_VALUE_HANDLE:
-            att_value_len = strlen(pbdrv_bluetooth_hub_name);
+            att_value_len = strlen(pbsys_host_get_hub_name());
             if (buffer) {
-                memcpy(buffer, pbdrv_bluetooth_hub_name, att_value_len);
+                memcpy(buffer, pbsys_host_get_hub_name(), att_value_len);
             }
             return att_value_len;
 
@@ -524,7 +614,7 @@ static uint16_t att_read_callback(hci_con_handle_t con_handle, uint16_t attribut
 
 static void init_advertising_data(void) {
     bd_addr_t null_addr = { };
-    gap_advertisements_set_params(0x30, 0x30, PBDRV_BLUETOOTH_AD_TYPE_ADV_IND, 0x00, null_addr, 0x07, 0x00);
+    gap_advertisements_set_params(0x30, 0x30, PBIO_BLUETOOTH_AD_TYPE_ADV_IND, 0x00, null_addr, 0x07, 0x00);
 
     static const uint8_t adv_data[] = {
         // Flags general discoverable, BR/EDR not supported
@@ -550,10 +640,11 @@ static void init_advertising_data(void) {
 
     pbio_pybricks_pnp_id(&scan_resp_data[4], PBDRV_CONFIG_HUB_KIND, PBDRV_CONFIG_HUB_VARIANT);
 
-    uint8_t hub_name_len = strlen(pbdrv_bluetooth_hub_name);
+    const char *hub_name = pbsys_host_get_hub_name();
+    uint8_t hub_name_len = strlen(hub_name);
     scan_resp_data[11] = hub_name_len + 1;
-    memcpy(&scan_resp_data[13], pbdrv_bluetooth_hub_name, hub_name_len);
-    _Static_assert(13 + sizeof(pbdrv_bluetooth_hub_name) - 1 <= 31, "scan response is 31 octet max");
+    memcpy(&scan_resp_data[13], hub_name, hub_name_len);
+    _Static_assert(13 + PBSYS_HOST_HUB_NAME_SIZE - 1 <= 31, "scan response is 31 octet max");
 
     gap_scan_response_set_data(13 + hub_name_len, scan_resp_data);
 }
@@ -577,9 +668,10 @@ pbio_error_t pbdrv_bluetooth_start_advertising_func(pbio_os_state_t *state, void
     }
 
     init_advertising_data();
+    recorded_events.advertise_enable_complete = false;
     gap_advertisements_enable(true);
 
-    PBIO_OS_AWAIT_UNTIL(state, event_packet && HCI_EVENT_IS_COMMAND_COMPLETE(event_packet, hci_le_set_advertise_enable));
+    PBIO_OS_AWAIT_UNTIL(state, recorded_events.advertise_enable_complete);
 
     pbdrv_bluetooth_advertising_state = PBDRV_BLUETOOTH_ADVERTISING_STATE_ADVERTISING_PYBRICKS;
 
@@ -610,6 +702,26 @@ static void pybricks_on_ready_to_send(void *context) {
     pbio_os_request_poll();
 }
 #endif
+
+uint16_t pbdrv_bluetooth_get_max_message_size(void) {
+    // Minimum negotiated ATT MTU over all connected hosts, capped at the
+    // platform maximum, minus the 3-byte ATT notification header. The same
+    // value is sent to every host, so we must fit the smallest one.
+    uint16_t mtu = PBDRV_CONFIG_BLUETOOTH_MAX_MTU_SIZE;
+    #if PBDRV_CONFIG_BLUETOOTH_BTSTACK_NUM_LE_HOSTS
+    for (size_t i = 0; i < PBDRV_CONFIG_BLUETOOTH_BTSTACK_NUM_LE_HOSTS; i++) {
+        pbdrv_bluetooth_btstack_host_connection_t *host = &host_connections[i];
+        if (host->con_handle == HCI_CON_HANDLE_INVALID) {
+            continue;
+        }
+        uint16_t host_mtu = att_server_get_mtu(host->con_handle);
+        if (host_mtu && host_mtu < mtu) {
+            mtu = host_mtu;
+        }
+    }
+    #endif
+    return mtu - PBIO_BLUETOOTH_ATT_HEADER_SIZE;
+}
 
 pbio_error_t pbdrv_bluetooth_send_pybricks_value_notification(pbio_os_state_t *state, const uint8_t *data, uint16_t size) {
     if (!pbdrv_bluetooth_btstack_ble_supported()) {
@@ -649,12 +761,72 @@ pbio_error_t pbdrv_bluetooth_send_pybricks_value_notification(pbio_os_state_t *s
     #endif
 }
 
+/**
+ * Matches one advertising report against the filters of the peripheral
+ * currently scanning. Called by the packet handler on each report while the
+ * scan and connect thread below awaits the scan_rsp_matched result.
+ *
+ * First matches an advertisement and records the sender address, then waits
+ * for the scan response from that same address. If the scan response does
+ * not pass the filter, goes back to matching advertisements, but not the
+ * device that was just rejected.
+ */
+static void scan_and_connect_match_advertising_report(pbio_bluetooth_peripheral_t *peri, uint8_t *packet) {
+
+    uint8_t event_type = gap_event_advertising_report_get_advertising_event_type(packet);
+    uint8_t data_length = gap_event_advertising_report_get_data_length(packet);
+    const uint8_t *data = gap_event_advertising_report_get_data(packet);
+
+    if (!peri->platform_state->adv_matched) {
+        // Match advertisement data against context-specific filter.
+        if (event_type <= PBIO_BLUETOOTH_AD_TYPE_ADV_DIRECT_IND &&
+            peri->config.match_adv(peri->user, data, data_length)) {
+            bd_addr_t adv_address;
+            gap_event_advertising_report_get_address(packet, adv_address);
+            // If it is the same device as before, its scan response
+            // didn't match earlier, so don't try it again.
+            bool saw_before = !memcmp(peri->bdaddr, adv_address, sizeof(bd_addr_t));
+            memcpy(peri->bdaddr, adv_address, sizeof(bd_addr_t));
+            peri->bdaddr_type = gap_event_advertising_report_get_address_type(packet);
+            if (!saw_before) {
+                // Copy data to allow virtual re-connect in a new user program.
+                peri->config.match_adv_data_len = data_length;
+                memcpy(peri->config.match_adv_data, data, data_length);
+                peri->platform_state->adv_matched = true;
+                DEBUG_PRINT("Advertisement matched, waiting for scan response\n");
+            }
+        }
+    } else if (!peri->platform_state->scan_rsp_matched &&
+               event_type == PBIO_BLUETOOTH_AD_TYPE_SCAN_RSP) {
+        bd_addr_t rsp_address;
+        gap_event_advertising_report_get_address(packet, rsp_address);
+        if (!memcmp(peri->bdaddr, rsp_address, sizeof(bd_addr_t))) {
+            if (!peri->config.match_adv_rsp(peri->user, data, data_length)) {
+                // Scan response from the matched device did not pass
+                // the response filter (e.g. requested name did not
+                // match), so go back to matching advertisements.
+                DEBUG_PRINT("Name requested but did not match. Scan again.\n");
+                peri->platform_state->adv_matched = false;
+            } else {
+                // Copy name for later use.
+                if (data[1] == BLUETOOTH_DATA_TYPE_COMPLETE_LOCAL_NAME) {
+                    memcpy(peri->name, &data[2], sizeof(peri->name));
+                }
+                // Copy response data to allow virtual re-connect in a new user program.
+                peri->config.match_adv_rsp_data_len = data_length;
+                memcpy(peri->config.match_adv_rsp_data, data, data_length);
+                peri->platform_state->scan_rsp_matched = true;
+            }
+        }
+    }
+}
+
 pbio_error_t pbdrv_bluetooth_peripheral_scan_and_connect_func(pbio_os_state_t *state, void *context) {
     if (!pbdrv_bluetooth_btstack_ble_supported()) {
         return PBIO_ERROR_NOT_SUPPORTED;
     }
 
-    pbdrv_bluetooth_peripheral_t *peri = context;
+    pbio_bluetooth_peripheral_t *peri = context;
     uint8_t btstack_error;
 
     // Operation can be explicitly cancelled or automatically on inactivity.
@@ -665,98 +837,30 @@ pbio_error_t pbdrv_bluetooth_peripheral_scan_and_connect_func(pbio_os_state_t *s
 
     PBIO_OS_ASYNC_BEGIN(state);
 
-    memset(peri->platform_state, 0, sizeof(pbdrv_bluetooth_peripheral_platform_state_t));
+    memset(peri->platform_state, 0, sizeof(pbio_bluetooth_peripheral_platform_state_t));
 
     peri->con_handle = HCI_CON_HANDLE_INVALID;
+    recorded_events.scanning_peri = peri;
 
     // active scanning to get scan response data.
     // scan interval: 48 * 0.625ms = 30ms
     gap_set_scan_params(1, 0x30, 0x30, 0);
     gap_start_scan();
 
-start_scan:
-
-    // Wait for advertisement that matches the filter unless timed out or cancelled.
-    PBIO_OS_AWAIT_UNTIL(state, scan_timed_out || peri->cancel ||
-        (hci_event_is_type(event_packet, GAP_EVENT_ADVERTISING_REPORT) && ({
-
-        uint8_t event_type = gap_event_advertising_report_get_advertising_event_type(event_packet);
-        const uint8_t *data = gap_event_advertising_report_get_data(event_packet);
-        uint8_t data_len = gap_event_advertising_report_get_data_length(event_packet);
-
-        // Match advertisement data against context-specific filter.
-        bool advertising_matched =
-            event_type <= PBDRV_BLUETOOTH_AD_TYPE_ADV_DIRECT_IND &&
-            peri->config.match_adv(peri->user, data, data_len);
-
-        // On match, store the address to compare with scan response later.
-        bool saw_before = false;
-        if (advertising_matched) {
-            bd_addr_t address;
-            gap_event_advertising_report_get_address(event_packet, address);
-            saw_before = !memcmp(peri->bdaddr, address, sizeof(bd_addr_t));
-            memcpy(peri->bdaddr, address, sizeof(bd_addr_t));
-            peri->bdaddr_type = gap_event_advertising_report_get_address_type(event_packet);
-        }
-
-        // Wait condition: Advertisement matched and it isn't the same as before.
-        // If it was the same and we're here, it means the scan response didn't match
-        // so we shouldn't try it again.
-        advertising_matched && !saw_before;
-    })));
+    // The packet handler matches advertisements and scan responses against
+    // the filters and records the results, retrying other devices as needed.
+    // See scan_and_connect_match_advertising_report() which ultimately sets
+    // this state to proceed.
+    PBIO_OS_AWAIT_UNTIL(state, scan_timed_out || peri->cancel || peri->platform_state->scan_rsp_matched);
 
     if (scan_timed_out || peri->cancel) {
         DEBUG_PRINT("Scan %s.\n", peri->cancel ? "canceled": "timed out");
+        recorded_events.scanning_peri = NULL;
         gap_stop_scan();
         return peri->cancel ? PBIO_ERROR_CANCELED : PBIO_ERROR_TIMEDOUT;
-    }
-
-    DEBUG_PRINT("Advertisement matched, waiting for scan response\n");
-
-    // Copy data to allow virtual re-connect in a new user program.
-    peri->config.match_adv_data_len = gap_event_advertising_report_get_data_length(event_packet);
-    memcpy(peri->config.match_adv_data, gap_event_advertising_report_get_data(event_packet), peri->config.match_adv_data_len);
-
-    // Wait for advertising response unless timed out or cancelled.
-    PBIO_OS_AWAIT_UNTIL(state, scan_timed_out || peri->cancel ||
-        (hci_event_is_type(event_packet, GAP_EVENT_ADVERTISING_REPORT) && ({
-
-        uint8_t event_type = gap_event_advertising_report_get_advertising_event_type(event_packet);
-        bd_addr_t address;
-        gap_event_advertising_report_get_address(event_packet, address);
-
-        // Wait for the scan response from the previously matching device.
-        event_type == PBDRV_BLUETOOTH_AD_TYPE_SCAN_RSP && !memcmp(peri->bdaddr, address, sizeof(bd_addr_t));
-    })));
-
-    if (scan_timed_out || peri->cancel) {
-        DEBUG_PRINT("Scan response %s.\n", peri->cancel ? "canceled": "timed out");
-        gap_stop_scan();
-        return peri->cancel ? PBIO_ERROR_CANCELED : PBIO_ERROR_TIMEDOUT;
-    }
-
-    // If we got here, we just finished waiting for a response and we still have
-    // that event data for processing.
-    const uint8_t *data = gap_event_advertising_report_get_data(event_packet);
-    uint8_t data_len = gap_event_advertising_report_get_data_length(event_packet);
-    if (!peri->config.match_adv_rsp(peri->user, data, data_len)) {
-        // We got a valid scan response from the device that matched our
-        // advertising filter, but it did not match the response filter (e.g.
-        // requested name did not match), so scan again.
-        DEBUG_PRINT("Name requested but did not match. Scan again.\n");
-        goto start_scan;
     }
 
     DEBUG_PRINT("Scan response matched, initiate connection to %s.\n", bd_addr_to_str(peri->bdaddr));
-
-    // Copy name for later use.
-    if (data[1] == BLUETOOTH_DATA_TYPE_COMPLETE_LOCAL_NAME) {
-        memcpy(peri->name, &data[2], sizeof(peri->name));
-        DEBUG_PRINT("Connected to %.16s\n", peri->name);
-    }
-    // Copy response data to allow virtual re-connect in a new user program.
-    peri->config.match_adv_rsp_data_len = data_len;
-    memcpy(peri->config.match_adv_rsp_data, data, data_len);
 
     // We can stop scanning now.
     gap_stop_scan();
@@ -767,26 +871,27 @@ start_scan:
     pbio_os_timer_set(&peri->timer, PERIPHERAL_TIMEOUT_MS_CONNECT);
     btstack_error = gap_connect(peri->bdaddr, peri->bdaddr_type);
     if (btstack_error != ERROR_CODE_SUCCESS) {
+        recorded_events.scanning_peri = NULL;
         return att_error_to_pbio_error(btstack_error);
     }
     PBIO_OS_AWAIT_UNTIL(state, pbio_os_timer_is_expired(&peri->timer) || peri->cancel ||
-        hci_event_le_peripheral_did_connect(event_packet));
+        pbdrv_bluetooth_peripheral_is_connected(peri));
 
-    // If we timed out or were cancelled, abort the connection. We have to check
-    // the event again in case cancellation and connection completed simultaneously.
-    if (!hci_event_le_peripheral_did_connect(event_packet)) {
+    recorded_events.scanning_peri = NULL;
+
+    // If we timed out or were cancelled, abort the connection. We have to
+    // check the connection again in case cancellation and connection
+    // completed simultaneously.
+    if (!pbdrv_bluetooth_peripheral_is_connected(peri)) {
         DEBUG_PRINT("Connection %s.\n", peri->cancel ? "canceled": "timed out");
         gap_connect_cancel();
         return peri->cancel ? PBIO_ERROR_CANCELED : PBIO_ERROR_TIMEDOUT;
     }
 
-    // The wait above was not interrupted, so we are now connected and the event
-    // packet is still valid.
-    peri->con_handle = hci_subevent_le_connection_complete_get_connection_handle(event_packet);
     DEBUG_PRINT("Connected with handle %d.\n", peri->con_handle);
 
     // We are done if no pairing is requested.
-    if (!(peri->config.options & PBDRV_BLUETOOTH_PERIPHERAL_OPTIONS_PAIR)) {
+    if (!(peri->config.options & PBIO_BLUETOOTH_PERIPHERAL_OPTIONS_PAIR)) {
         DEBUG_PRINT("Simple connection done.\n");
         return PBIO_SUCCESS;
     }
@@ -804,15 +909,16 @@ start_pairing:
     DEBUG_PRINT("Request pairing.\n");
     pbio_os_timer_set(&peri->timer, PERIPHERAL_TIMEOUT_MS_PAIRING);
     gap_delete_bonding(peri->bdaddr_type, peri->bdaddr);
+    peri->platform_state->pairing_complete = false;
     sm_request_pairing(peri->con_handle);
 
     // Wait for pairing to complete unless timed out, cancelled, or disconnected.
     PBIO_OS_AWAIT_UNTIL(state, pbio_os_timer_is_expired(&peri->timer) || peri->cancel ||
         !pbdrv_bluetooth_peripheral_is_connected(peri) ||
-        hci_event_le_peripheral_pairing_did_complete(event_packet, peri->con_handle));
+        peri->platform_state->pairing_complete);
 
     // If we timed out or were cancelled, disconnect and leave.
-    if (!hci_event_le_peripheral_pairing_did_complete(event_packet, peri->con_handle)) {
+    if (!peri->platform_state->pairing_complete) {
         if (!pbdrv_bluetooth_peripheral_is_connected(peri)) {
             DEBUG_PRINT("Not connected anymore, cannot complete pairing.\n");
             return PBIO_ERROR_NO_DEV;
@@ -824,8 +930,8 @@ start_pairing:
 
     // Pairing ended, successfully or not, either as a new pairing or re-encryption.
     // Test re-encryption result first.
-    if (hci_event_is_type(event_packet, SM_EVENT_REENCRYPTION_COMPLETE)) {
-        btstack_error = sm_event_reencryption_complete_get_status(event_packet);
+    btstack_error = peri->platform_state->pairing_status;
+    if (peri->platform_state->pairing_via_reencryption) {
         DEBUG_PRINT("Re-encryption complete, bonded device with error %u.\n", btstack_error);
 
         if (btstack_error == ERROR_CODE_SUCCESS) {
@@ -849,35 +955,30 @@ start_pairing:
 
         DEBUG_PRINT("Deleting bond for %s and retrying.\n", bd_addr_to_str(peri->bdaddr));
         gap_delete_bonding(peri->bdaddr_type, peri->bdaddr);
-        PBIO_OS_AWAIT_ONCE(state);
         goto start_pairing;
-
-    } else if (hci_event_is_type(event_packet, SM_EVENT_PAIRING_COMPLETE)) {
-        // Otherwise we have received pairing complete. Check status and disconnect
-        // on failure.
-        btstack_error = sm_event_pairing_complete_get_status(event_packet);
-        DEBUG_PRINT("New pairing completed with error %u and reason %u.\n",
-            btstack_error, sm_event_pairing_complete_get_reason(event_packet));
-
-        if (btstack_error == ERROR_CODE_SUCCESS) {
-            DEBUG_PRINT("Pairing successful.\n");
-            return PBIO_SUCCESS;
-        }
-
-        switch (btstack_error) {
-            case ERROR_CODE_REMOTE_USER_TERMINATED_CONNECTION:
-                DEBUG_PRINT("Did remote disconnect?\n");
-                break;
-            default:
-                DEBUG_PRINT("Other pairing failure.\n");
-                break;
-        }
-
-        pbdrv_bluetooth_peripheral_disconnect_now(peri);
-        return att_error_to_pbio_error(btstack_error);
     }
 
-    // Unreachable. We should have hit either of the above events.
+    // Otherwise we have received pairing complete. Check status and disconnect
+    // on failure.
+    DEBUG_PRINT("New pairing completed with error %u.\n", btstack_error);
+
+    if (btstack_error == ERROR_CODE_SUCCESS) {
+        DEBUG_PRINT("Pairing successful.\n");
+        return PBIO_SUCCESS;
+    }
+
+    switch (btstack_error) {
+        case ERROR_CODE_REMOTE_USER_TERMINATED_CONNECTION:
+            DEBUG_PRINT("Did remote disconnect?\n");
+            break;
+        default:
+            DEBUG_PRINT("Other pairing failure.\n");
+            break;
+    }
+
+    pbdrv_bluetooth_peripheral_disconnect_now(peri);
+    return att_error_to_pbio_error(btstack_error);
+
     PBIO_OS_ASYNC_END(PBIO_ERROR_FAILED);
 }
 
@@ -886,7 +987,7 @@ pbio_error_t pbdrv_bluetooth_peripheral_discover_characteristic_func(pbio_os_sta
         return PBIO_ERROR_NOT_SUPPORTED;
     }
 
-    pbdrv_bluetooth_peripheral_t *peri = context;
+    pbio_bluetooth_peripheral_t *peri = context;
     gatt_client_characteristic_t *current_char = &peri->platform_state->current_char;
 
     uint8_t btstack_error;
@@ -898,49 +999,29 @@ pbio_error_t pbdrv_bluetooth_peripheral_discover_characteristic_func(pbio_os_sta
 
     uint16_t handle_max = peri->char_disc.handle_max ? peri->char_disc.handle_max : 0xffff;
 
-    // Start characteristic discovery.
+    // Start characteristic discovery. The handler processes each discovered
+    // characteristic to see if it matches what we need.
+    peri->platform_state->gatt_query_complete = false;
     btstack_error = peri->char_disc.uuid16 ?
         gatt_client_discover_characteristics_for_handle_range_by_uuid16(
-        packet_handler, peri->con_handle, 0x0001, handle_max, peri->char_disc.uuid16) :
+        gatt_op_handler, peri->con_handle, 0x0001, handle_max, peri->char_disc.uuid16) :
         gatt_client_discover_characteristics_for_handle_range_by_uuid128(
-        packet_handler, peri->con_handle, 0x0001, handle_max, peri->char_disc.uuid128);
+        gatt_op_handler, peri->con_handle, 0x0001, handle_max, peri->char_disc.uuid128);
     if (btstack_error != ERROR_CODE_SUCCESS) {
         return att_error_to_pbio_error(btstack_error);
     }
 
     DEBUG_PRINT("Discovering characteristic\n");
-    // Await until discovery is complete, processing each discovered
-    // characteristic along the way to see if it matches what we need.
-    PBIO_OS_AWAIT_UNTIL(state, ({
+    PBIO_OS_AWAIT_UNTIL(state, !pbdrv_bluetooth_peripheral_is_connected(peri) ||
+        peri->platform_state->gatt_query_complete);
 
-        if (!pbdrv_bluetooth_peripheral_is_connected(peri)) {
-            // Got disconnected while waiting.
-            return PBIO_ERROR_NO_DEV;
-        }
-
-        // Process a discovered characteristic, saving only the first match.
-        if (!peri->char_disc.handle &&
-            hci_event_is_type(event_packet, GATT_EVENT_CHARACTERISTIC_QUERY_RESULT) &&
-            gatt_event_characteristic_query_result_get_handle(event_packet) == peri->con_handle) {
-
-            // Unpack the result.
-            gatt_event_characteristic_query_result_get_characteristic(event_packet, current_char);
-
-            // We only care about the one characteristic that has at least the requested properties.
-            if ((current_char->properties & peri->char_disc.properties) == peri->char_disc.properties) {
-                DEBUG_PRINT("Found characteristic handle: 0x%04x with properties 0x%04x \n", current_char->value_handle, current_char->properties);
-                peri->char_disc.handle = current_char->value_handle;
-                peri->char_disc.handle_max = current_char->end_handle;
-            }
-        }
-
-        // The wait until condition: discovery complete.
-        hci_event_is_type(event_packet, GATT_EVENT_QUERY_COMPLETE) &&
-        gatt_event_query_complete_get_handle(event_packet) == peri->con_handle;
-    }));
+    if (!pbdrv_bluetooth_peripheral_is_connected(peri)) {
+        // Got disconnected while waiting.
+        return PBIO_ERROR_NO_DEV;
+    }
 
     // Result of discovery.
-    btstack_error = gatt_event_query_complete_get_att_status(event_packet);
+    btstack_error = peri->platform_state->gatt_att_status;
     if (btstack_error != ERROR_CODE_SUCCESS) {
         return att_error_to_pbio_error(btstack_error);
     }
@@ -957,29 +1038,25 @@ pbio_error_t pbdrv_bluetooth_peripheral_discover_characteristic_func(pbio_os_sta
     }
 
     // Discovered characteristics, ready to enable notifications.
+    peri->platform_state->gatt_query_complete = false;
     btstack_error = gatt_client_write_client_characteristic_configuration(
-        packet_handler, peri->con_handle, current_char, GATT_CLIENT_CHARACTERISTICS_CONFIGURATION_NOTIFICATION);
+        gatt_op_handler, peri->con_handle, current_char, GATT_CLIENT_CHARACTERISTICS_CONFIGURATION_NOTIFICATION);
 
     if (btstack_error != ERROR_CODE_SUCCESS) {
         return att_error_to_pbio_error(btstack_error);
     }
 
-    // We will be waiting for another GATT_EVENT_QUERY_COMPLETE, but the
-    // current event is exactly this, so yield and wait for the next one.
-    PBIO_OS_AWAIT_ONCE(state);
-
     DEBUG_PRINT("Waiting for notifications to be enabled.\n");
-    PBIO_OS_AWAIT_UNTIL(state, ({
-        if (!pbdrv_bluetooth_peripheral_is_connected(peri)) {
-            // Got disconnected while waiting.
-            return PBIO_ERROR_NO_DEV;
-        }
-        hci_event_is_type(event_packet, GATT_EVENT_QUERY_COMPLETE) &&
-        gatt_event_query_complete_get_handle(event_packet) == peri->con_handle;
-    }));
+    PBIO_OS_AWAIT_UNTIL(state, !pbdrv_bluetooth_peripheral_is_connected(peri) ||
+        peri->platform_state->gatt_query_complete);
+
+    if (!pbdrv_bluetooth_peripheral_is_connected(peri)) {
+        // Got disconnected while waiting.
+        return PBIO_ERROR_NO_DEV;
+    }
 
     // Result of enabling notifications.
-    btstack_error = gatt_event_query_complete_get_att_status(event_packet);
+    btstack_error = peri->platform_state->gatt_att_status;
     if (btstack_error != ERROR_CODE_SUCCESS) {
         // ATT_ERROR_INSUFFICIENT_AUTHENTICATION
         return att_error_to_pbio_error(btstack_error);
@@ -987,8 +1064,7 @@ pbio_error_t pbdrv_bluetooth_peripheral_discover_characteristic_func(pbio_os_sta
 
     // Register notification handler.
     gatt_client_listen_for_characteristic_value_updates(
-        &peri->platform_state->notification, packet_handler, peri->con_handle, current_char);
-
+        &peri->platform_state->notification, main_packet_handler, peri->con_handle, current_char);
     PBIO_OS_ASYNC_END(PBIO_SUCCESS);
 }
 
@@ -997,7 +1073,7 @@ pbio_error_t pbdrv_bluetooth_peripheral_read_characteristic_func(pbio_os_state_t
         return PBIO_ERROR_NOT_SUPPORTED;
     }
 
-    pbdrv_bluetooth_peripheral_t *peri = context;
+    pbio_bluetooth_peripheral_t *peri = context;
 
     uint8_t btstack_error;
 
@@ -1010,33 +1086,23 @@ pbio_error_t pbdrv_bluetooth_peripheral_read_characteristic_func(pbio_os_state_t
     gatt_client_characteristic_t characteristic = {
         .value_handle = peri->char_handle,
     };
-    btstack_error = gatt_client_read_value_of_characteristic(packet_handler, peri->con_handle, &characteristic);
+    // The handler caches the value result as it comes in.
+    peri->platform_state->gatt_query_complete = false;
+    btstack_error = gatt_client_read_value_of_characteristic(gatt_op_handler, peri->con_handle, &characteristic);
     if (btstack_error != ERROR_CODE_SUCCESS) {
         return att_error_to_pbio_error(btstack_error);
     }
 
-    // Await until read is complete, processing the result along the way.
-    PBIO_OS_AWAIT_UNTIL(state, ({
-        if (!pbdrv_bluetooth_peripheral_is_connected(peri)) {
-            // Got disconnected while waiting.
-            return PBIO_ERROR_NO_DEV;
-        }
-        // Cache the result.
-        if (hci_event_is_type(event_packet, GATT_EVENT_CHARACTERISTIC_VALUE_QUERY_RESULT) &&
-            gatt_event_characteristic_value_query_result_get_handle(event_packet) == peri->con_handle &&
-            gatt_event_characteristic_value_query_result_get_value_handle(event_packet) == peri->char_handle
-            ) {
-            peri->char_size = gatt_event_characteristic_value_query_result_get_value_length(event_packet);
-            memcpy(peri->char_data, gatt_event_characteristic_value_query_result_get_value(event_packet), peri->char_size);
-        }
+    PBIO_OS_AWAIT_UNTIL(state, !pbdrv_bluetooth_peripheral_is_connected(peri) ||
+        peri->platform_state->gatt_query_complete);
 
-        // The wait until condition: read complete.
-        hci_event_is_type(event_packet, GATT_EVENT_QUERY_COMPLETE) &&
-        gatt_event_query_complete_get_handle(event_packet) == peri->con_handle;
-    }));
+    if (!pbdrv_bluetooth_peripheral_is_connected(peri)) {
+        // Got disconnected while waiting.
+        return PBIO_ERROR_NO_DEV;
+    }
 
     // Result of read operation.
-    btstack_error = gatt_event_query_complete_get_att_status(event_packet);
+    btstack_error = peri->platform_state->gatt_att_status;
     if (btstack_error != ERROR_CODE_SUCCESS) {
         return att_error_to_pbio_error(btstack_error);
     }
@@ -1049,32 +1115,30 @@ pbio_error_t pbdrv_bluetooth_peripheral_write_characteristic_func(pbio_os_state_
         return PBIO_ERROR_NOT_SUPPORTED;
     }
 
-    pbdrv_bluetooth_peripheral_t *peri = context;
+    pbio_bluetooth_peripheral_t *peri = context;
 
     uint8_t btstack_error;
 
     PBIO_OS_ASYNC_BEGIN(state);
 
-    btstack_error = gatt_client_write_value_of_characteristic(packet_handler,
+    peri->platform_state->gatt_query_complete = false;
+    btstack_error = gatt_client_write_value_of_characteristic(gatt_op_handler,
         peri->con_handle, peri->char_handle, peri->char_size, peri->char_data);
 
     if (btstack_error != ERROR_CODE_SUCCESS) {
         return att_error_to_pbio_error(btstack_error);
     }
 
-    PBIO_OS_AWAIT_UNTIL(state, ({
-        if (!pbdrv_bluetooth_peripheral_is_connected(peri)) {
-            // Got disconnected while waiting.
-            return PBIO_ERROR_NO_DEV;
-        }
+    PBIO_OS_AWAIT_UNTIL(state, !pbdrv_bluetooth_peripheral_is_connected(peri) ||
+        peri->platform_state->gatt_query_complete);
 
-        // The wait until condition: write complete.
-        hci_event_is_type(event_packet, GATT_EVENT_QUERY_COMPLETE) &&
-        gatt_event_query_complete_get_handle(event_packet) == peri->con_handle;
-    }));
+    if (!pbdrv_bluetooth_peripheral_is_connected(peri)) {
+        // Got disconnected while waiting.
+        return PBIO_ERROR_NO_DEV;
+    }
 
     // Result of write operation.
-    btstack_error = gatt_event_query_complete_get_att_status(event_packet);
+    btstack_error = peri->platform_state->gatt_att_status;
     if (btstack_error != ERROR_CODE_SUCCESS) {
         return att_error_to_pbio_error(btstack_error);
     }
@@ -1087,7 +1151,7 @@ pbio_error_t pbdrv_bluetooth_peripheral_disconnect_func(pbio_os_state_t *state, 
         return PBIO_ERROR_NOT_SUPPORTED;
     }
 
-    pbdrv_bluetooth_peripheral_t *peri = context;
+    pbio_bluetooth_peripheral_t *peri = context;
 
     PBIO_OS_ASYNC_BEGIN(state);
 
@@ -1105,19 +1169,22 @@ pbio_error_t pbdrv_bluetooth_start_broadcasting_func(pbio_os_state_t *state, voi
 
     PBIO_OS_ASYNC_BEGIN(state);
 
+    recorded_events.advertising_data_complete = false;
     gap_advertisements_set_data(pbdrv_bluetooth_broadcast_data_size, pbdrv_bluetooth_broadcast_data);
 
     // If already broadcasting, await set data and return.
     if (pbdrv_bluetooth_advertising_state == PBDRV_BLUETOOTH_ADVERTISING_STATE_BROADCASTING) {
-        PBIO_OS_AWAIT_UNTIL(state, event_packet && HCI_EVENT_IS_COMMAND_COMPLETE(event_packet, hci_le_set_advertising_data));
+        PBIO_OS_AWAIT_UNTIL(state, recorded_events.advertising_data_complete);
         return PBIO_SUCCESS;
     }
 
     bd_addr_t null_addr = { };
-    gap_advertisements_set_params(0xA0, 0xA0, PBDRV_BLUETOOTH_AD_TYPE_ADV_NONCONN_IND, 0, null_addr, 0x7, 0);
+    // Advertise every 30ms so that other hubs receive broadcasts quickly.
+    gap_advertisements_set_params(0x30, 0x30, PBIO_BLUETOOTH_AD_TYPE_ADV_NONCONN_IND, 0, null_addr, 0x7, 0);
+    recorded_events.advertise_enable_complete = false;
     gap_advertisements_enable(true);
 
-    PBIO_OS_AWAIT_UNTIL(state, event_packet && HCI_EVENT_IS_COMMAND_COMPLETE(event_packet, hci_le_set_advertise_enable));
+    PBIO_OS_AWAIT_UNTIL(state, recorded_events.advertise_enable_complete);
 
     pbdrv_bluetooth_advertising_state = PBDRV_BLUETOOTH_ADVERTISING_STATE_BROADCASTING;
 
@@ -1132,7 +1199,10 @@ pbio_error_t pbdrv_bluetooth_start_observing_func(pbio_os_state_t *state, void *
     PBIO_OS_ASYNC_BEGIN(state);
 
     if (!pbdrv_bluetooth_is_observing) {
-        gap_set_scan_params(0, 0x30, 0x30, 0);
+        // 70ms interval, 35ms window. The 50% duty cycle leaves radio time
+        // for broadcasting while observing, and the longer interval spends
+        // less of the radio on starting and ending scans.
+        gap_set_scan_params(0, 0x70, 0x38, 0);
         gap_start_scan();
         pbdrv_bluetooth_is_observing = true;
         // REVISIT: use callback to await operation
@@ -1157,71 +1227,809 @@ pbio_error_t pbdrv_bluetooth_stop_observing_func(pbio_os_state_t *state, void *c
     PBIO_OS_ASYNC_END(PBIO_SUCCESS);
 }
 
-#ifdef ENABLE_CLASSIC
+#if PBDRV_CONFIG_BLUETOOTH_CLASSIC
 
-static void pbdrv_bluetooth_inquiry_unpack_scan_event(uint8_t *event_packet, pbdrv_bluetooth_inquiry_result_t *result) {
+/**
+ * Duration of one inquiry scan in units of 1.28 seconds. This is the maximum
+ * allowed by the spec (0x30), about a minute. Callers poll for results and
+ * can simply start a new scan when the previous one has completed.
+ */
+#define INQUIRY_DURATION (0x30)
 
-    gap_event_inquiry_result_get_bd_addr(event_packet, result->bdaddr);
+/**
+ * Inquiry scan state. The packet handler records results here as they come in.
+ */
+static struct {
+    /** Whether an inquiry scan is in progress. */
+    bool busy;
+    /** Number of results found so far. */
+    uint32_t count;
+    /** Inquiry scan results. */
+    pbio_bluetooth_inquiry_result_t results[PBDRV_BLUETOOTH_INQUIRY_NUM_RESULTS];
+} inquiry;
+
+static void pbdrv_bluetooth_inquiry_unpack_scan_event(uint8_t *event_packet) {
+
+    bd_addr_t bdaddr;
+    gap_event_inquiry_result_get_bd_addr(event_packet, bdaddr);
+
+    // Exit if already seen this, but update the name since it sometimes
+    // only becomes available in a later event.
+    for (uint32_t i = 0; i < inquiry.count; i++) {
+        if (memcmp(inquiry.results[i].bdaddr, bdaddr, sizeof(bd_addr_t)) == 0) {
+            if (gap_event_inquiry_result_get_name_available(event_packet)) {
+                const uint8_t *name = gap_event_inquiry_result_get_name(event_packet);
+                const size_t name_len = gap_event_inquiry_result_get_name_len(event_packet);
+                snprintf(inquiry.results[i].name, sizeof(inquiry.results[i].name), "%.*s", (int)name_len, name);
+            }
+            return;
+        }
+    }
+
+    if (inquiry.count == PBDRV_BLUETOOTH_INQUIRY_NUM_RESULTS) {
+        return;
+    }
+
+    // Unpack new device.
+    pbio_bluetooth_inquiry_result_t *result = &inquiry.results[inquiry.count++];
+    memcpy(result->bdaddr, bdaddr, sizeof(bd_addr_t));
+
     if (gap_event_inquiry_result_get_rssi_available(event_packet)) {
         result->rssi = gap_event_inquiry_result_get_rssi(event_packet);
     }
-
     if (gap_event_inquiry_result_get_name_available(event_packet)) {
         const uint8_t *name = gap_event_inquiry_result_get_name(event_packet);
         const size_t name_len = gap_event_inquiry_result_get_name_len(event_packet);
         snprintf(result->name, sizeof(result->name), "%.*s", (int)name_len, name);
     }
-
     result->class_of_device = gap_event_inquiry_result_get_class_of_device(event_packet);
+
+    DEBUG_PRINT("Received new scan result with name %s and type %d and rssi %d\n", result->name, result->class_of_device, result->rssi);
+
 }
 
-pbio_error_t pbdrv_bluetooth_inquiry_scan_func(pbio_os_state_t *state, void *context) {
+/**
+ * Handles inquiry scan events, recording results into the static store.
+ */
+static void inquiry_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *packet, uint16_t size) {
+    UNUSED(channel);
+    UNUSED(size);
 
-    pbdrv_bluetooth_classic_task_context_t *task = context;
-
-    if (!task->cancel) {
-        task->cancel = pbio_os_timer_is_expired(&task->watchdog);
+    if (packet_type != HCI_EVENT_PACKET) {
+        return;
     }
 
-    PBIO_OS_ASYNC_BEGIN(state);
+    switch (hci_event_packet_get_type(packet)) {
+        case GAP_EVENT_INQUIRY_RESULT:
+            if (inquiry.busy) {
+                pbdrv_bluetooth_inquiry_unpack_scan_event(packet);
+            }
+            break;
+        case GAP_EVENT_INQUIRY_COMPLETE:
+            DEBUG_PRINT("Inquiry scan ended with %d results.\n", inquiry.count);
+            inquiry.busy = false;
+            break;
+        default:
+            return;
+    }
+
+    pbio_os_request_poll();
+}
+
+pbio_error_t pbdrv_bluetooth_inquiry_start(void) {
+
+    if (!pbdrv_bluetooth_hci_is_enabled()) {
+        return PBIO_ERROR_INVALID_OP;
+    }
+
+    if (inquiry.busy) {
+        return PBIO_ERROR_BUSY;
+    }
 
     DEBUG_PRINT("Start inquiry scan.\n");
 
-    gap_inquiry_start(task->inq_duration);
+    inquiry.count = 0;
+    inquiry.busy = true;
 
-    // Wait until scan timeout or the number of devices are found.
-    PBIO_OS_AWAIT_UNTIL(state, (*task->inq_count == *task->inq_count_max) || ({
+    if (gap_inquiry_start(INQUIRY_DURATION) != ERROR_CODE_SUCCESS) {
+        inquiry.busy = false;
+        return PBIO_ERROR_FAILED;
+    }
 
-        if (task->cancel || *task->inq_count_max == 0) {
-            // Cancelled or the external data no longer available. Stop
-            // scanning and don't write any more data.
-            DEBUG_PRINT("Inquiry scan canceled.\n");
-            gap_inquiry_stop();
-            return PBIO_ERROR_CANCELED;
+    return PBIO_SUCCESS;
+}
+
+void pbdrv_bluetooth_inquiry_stop(void) {
+
+    if (!inquiry.busy) {
+        return;
+    }
+
+    DEBUG_PRINT("Stop inquiry scan.\n");
+
+    inquiry.busy = false;
+    gap_inquiry_stop();
+}
+
+pbio_error_t pbdrv_bluetooth_inquiry_get_results(uint32_t *num, pbio_bluetooth_inquiry_result_t **results) {
+
+    if (!inquiry.busy) {
+        // Not started or already completed. Caller may start a new scan.
+        return PBIO_ERROR_INVALID_OP;
+    }
+
+    *num = inquiry.count;
+    *results = inquiry.results;
+    return PBIO_SUCCESS;
+}
+
+// Storage for the HID descriptor of the connected device, managed by hid_host.
+static uint8_t hid_descriptor_storage[512];
+
+typedef enum {
+    PBDRV_BLUETOOTH_HID_STATE_IDLE,
+    PBDRV_BLUETOOTH_HID_STATE_CONNECTING,
+    PBDRV_BLUETOOTH_HID_STATE_PAIRING,
+    PBDRV_BLUETOOTH_HID_STATE_CONNECTED,
+} pbdrv_bluetooth_hid_state_t;
+
+/**
+ * Generous pairing timeout: some devices (e.g. PS5) reject the hub-initiated
+ * attempt while pairing and then page back to connect on their own, so a
+ * briefly idle connection does not mean failure.
+ */
+#define HID_PAIR_TIMEOUT_MS (10000)
+
+/**
+ * The one supported Bluetooth Classic HID device connection, such as a gamepad.
+ */
+static struct {
+    /** HID channel ID. Valid while connecting or connected. */
+    uint16_t hid_cid;
+    /** Bluetooth address of the device. */
+    bd_addr_t bdaddr;
+    /** Connection state. */
+    pbdrv_bluetooth_hid_state_t state;
+    /** Result of the last pairing session. */
+    pbio_error_t pair_err;
+    /** Ends the pairing session if the device never connects. */
+    btstack_timer_source_t pair_timeout;
+} hid_connection;
+
+static void hid_pair_end(pbio_error_t err);
+
+/**
+ * Handles Bluetooth Classic HID events. Registered both as a general HCI
+ * event handler (for pairing/security events) and as the hid_host packet
+ * handler (for HID meta events).
+ */
+static void hid_host_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *packet, uint16_t size) {
+    UNUSED(channel);
+    UNUSED(size);
+
+    if (packet_type != HCI_EVENT_PACKET) {
+        return;
+    }
+
+    bd_addr_t event_addr;
+    uint8_t status;
+
+    switch (hci_event_packet_get_type(packet)) {
+        case BTSTACK_EVENT_STATE:
+            if (btstack_event_state_get_state(packet) == HCI_STATE_WORKING) {
+                // Allow already-paired classic HID devices (e.g. PS5) to
+                // initiate reconnection by paging the hub.
+                gap_connectable_control(1);
+            }
+            break;
+
+        case HCI_EVENT_PIN_CODE_REQUEST:
+            // Legacy pairing fallback for devices without SSP.
+            DEBUG_PRINT("Pin code request - using '0000'\n");
+            hci_event_pin_code_request_get_bd_addr(packet, event_addr);
+            gap_pin_code_response(event_addr, "0000");
+            break;
+
+        case HCI_EVENT_USER_CONFIRMATION_REQUEST:
+            // SSP numeric comparison. Auto-accept since gamepads have no display.
+            DEBUG_PRINT("SSP user confirmation auto accept\n");
+            hci_event_user_confirmation_request_get_bd_addr(packet, event_addr);
+            hci_send_cmd(&hci_user_confirmation_request_reply, event_addr);
+            break;
+
+        case HCI_EVENT_HID_META:
+            switch (hci_event_hid_meta_get_subevent_code(packet)) {
+
+                case HID_SUBEVENT_INCOMING_CONNECTION:
+                    // An already-paired device reconnecting, or a device we
+                    // just paired with reinitiating the HID channels itself
+                    // after rejecting the hub-initiated attempt. Either way
+                    // we must not race it with hid_host_connect().
+                    if (hid_connection.state == PBDRV_BLUETOOTH_HID_STATE_CONNECTED) {
+                        DEBUG_PRINT("HID connection in use, declining.\n");
+                        hid_host_decline_connection(hid_subevent_incoming_connection_get_hid_cid(packet));
+                        break;
+                    }
+                    hid_connection.hid_cid = hid_subevent_incoming_connection_get_hid_cid(packet);
+                    hid_subevent_incoming_connection_get_address(packet, hid_connection.bdaddr);
+                    if (hid_connection.state != PBDRV_BLUETOOTH_HID_STATE_PAIRING) {
+                        hid_connection.state = PBDRV_BLUETOOTH_HID_STATE_CONNECTING;
+                    }
+                    DEBUG_PRINT("Incoming HID connection from %s.\n", bd_addr_to_str(hid_connection.bdaddr));
+                    hid_host_accept_connection(hid_connection.hid_cid, HID_PROTOCOL_MODE_REPORT_WITH_FALLBACK_TO_BOOT);
+                    break;
+
+                case HID_SUBEVENT_CONNECTION_OPENED:
+                    if (hid_connection.state == PBDRV_BLUETOOTH_HID_STATE_IDLE ||
+                        hid_connection.hid_cid != hid_subevent_connection_opened_get_hid_cid(packet)) {
+                        break;
+                    }
+                    status = hid_subevent_connection_opened_get_status(packet);
+                    if (status != ERROR_CODE_SUCCESS) {
+                        // While pairing this is expected (e.g. PS5 rejects
+                        // with 0x11); keep the session going until the device
+                        // pages back and connects, or the session times out.
+                        DEBUG_PRINT("HID connection failed, status 0x%02x.\n", status);
+                        if (hid_connection.state != PBDRV_BLUETOOTH_HID_STATE_PAIRING) {
+                            hid_connection.state = PBDRV_BLUETOOTH_HID_STATE_IDLE;
+                        }
+                        break;
+                    }
+                    if (hid_connection.state == PBDRV_BLUETOOTH_HID_STATE_PAIRING) {
+                        hid_pair_end(PBIO_SUCCESS);
+                    }
+                    hid_connection.state = PBDRV_BLUETOOTH_HID_STATE_CONNECTED;
+                    pbio_bluetooth_host_connection_changed();
+                    DEBUG_PRINT("HID connection to %s opened.\n", bd_addr_to_str(hid_connection.bdaddr));
+                    break;
+
+                case HID_SUBEVENT_DESCRIPTOR_AVAILABLE:
+                    // Delayed for incoming connections; reports may arrive first.
+                    DEBUG_PRINT("HID descriptor available, status 0x%02x.\n",
+                        hid_subevent_descriptor_available_get_status(packet));
+                    break;
+
+                case HID_SUBEVENT_REPORT: {
+                    #if DEBUG
+                    // BTstack quirk: report points at the DATA|INPUT header
+                    // byte (0xa1) but report_len excludes it, so the report
+                    // payload is at report + 1 with report_len bytes. Reading
+                    // len bytes from report itself would drop the last byte.
+                    const uint8_t *report = hid_subevent_report_get_report(packet);
+                    uint16_t report_len = hid_subevent_report_get_report_len(packet);
+                    if (report_len && report[0] == 0xa1) {
+                        report++;
+                    }
+                    DEBUG_PRINT("HID report (%u):", report_len);
+                    for (uint16_t i = 0; i < report_len; i++) {
+                        DEBUG_PRINT(" %02x", report[i]);
+                    }
+                    DEBUG_PRINT("\n");
+                    #endif
+                    break;
+                }
+
+                case HID_SUBEVENT_CONNECTION_CLOSED:
+                    // While pairing, closure of the rejected attempt is
+                    // expected; that session ends by success, cancel, or
+                    // timeout instead.
+                    if ((hid_connection.state == PBDRV_BLUETOOTH_HID_STATE_CONNECTING ||
+                         hid_connection.state == PBDRV_BLUETOOTH_HID_STATE_CONNECTED) &&
+                        hid_connection.hid_cid == hid_subevent_connection_closed_get_hid_cid(packet)) {
+                        DEBUG_PRINT("HID connection to %s closed.\n", bd_addr_to_str(hid_connection.bdaddr));
+                        hid_connection.state = PBDRV_BLUETOOTH_HID_STATE_IDLE;
+                        pbio_bluetooth_host_connection_changed();
+                    }
+                    break;
+
+                default:
+                    break;
+            }
+            break;
+
+        default:
+            return;
+    }
+
+    pbio_os_request_poll();
+}
+
+/**
+ * Ends the pairing session with the given result. On failure, aborts the
+ * connection attempt and forgets the provisional bonding record, whose link
+ * key was never (fully) negotiated.
+ */
+static void hid_pair_end(pbio_error_t err) {
+    btstack_run_loop_remove_timer(&hid_connection.pair_timeout);
+    hid_connection.pair_err = err;
+    if (err != PBIO_SUCCESS) {
+        pbdrv_bluetooth_classic_hid_disconnect();
+        pbio_bluetooth_classic_link_key_unregister(hid_connection.bdaddr);
+    }
+}
+
+static void hid_pair_timeout_handler(btstack_timer_source_t *ts) {
+    UNUSED(ts);
+    if (hid_connection.state != PBDRV_BLUETOOTH_HID_STATE_PAIRING) {
+        return;
+    }
+    DEBUG_PRINT("HID pairing timed out.\n");
+    hid_pair_end(PBIO_ERROR_TIMEDOUT);
+    pbio_os_request_poll();
+}
+
+pbio_error_t pbdrv_bluetooth_classic_hid_pair(const uint8_t *bdaddr, const char *name) {
+
+    if (!pbdrv_bluetooth_hci_is_enabled()) {
+        return PBIO_ERROR_INVALID_OP;
+    }
+
+    if (hid_connection.state != PBDRV_BLUETOOTH_HID_STATE_IDLE) {
+        return PBIO_ERROR_BUSY;
+    }
+
+    // Provisional bonding record; the stack stores the negotiated link key
+    // into it via the pbio link key store.
+    pbio_bluetooth_classic_link_key_register(bdaddr, name);
+
+    memcpy(hid_connection.bdaddr, bdaddr, sizeof(bd_addr_t));
+    hid_connection.state = PBDRV_BLUETOOTH_HID_STATE_PAIRING;
+    hid_connection.pair_err = PBIO_ERROR_AGAIN;
+
+    DEBUG_PRINT("Start HID pairing with %s.\n", bd_addr_to_str(hid_connection.bdaddr));
+
+    // For a device in pairing mode, the hub pages it and initiates the HID
+    // channels. Pairing (SSP) happens along the way. The remaining steps,
+    // including the device closing this attempt and reinitiating the HID
+    // channels itself (e.g. PS5), are driven by hid_host_packet_handler().
+    uint8_t btstack_error = hid_host_connect(hid_connection.bdaddr,
+        HID_PROTOCOL_MODE_REPORT_WITH_FALLBACK_TO_BOOT, &hid_connection.hid_cid);
+    if (btstack_error != ERROR_CODE_SUCCESS) {
+        DEBUG_PRINT("HID host connect failed, status 0x%02x.\n", btstack_error);
+        hid_connection.state = PBDRV_BLUETOOTH_HID_STATE_IDLE;
+        hid_connection.pair_err = PBIO_ERROR_FAILED;
+        pbio_bluetooth_classic_link_key_unregister(hid_connection.bdaddr);
+        return PBIO_ERROR_FAILED;
+    }
+
+    btstack_run_loop_set_timer_handler(&hid_connection.pair_timeout, hid_pair_timeout_handler);
+    btstack_run_loop_set_timer(&hid_connection.pair_timeout, HID_PAIR_TIMEOUT_MS);
+    btstack_run_loop_add_timer(&hid_connection.pair_timeout);
+
+    return PBIO_SUCCESS;
+}
+
+pbio_error_t pbdrv_bluetooth_classic_hid_pair_status(void) {
+    if (hid_connection.state == PBDRV_BLUETOOTH_HID_STATE_PAIRING) {
+        return PBIO_ERROR_AGAIN;
+    }
+    return hid_connection.pair_err;
+}
+
+void pbdrv_bluetooth_classic_hid_pair_cancel(void) {
+    if (hid_connection.state != PBDRV_BLUETOOTH_HID_STATE_PAIRING) {
+        return;
+    }
+    DEBUG_PRINT("HID pairing cancelled.\n");
+    hid_pair_end(PBIO_ERROR_CANCELED);
+}
+
+bool pbdrv_bluetooth_classic_hid_is_connected(void) {
+    return hid_connection.state == PBDRV_BLUETOOTH_HID_STATE_CONNECTED;
+}
+
+const char *pbdrv_bluetooth_classic_hid_get_connected_name(void) {
+    if (!pbdrv_bluetooth_classic_hid_is_connected()) {
+        return NULL;
+    }
+    return pbio_bluetooth_classic_link_key_get_name(hid_connection.bdaddr);
+}
+
+void pbdrv_bluetooth_classic_hid_disconnect(void) {
+
+    if (hid_connection.state == PBDRV_BLUETOOTH_HID_STATE_IDLE) {
+        return;
+    }
+
+    DEBUG_PRINT("Disconnect HID connection to %s.\n", bd_addr_to_str(hid_connection.bdaddr));
+
+    hid_host_disconnect(hid_connection.hid_cid);
+
+    // hid_host_disconnect() only closes the HID L2CAP channels. The baseband
+    // (ACL) link would linger until BTstack's idle timeout, during which the
+    // device stays awake and may even re-open the HID channels. Drop it now
+    // so the device sees the disconnect immediately (e.g. gamepad powers off).
+    hci_connection_t *acl = hci_connection_for_bd_addr_and_type(hid_connection.bdaddr, BD_ADDR_TYPE_ACL);
+    if (acl && acl->con_handle != HCI_CON_HANDLE_INVALID) {
+        gap_disconnect(acl->con_handle);
+    }
+
+    hid_connection.state = PBDRV_BLUETOOTH_HID_STATE_IDLE;
+}
+
+/**
+ * RFCOMM server channel for the serial connection from a host computer (PC).
+ */
+#define RFCOMM_SERVER_CHANNEL (1)
+
+/**
+ * Maximum RFCOMM frame size.
+ */
+#define RFCOMM_SERVER_MTU (512)
+
+/**
+ * Pairing needs the user to accept a prompt on the host computer, so allow
+ * ample time before giving up.
+ */
+#define HOST_PAIR_TIMEOUT_MS (30000)
+
+/**
+ * The one supported connection to a host computer.
+ *
+ * Pairing uses GAP dedicated bonding: the hub connects only to establish the
+ * bond and the link is dropped when done. The bonded host initiates the
+ * actual RFCOMM connection itself later.
+ */
+static struct {
+    /** RFCOMM channel ID. Valid while connected. */
+    uint16_t rfcomm_cid;
+    /** Bluetooth address of the host. */
+    bd_addr_t bdaddr;
+    /** Whether the RFCOMM channel is open. */
+    bool connected;
+    /** Whether a dedicated bonding session is in progress. */
+    bool pairing;
+    /** SSP numeric comparison passkey, valid while pair_passkey_valid. */
+    uint32_t pair_passkey;
+    bool pair_passkey_valid;
+    /** Result of the last pairing session. */
+    pbio_error_t pair_err;
+    /** Ends the pairing session if bonding never completes. */
+    btstack_timer_source_t pair_timeout;
+    /** Incoming byte stream, drained by the pbio serial process. */
+    lwrb_t rx_ring;
+    uint8_t rx_buf[RFCOMM_SERVER_MTU * 2 + 1];
+    /** Outgoing message in flight. tx_size is what remains to be sent. */
+    const uint8_t *tx_data;
+    uint32_t tx_size;
+} host_connection;
+
+static void host_pair_end(pbio_error_t err);
+
+/**
+ * Handles host computer events. Registered both as a general HCI event
+ * handler (for dedicated bonding results) and as the RFCOMM service packet
+ * handler (for RFCOMM events and data).
+ */
+static void host_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *packet, uint16_t size) {
+    UNUSED(channel);
+
+    bd_addr_t event_addr;
+    uint8_t status;
+
+    switch (packet_type) {
+        case HCI_EVENT_PACKET:
+            switch (hci_event_packet_get_type(packet)) {
+
+                case GAP_EVENT_DEDICATED_BONDING_COMPLETED:
+                    gap_event_dedicated_bonding_completed_get_address(packet, event_addr);
+                    if (!host_connection.pairing ||
+                        memcmp(event_addr, host_connection.bdaddr, sizeof(bd_addr_t)) != 0) {
+                        break;
+                    }
+                    status = gap_event_dedicated_bonding_completed_get_status(packet);
+                    DEBUG_PRINT("Dedicated bonding completed, status 0x%02x.\n", status);
+                    host_pair_end(status == ERROR_CODE_SUCCESS ? PBIO_SUCCESS : PBIO_ERROR_FAILED);
+                    break;
+
+                case HCI_EVENT_USER_CONFIRMATION_REQUEST:
+                    // Reply is sent by the shared handler; only capture the
+                    // passkey here so the UI can show it during pairing.
+                    hci_event_user_confirmation_request_get_bd_addr(packet, event_addr);
+                    if (host_connection.pairing &&
+                        memcmp(event_addr, host_connection.bdaddr, sizeof(bd_addr_t)) == 0) {
+                        host_connection.pair_passkey = hci_event_user_confirmation_request_get_numeric_value(packet);
+                        host_connection.pair_passkey_valid = true;
+                    }
+                    break;
+
+                case RFCOMM_EVENT_INCOMING_CONNECTION:
+                    // Also declined while pairing, since that session owns
+                    // the address and timer state of this struct.
+                    if (host_connection.connected || host_connection.pairing) {
+                        DEBUG_PRINT("RFCOMM channel in use, declining.\n");
+                        rfcomm_decline_connection(rfcomm_event_incoming_connection_get_rfcomm_cid(packet));
+                        break;
+                    }
+                    host_connection.rfcomm_cid = rfcomm_event_incoming_connection_get_rfcomm_cid(packet);
+                    rfcomm_event_incoming_connection_get_bd_addr(packet, host_connection.bdaddr);
+                    DEBUG_PRINT("Incoming RFCOMM connection from %s.\n", bd_addr_to_str(host_connection.bdaddr));
+                    rfcomm_accept_connection(host_connection.rfcomm_cid);
+                    break;
+
+                case RFCOMM_EVENT_CHANNEL_OPENED:
+                    status = rfcomm_event_channel_opened_get_status(packet);
+                    if (status != ERROR_CODE_SUCCESS) {
+                        DEBUG_PRINT("RFCOMM channel failed, status 0x%02x.\n", status);
+                        break;
+                    }
+                    host_connection.rfcomm_cid = rfcomm_event_channel_opened_get_rfcomm_cid(packet);
+                    host_connection.connected = true;
+                    // Drop stale bytes from a previous connection so they
+                    // can't corrupt the first frame of this one.
+                    lwrb_reset(&host_connection.rx_ring);
+                    DEBUG_PRINT("RFCOMM channel to %s opened.\n", bd_addr_to_str(host_connection.bdaddr));
+                    pbio_serial_port_changed(PBSYS_HOST_TRANSPORT_TYPE_RFCOMM, true);
+                    break;
+
+                case RFCOMM_EVENT_CAN_SEND_NOW:
+                    if (host_connection.connected && host_connection.tx_size) {
+                        // RFCOMM is a stream, so messages larger than the
+                        // negotiated frame size are sent in chunks.
+                        uint32_t chunk = rfcomm_get_max_frame_size(host_connection.rfcomm_cid);
+                        if (chunk > host_connection.tx_size) {
+                            chunk = host_connection.tx_size;
+                        }
+                        rfcomm_send(host_connection.rfcomm_cid, (uint8_t *)host_connection.tx_data, chunk);
+                        host_connection.tx_data += chunk;
+                        host_connection.tx_size -= chunk;
+                        if (host_connection.tx_size) {
+                            rfcomm_request_can_send_now_event(host_connection.rfcomm_cid);
+                        }
+                    }
+                    break;
+
+                case RFCOMM_EVENT_CHANNEL_CLOSED:
+                    if (host_connection.connected &&
+                        host_connection.rfcomm_cid == rfcomm_event_channel_closed_get_rfcomm_cid(packet)) {
+                        DEBUG_PRINT("RFCOMM channel to %s closed.\n", bd_addr_to_str(host_connection.bdaddr));
+                        host_connection.connected = false;
+                        pbio_serial_port_changed(PBSYS_HOST_TRANSPORT_TYPE_RFCOMM, false);
+                    }
+                    break;
+
+                default:
+                    return;
+            }
+            break;
+
+        case RFCOMM_DATA_PACKET: {
+            #if DEBUG
+            DEBUG_PRINT("RFCOMM data (%u):", size);
+            for (uint16_t i = 0; i < size; i++) {
+                DEBUG_PRINT(" %02x", packet[i]);
+            }
+            DEBUG_PRINT("\n");
+            #endif
+            // Buffer for the pbio serial process to drain. If the ring is
+            // full, excess bytes are dropped and the COBS framing in the
+            // serial process resyncs on the next frame delimiter.
+            lwrb_write(&host_connection.rx_ring, packet, size);
+            break;
         }
 
-        // Process a scan result.
-        if (hci_event_is_type(event_packet, GAP_EVENT_INQUIRY_RESULT)) {
-            DEBUG_PRINT("Received scan result.\n");
-            pbdrv_bluetooth_inquiry_result_t *result = &task->inq_results[(*task->inq_count)++];
-            pbdrv_bluetooth_inquiry_unpack_scan_event(event_packet, result);
+        default:
+            return;
+    }
 
+    pbio_os_request_poll();
+}
+
+/**
+ * Ends the host pairing session with the given result. On failure, drops the
+ * bonding link and forgets the provisional bonding record, whose link key
+ * was never (fully) negotiated.
+ */
+static void host_pair_end(pbio_error_t err) {
+    btstack_run_loop_remove_timer(&host_connection.pair_timeout);
+    host_connection.pairing = false;
+    host_connection.pair_passkey_valid = false;
+    host_connection.pair_err = err;
+    if (err != PBIO_SUCCESS) {
+        // There is no API to abort dedicated bonding, so drop the link.
+        hci_connection_t *acl = hci_connection_for_bd_addr_and_type(host_connection.bdaddr, BD_ADDR_TYPE_ACL);
+        if (acl && acl->con_handle != HCI_CON_HANDLE_INVALID) {
+            gap_disconnect(acl->con_handle);
         }
+        pbio_bluetooth_classic_link_key_unregister(host_connection.bdaddr);
+    }
+}
 
-        // The wait until condition: inquiry complete.
-        hci_event_is_type(event_packet, GAP_EVENT_INQUIRY_COMPLETE);
-    }));
+static void host_pair_timeout_handler(btstack_timer_source_t *ts) {
+    UNUSED(ts);
+    if (!host_connection.pairing) {
+        return;
+    }
+    DEBUG_PRINT("Host pairing timed out.\n");
+    host_pair_end(PBIO_ERROR_TIMEDOUT);
+    pbio_os_request_poll();
+}
 
-    DEBUG_PRINT("Inquiry scan ended with %d results.\n", *task->inq_count);
+pbio_error_t pbdrv_bluetooth_classic_host_pair(const uint8_t *bdaddr, const char *name) {
+
+    if (!pbdrv_bluetooth_hci_is_enabled()) {
+        return PBIO_ERROR_INVALID_OP;
+    }
+
+    if (host_connection.pairing || host_connection.connected) {
+        return PBIO_ERROR_BUSY;
+    }
+
+    // Provisional bonding record; the stack stores the negotiated link key
+    // into it via the pbio link key store.
+    pbio_bluetooth_classic_link_key_register(bdaddr, name);
+
+    memcpy(host_connection.bdaddr, bdaddr, sizeof(bd_addr_t));
+    host_connection.pairing = true;
+    host_connection.pair_err = PBIO_ERROR_AGAIN;
+
+    DEBUG_PRINT("Start host pairing with %s.\n", bd_addr_to_str(host_connection.bdaddr));
+
+    // Dedicated bonding connects only to establish the bond and disconnects
+    // when done. The host initiates the RFCOMM connection itself later.
+    // Requiring MITM forces numeric comparison so the host shows a prompt.
+    if (gap_dedicated_bonding(host_connection.bdaddr, 1) != ERROR_CODE_SUCCESS) {
+        DEBUG_PRINT("Dedicated bonding failed to start.\n");
+        host_connection.pairing = false;
+        host_connection.pair_err = PBIO_ERROR_FAILED;
+        pbio_bluetooth_classic_link_key_unregister(host_connection.bdaddr);
+        return PBIO_ERROR_FAILED;
+    }
+
+    btstack_run_loop_set_timer_handler(&host_connection.pair_timeout, host_pair_timeout_handler);
+    btstack_run_loop_set_timer(&host_connection.pair_timeout, HOST_PAIR_TIMEOUT_MS);
+    btstack_run_loop_add_timer(&host_connection.pair_timeout);
+
+    return PBIO_SUCCESS;
+}
+
+pbio_error_t pbdrv_bluetooth_classic_host_pair_status(void) {
+    if (host_connection.pairing) {
+        return PBIO_ERROR_AGAIN;
+    }
+    return host_connection.pair_err;
+}
+
+bool pbdrv_bluetooth_classic_host_pair_passkey(uint32_t *passkey) {
+    if (!host_connection.pairing || !host_connection.pair_passkey_valid) {
+        return false;
+    }
+    *passkey = host_connection.pair_passkey;
+    return true;
+}
+
+void pbdrv_bluetooth_classic_host_pair_cancel(void) {
+    if (!host_connection.pairing) {
+        return;
+    }
+    DEBUG_PRINT("Host pairing cancelled.\n");
+    host_pair_end(PBIO_ERROR_CANCELED);
+}
+
+bool pbdrv_bluetooth_classic_host_is_connected(void) {
+    return host_connection.connected;
+}
+
+const char *pbdrv_bluetooth_classic_host_get_connected_name(void) {
+    if (!host_connection.connected) {
+        return NULL;
+    }
+    return pbio_bluetooth_classic_link_key_get_name(host_connection.bdaddr);
+}
+
+uint32_t pbdrv_bluetooth_classic_host_rx_read(uint8_t *data, uint32_t size) {
+    return lwrb_read(&host_connection.rx_ring, data, size);
+}
+
+pbio_error_t pbdrv_bluetooth_classic_host_tx_message(pbio_os_state_t *state, const uint8_t *data, uint32_t size) {
+
+    PBIO_OS_ASYNC_BEGIN(state);
+
+    if (!host_connection.connected) {
+        return PBIO_ERROR_INVALID_OP;
+    }
+
+    host_connection.tx_data = data;
+    host_connection.tx_size = size;
+    rfcomm_request_can_send_now_event(host_connection.rfcomm_cid);
+
+    // The can-send-now handler sends the message in chunks as the stack
+    // allows, requesting the poll that resumes this thread when done.
+    PBIO_OS_AWAIT_UNTIL(state, !host_connection.connected || host_connection.tx_size == 0);
+
+    if (!host_connection.connected) {
+        host_connection.tx_size = 0;
+        return PBIO_ERROR_INVALID_OP;
+    }
 
     PBIO_OS_ASYNC_END(PBIO_SUCCESS);
 }
 
-#endif // ENABLE_CLASSIC
+void pbdrv_bluetooth_classic_host_disconnect(void) {
 
-const char *pbdrv_bluetooth_get_hub_name(void) {
-    return pbdrv_bluetooth_hub_name;
+    if (!host_connection.connected) {
+        return;
+    }
+
+    DEBUG_PRINT("Disconnect RFCOMM connection to %s.\n", bd_addr_to_str(host_connection.bdaddr));
+
+    rfcomm_disconnect(host_connection.rfcomm_cid);
 }
+
+// Adapts BTstack's link key DB interface to the stack-agnostic pbio store,
+// which is backed by pbsys persistent storage.
+
+static void link_key_db_open(void) {
+}
+
+static void link_key_db_set_local_bd_addr(bd_addr_t bd_addr) {
+    (void)bd_addr;
+}
+
+static void link_key_db_close(void) {
+}
+
+static int link_key_db_get_link_key(bd_addr_t bd_addr, link_key_t link_key, link_key_type_t *link_key_type) {
+    uint16_t stored_type;
+    if (!pbio_bluetooth_classic_link_key_get(bd_addr, link_key, &stored_type)) {
+        return 0;
+    }
+    *link_key_type = (link_key_type_t)stored_type;
+    return 1;
+}
+
+static void link_key_db_put_link_key(bd_addr_t bd_addr, link_key_t link_key, link_key_type_t link_key_type) {
+    pbio_bluetooth_classic_link_key_put(bd_addr, link_key, link_key_type);
+    #if DEBUG
+    link_key_t stored;
+    link_key_type_t stored_type;
+    DEBUG_PRINT("%s link key for %s.\n",
+        link_key_db_get_link_key(bd_addr, stored, &stored_type) ? "Stored" : "Dropped",
+        bd_addr_to_str(bd_addr));
+    #endif
+}
+
+static void link_key_db_delete_link_key(bd_addr_t bd_addr) {
+    pbio_bluetooth_classic_link_key_delete(bd_addr);
+}
+
+static int link_key_db_iterator_init(btstack_link_key_iterator_t *it) {
+    it->context = 0;
+    return 1;
+}
+
+static int link_key_db_iterator_get_next(btstack_link_key_iterator_t *it, bd_addr_t bd_addr, link_key_t link_key, link_key_type_t *link_key_type) {
+    for (uintptr_t index = (uintptr_t)it->context; index < PBIO_BLUETOOTH_CLASSIC_NUM_BONDS; index++) {
+        const pbio_bluetooth_classic_link_key_t *record = pbio_bluetooth_classic_link_key_get_record(index);
+        if (!record) {
+            continue;
+        }
+        it->context = (void *)(index + 1);
+        memcpy(bd_addr, record->bdaddr, sizeof(record->bdaddr));
+        memcpy(link_key, record->link_key, sizeof(record->link_key));
+        *link_key_type = (link_key_type_t)record->link_key_type;
+        return 1;
+    }
+    return 0;
+}
+
+static void link_key_db_iterator_done(btstack_link_key_iterator_t *it) {
+    (void)it;
+}
+
+static const btstack_link_key_db_t pbdrv_bluetooth_btstack_link_key_db = {
+    link_key_db_open,
+    link_key_db_set_local_bd_addr,
+    link_key_db_close,
+    link_key_db_get_link_key,
+    link_key_db_put_link_key,
+    link_key_db_delete_link_key,
+    link_key_db_iterator_init,
+    link_key_db_iterator_get_next,
+    link_key_db_iterator_done,
+};
+
+#endif // PBDRV_CONFIG_BLUETOOTH_CLASSIC
 
 const char *pbdrv_bluetooth_get_fw_version(void) {
     // REVISIT: this should be linked to the init script as it can be updated in software
@@ -1233,24 +2041,13 @@ void pbdrv_bluetooth_controller_reset_hard(void) {
     hci_power_control(HCI_POWER_OFF);
 }
 
-/**
- * btstack's hci_power_control() synchronously emits an event that would cause
- * it to re-enter the event loop. This would not be safe to call from within
- * the event loop. This wrapper ensures it is called at most once.
- */
 static pbio_error_t bluetooth_btstack_handle_power_control(pbio_os_state_t *state, HCI_POWER_MODE power_mode, HCI_STATE end_state) {
-
-    static bool busy_handling_power_control;
 
     PBIO_OS_ASYNC_BEGIN(state);
 
-    if (busy_handling_power_control) {
-        return PBIO_ERROR_AGAIN;
-    }
-
-    busy_handling_power_control = true;
-    hci_power_control(power_mode); // causes synchronous re-entry.
-    busy_handling_power_control = false;
+    // Events emitted synchronously by this call only record state, so
+    // this is safe to call from within the Bluetooth process.
+    hci_power_control(power_mode);
 
     // Wait for the power state to take effect.
     PBIO_OS_AWAIT_UNTIL(state, hci_get_state() == end_state);
@@ -1294,7 +2091,7 @@ pbio_error_t pbdrv_bluetooth_disconnect_all(pbio_os_state_t *state) {
 
     static pbio_os_state_t sub;
     static uint8_t i;
-    static pbdrv_bluetooth_peripheral_t *peri;
+    static pbio_bluetooth_peripheral_t *peri;
 
     PBIO_OS_ASYNC_BEGIN(state);
 
@@ -1386,8 +2183,11 @@ static pbio_error_t pbdrv_bluetooth_hci_process_thread(pbio_os_state_t *state, v
         btstack_run_loop_base_process_timers(pbdrv_clock_get_ms());
     }
 
-    // Also propagate non-btstack events like polls or timers.
-    propagate_event(NULL);
+    // Drive the common Bluetooth process. All events received above have been
+    // recorded as state by the packet handlers for the process to consume.
+    if (bluetooth_thread_err == PBIO_ERROR_AGAIN) {
+        bluetooth_thread_err = pbdrv_bluetooth_process_thread(&bluetooth_thread_state, NULL);
+    }
 
     return bluetooth_thread_err;
 }
@@ -1396,7 +2196,7 @@ static pbio_error_t pbdrv_bluetooth_hci_process_thread(pbio_os_state_t *state, v
 const uint32_t cc256x_init_script_size = 0;
 const uint8_t cc256x_init_script[] = {};
 
-void pbdrv_bluetooth_init_hci(void) {
+void pbdrv_bluetooth_init(void) {
 
     // Initialize host structs as not connected.
     #if PBDRV_CONFIG_BLUETOOTH_BTSTACK_NUM_LE_HOSTS
@@ -1425,7 +2225,7 @@ void pbdrv_bluetooth_init_hci(void) {
 
     // Attach btstack platform state to peripherals.
     for (uint8_t i = 0; i < PBDRV_CONFIG_BLUETOOTH_NUM_PERIPHERALS; i++) {
-        pbdrv_bluetooth_peripheral_t *peri = pbdrv_bluetooth_peripheral_get_by_index(i);
+        pbio_bluetooth_peripheral_t *peri = pbdrv_bluetooth_peripheral_get_by_index(i);
         peri->platform_state = &peripheral_platform_state[i];
         peri->con_handle = HCI_CON_HANDLE_INVALID;
     }
@@ -1440,8 +2240,16 @@ void pbdrv_bluetooth_init_hci(void) {
 
     // REVISIT: do we need to call btstack_chipset_cc256x_set_power() or btstack_chipset_cc256x_set_power_vector()?
 
-    hci_event_callback_registration.callback = &packet_handler;
+    hci_event_callback_registration.callback = &main_packet_handler;
     hci_add_event_handler(&hci_event_callback_registration);
+
+    #if PBDRV_CONFIG_BLUETOOTH_CLASSIC
+    // Needed to get device names.
+    hci_set_inquiry_mode(INQUIRY_MODE_RSSI_AND_EIR);
+    static btstack_packet_callback_registration_t inquiry_event_callback_registration;
+    inquiry_event_callback_registration.callback = &inquiry_packet_handler;
+    hci_add_event_handler(&inquiry_event_callback_registration);
+    #endif
 
     l2cap_init();
 
@@ -1458,7 +2266,6 @@ void pbdrv_bluetooth_init_hci(void) {
     sm_event_callback_registration.callback = &sm_packet_handler;
     sm_add_event_handler(&sm_event_callback_registration);
 
-    gap_random_address_set_mode(GAP_RANDOM_ADDRESS_NON_RESOLVABLE);
     gap_set_max_number_peripheral_connections(2);
 
     // GATT Client setup
@@ -1485,6 +2292,70 @@ void pbdrv_bluetooth_init_hci(void) {
     (void)nordic_spp_packet_handler;
     (void)sm_packet_handler;
     #endif // PBDRV_CONFIG_BLUETOOTH_BTSTACK_LE
+
+    #if PBDRV_CONFIG_BLUETOOTH_CLASSIC
+    // Run an SDP server. When a paired classic HID device (e.g. PS5) pages
+    // the hub to reconnect, it is the L2CAP initiator and performs its own
+    // SDP query against the hub. Without an SDP server the hub rejects that
+    // incoming SDP connection with "PSM not supported" and the device drops
+    // the link. Registering a Device ID record gives it a valid response so
+    // it proceeds to open the HID channels.
+    sdp_init();
+    static uint8_t device_id_sdp_record[100];
+    device_id_create_sdp_record(device_id_sdp_record, 0x10001,
+        DEVICE_ID_VENDOR_ID_SOURCE_BLUETOOTH, LWP3_LEGO_COMPANY_ID, PBDRV_CONFIG_HUB_KIND, 0x00);
+    sdp_register_service(device_id_sdp_record);
+
+    hid_host_init(hid_descriptor_storage, sizeof(hid_descriptor_storage));
+    hid_host_register_packet_handler(hid_host_packet_handler);
+
+    // RFCOMM serial server for the host computer connection. The paired host
+    // initiates the connection.
+    rfcomm_init();
+    rfcomm_register_service(host_packet_handler, RFCOMM_SERVER_CHANNEL, RFCOMM_SERVER_MTU);
+    lwrb_init(&host_connection.rx_ring, host_connection.rx_buf, sizeof(host_connection.rx_buf));
+    static uint8_t spp_sdp_record[150];
+    // Advertise the Pybricks service UUID as the service class (the profile
+    // descriptor list still declares SPP). Host apps filter serial ports on
+    // this UUID; the generic SPP UUID would match every paired headset/GPS.
+    spp_create_custom_sdp_record(spp_sdp_record, 0x10002, pbio_pybricks_service_uuid, RFCOMM_SERVER_CHANNEL, "Pybricks");
+    sdp_register_service(spp_sdp_record);
+
+    // Identify with the hub name and as a toy robot instead. The decorated
+    // name distinguishes this from the same hub connected over USB in host
+    // OS device pickers.
+    gap_set_local_name(pbsys_host_get_hub_display_name());
+    gap_set_class_of_device(0x000804);
+
+    // Claim yes/no capability (auto-accepted below) so that pairing with a
+    // host uses numeric comparison, which shows a confirmation prompt on the
+    // host. Silent "just works" pairing is ignored by some hosts. Pairing
+    // with display-less gamepads still falls back to "just works".
+    gap_ssp_set_io_capability(SSP_IO_CAPABILITY_DISPLAY_YES_NO);
+
+    // Allow sniff mode requests by HID devices and support role switch.
+    gap_set_default_link_policy_settings(LM_LINK_POLICY_ENABLE_SNIFF_MODE | LM_LINK_POLICY_ENABLE_ROLE_SWITCH);
+
+    // PlayStation/Nintendo HID controllers page the hub on reconnect (so they
+    // connect as master) and then open the HID L2CAP channels themselves.
+    // Forcing a role switch on the incoming connection makes them terminate
+    // the link, so let the connecting device decide the role (1) instead of
+    // attempting to become master (0).
+    hci_set_master_slave_policy(1);
+
+    // Also register for general HCI events for pairing/security requests.
+    static btstack_packet_callback_registration_t hid_event_callback_registration;
+    hid_event_callback_registration.callback = &hid_host_packet_handler;
+    hci_add_event_handler(&hid_event_callback_registration);
+
+    // Dedicated bonding results arrive as general HCI events.
+    static btstack_packet_callback_registration_t host_event_callback_registration;
+    host_event_callback_registration.callback = &host_packet_handler;
+    hci_add_event_handler(&host_event_callback_registration);
+
+    // Persist pairing link keys in pbsys storage instead of the stack default.
+    hci_set_link_key_db(&pbdrv_bluetooth_btstack_link_key_db);
+    #endif // PBDRV_CONFIG_BLUETOOTH_CLASSIC
 
     bluetooth_thread_err = PBIO_ERROR_AGAIN;
     bluetooth_thread_state = 0;

@@ -1,6 +1,8 @@
 /*
- * Copyright (c) 2015 - 2019, Nordic Semiconductor ASA
+ * Copyright (c) 2015 - 2025, Nordic Semiconductor ASA
  * All rights reserved.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -59,12 +61,14 @@ typedef enum
     NRF_PPI_CHANNEL7  = PPI_CHEN_CH7_Pos,  /**< Channel 7. */
     NRF_PPI_CHANNEL8  = PPI_CHEN_CH8_Pos,  /**< Channel 8. */
     NRF_PPI_CHANNEL9  = PPI_CHEN_CH9_Pos,  /**< Channel 9. */
+#if (PPI_CH_NUM > 10) || defined(__NRFX_DOXYGEN__)
     NRF_PPI_CHANNEL10 = PPI_CHEN_CH10_Pos, /**< Channel 10. */
     NRF_PPI_CHANNEL11 = PPI_CHEN_CH11_Pos, /**< Channel 11. */
     NRF_PPI_CHANNEL12 = PPI_CHEN_CH12_Pos, /**< Channel 12. */
     NRF_PPI_CHANNEL13 = PPI_CHEN_CH13_Pos, /**< Channel 13. */
     NRF_PPI_CHANNEL14 = PPI_CHEN_CH14_Pos, /**< Channel 14. */
     NRF_PPI_CHANNEL15 = PPI_CHEN_CH15_Pos, /**< Channel 15. */
+#endif
 #if (PPI_CH_NUM > 16) || defined(__NRFX_DOXYGEN__)
     NRF_PPI_CHANNEL16 = PPI_CHEN_CH16_Pos, /**< Channel 16. */
     NRF_PPI_CHANNEL17 = PPI_CHEN_CH17_Pos, /**< Channel 17. */
@@ -225,6 +229,16 @@ NRF_STATIC_INLINE void nrf_ppi_task_endpoint_setup(NRF_PPI_Type *    p_reg,
                                                    nrf_ppi_channel_t channel,
                                                    uint32_t          tep);
 
+/**
+ * @brief Function for getting the task endpoint of a given PPI channel.
+ *
+ * @param[in] p_reg   Pointer to the structure of registers of the peripheral.
+ * @param[in] channel Channel of requested task endpoint.
+ *
+ * @return Task endpoint for a given PPI channel.
+ */
+NRF_STATIC_INLINE uint32_t nrf_ppi_task_endpoint_get(NRF_PPI_Type const * p_reg,
+                                                     nrf_ppi_channel_t    channel);
 
 #if defined(PPI_FEATURE_FORKS_PRESENT) || defined(__NRFX_DOXYGEN__)
 /**
@@ -237,6 +251,17 @@ NRF_STATIC_INLINE void nrf_ppi_task_endpoint_setup(NRF_PPI_Type *    p_reg,
 NRF_STATIC_INLINE void nrf_ppi_fork_endpoint_setup(NRF_PPI_Type *    p_reg,
                                                    nrf_ppi_channel_t channel,
                                                    uint32_t          fork_tep);
+
+/**
+ * @brief Function for getting the task endpoint of a given PPI fork.
+ *
+ * @param[in] p_reg   Pointer to the structure of registers of the peripheral.
+ * @param[in] channel Channel of requested fork endpoint.
+ *
+ * @return Task endpoint for a given PPI fork.
+ */
+NRF_STATIC_INLINE uint32_t nrf_ppi_fork_endpoint_get(NRF_PPI_Type const * p_reg,
+                                                     nrf_ppi_channel_t    channel);
 
 /**
  * @brief Function for setting up event and task endpoints for a given PPI channel and fork.
@@ -266,6 +291,21 @@ NRF_STATIC_INLINE void nrf_ppi_channel_and_fork_endpoint_setup(NRF_PPI_Type *   
 NRF_STATIC_INLINE void nrf_ppi_channel_include_in_group(NRF_PPI_Type *          p_reg,
                                                         nrf_ppi_channel_t       channel,
                                                         nrf_ppi_channel_group_t channel_group);
+
+/**
+ * @brief Function for setting multiple PPI channels in a channel group.
+ *
+ * @details This function adds all specified channels to the group.
+ *
+ * @warning All channels included previously will be overwritten.
+ *
+ * @param[in] p_reg         Pointer to the structure of registers of the peripheral.
+ * @param[in] channel_mask  Channels to be assgined in the group.
+ * @param[in] channel_group Channel group.
+ */
+NRF_STATIC_INLINE void nrf_ppi_channels_group_set(NRF_PPI_Type *          p_reg,
+                                                  uint32_t                channel_mask,
+                                                  nrf_ppi_channel_group_t channel_group);
 
 /**
  * @brief Function for including multiple PPI channels in a channel group.
@@ -457,6 +497,12 @@ NRF_STATIC_INLINE void nrf_ppi_task_endpoint_setup(NRF_PPI_Type *    p_reg,
     p_reg->CH[(uint32_t) channel].TEP = tep;
 }
 
+NRF_STATIC_INLINE uint32_t nrf_ppi_task_endpoint_get(NRF_PPI_Type const * p_reg,
+                                                     nrf_ppi_channel_t    channel)
+{
+    return p_reg->CH[(uint32_t)channel].TEP;
+}
+
 #if defined(PPI_FEATURE_FORKS_PRESENT)
 
 NRF_STATIC_INLINE void nrf_ppi_fork_endpoint_setup(NRF_PPI_Type *    p_reg,
@@ -464,6 +510,12 @@ NRF_STATIC_INLINE void nrf_ppi_fork_endpoint_setup(NRF_PPI_Type *    p_reg,
                                                    uint32_t          fork_tep)
 {
     p_reg->FORK[(uint32_t) channel].TEP = fork_tep;
+}
+
+NRF_STATIC_INLINE uint32_t nrf_ppi_fork_endpoint_get(NRF_PPI_Type const * p_reg,
+                                                     nrf_ppi_channel_t    channel)
+{
+    return p_reg->FORK[(uint32_t)channel].TEP;
 }
 
 NRF_STATIC_INLINE void nrf_ppi_channel_and_fork_endpoint_setup(NRF_PPI_Type *    p_reg,
@@ -482,6 +534,13 @@ NRF_STATIC_INLINE void nrf_ppi_channel_include_in_group(NRF_PPI_Type *          
                                                         nrf_ppi_channel_group_t channel_group)
 {
     p_reg->CHG[(uint32_t) channel_group] |= (PPI_CHG_CH0_Included << ((uint32_t) channel));
+}
+
+NRF_STATIC_INLINE void nrf_ppi_channels_group_set(NRF_PPI_Type *          p_reg,
+                                                  uint32_t                channel_mask,
+                                                  nrf_ppi_channel_group_t channel_group)
+{
+    p_reg->CHG[(uint32_t) channel_group] = channel_mask;
 }
 
 NRF_STATIC_INLINE void nrf_ppi_channels_include_in_group(NRF_PPI_Type *          p_reg,
@@ -528,7 +587,7 @@ NRF_STATIC_INLINE void nrf_ppi_task_trigger(NRF_PPI_Type * p_reg, nrf_ppi_task_t
 NRF_STATIC_INLINE uint32_t nrf_ppi_task_address_get(NRF_PPI_Type const * p_reg,
                                                     nrf_ppi_task_t       ppi_task)
 {
-    return (uint32_t) ((uint8_t *) p_reg + (uint32_t) ppi_task);
+    return (uint32_t) ((const uint8_t *) p_reg + (uint32_t) ppi_task);
 }
 
 NRF_STATIC_INLINE uint32_t nrf_ppi_task_group_enable_address_get(NRF_PPI_Type const *    p_reg,
@@ -546,6 +605,7 @@ NRF_STATIC_INLINE uint32_t nrf_ppi_task_group_disable_address_get(NRF_PPI_Type c
 NRF_STATIC_INLINE nrf_ppi_task_t nrf_ppi_group_enable_task_get(NRF_PPI_Type const * p_reg,
                                                                uint8_t              index)
 {
+    (void)p_reg;
     NRFX_ASSERT(index < PPI_GROUP_NUM);
     return (nrf_ppi_task_t)NRFX_OFFSETOF(NRF_PPI_Type, TASKS_CHG[index].EN);
 }
@@ -553,6 +613,7 @@ NRF_STATIC_INLINE nrf_ppi_task_t nrf_ppi_group_enable_task_get(NRF_PPI_Type cons
 NRF_STATIC_INLINE nrf_ppi_task_t nrf_ppi_group_disable_task_get(NRF_PPI_Type const * p_reg,
                                                                 uint8_t              index)
 {
+    (void)p_reg;
     NRFX_ASSERT(index < PPI_GROUP_NUM);
     return (nrf_ppi_task_t)NRFX_OFFSETOF(NRF_PPI_Type, TASKS_CHG[index].DIS);
 }

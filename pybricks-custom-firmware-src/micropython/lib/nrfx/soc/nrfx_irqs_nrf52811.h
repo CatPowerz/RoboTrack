@@ -1,6 +1,8 @@
 /*
- * Copyright (c) 2017 - 2019, Nordic Semiconductor ASA
+ * Copyright (c) 2017 - 2025, Nordic Semiconductor ASA
  * All rights reserved.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -72,7 +74,7 @@ extern "C" {
 #endif
 
 // GPIOTE_IRQn
-#define nrfx_gpiote_irq_handler     GPIOTE_IRQHandler
+#define nrfx_gpiote_0_irq_handler   GPIOTE_IRQHandler
 
 // SAADC_IRQn
 #define nrfx_saadc_irq_handler      SAADC_IRQHandler
@@ -105,8 +107,8 @@ extern "C" {
 // RTC1_IRQn
 #define nrfx_rtc_1_irq_handler      RTC1_IRQHandler
 
-// QDEC_IRQn
-#define nrfx_qdec_irq_handler       QDEC_IRQHandler
+// QDEC0_IRQn
+#define nrfx_qdec_0_irq_handler     QDEC_IRQHandler
 
 // COMP_IRQn
 #define nrfx_comp_irq_handler       COMP_IRQHandler
@@ -129,7 +131,7 @@ extern "C" {
 #define nrfx_pwm_0_irq_handler      PWM0_IRQHandler
 
 // PDM_IRQn
-#define nrfx_pdm_irq_handler        PDM_IRQHandler
+#define nrfx_pdm_0_irq_handler      PDM_IRQHandler
 
 
 #ifdef __cplusplus

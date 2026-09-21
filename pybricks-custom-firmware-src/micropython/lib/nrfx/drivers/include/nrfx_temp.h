@@ -1,6 +1,8 @@
 /*
- * Copyright (c) 2019, Nordic Semiconductor ASA
+ * Copyright (c) 2019 - 2025, Nordic Semiconductor ASA
  * All rights reserved.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -33,7 +35,7 @@
 #define NRFX_TEMP_H__
 
 #include <nrfx.h>
-#include <hal/nrf_temp.h>
+#include <haly/nrfy_temp.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -65,7 +67,7 @@ typedef struct
  *                     representation. This value can be converted to Celsius
  *                     scale using the @ref nrfx_temp_calculate() function.
  */
-typedef void (* nrfx_temp_data_handler_t)(int32_t raw_temperature);
+typedef void (* nrfx_temp_data_handler_t)(int32_t temperature);
 
 /**
  * @brief Function for initializing the TEMP driver.
@@ -74,13 +76,21 @@ typedef void (* nrfx_temp_data_handler_t)(int32_t raw_temperature);
  * @param[in] handler   Data handler provided by the user. If not provided,
  *                      the driver is initialized in blocking mode.
  *
- * @retval NRFX_SUCCESS                    Driver was successfully initialized.
- * @retval NRFX_ERROR_ALREADY_INITIALIZED  Driver was already initialized.
+ * @retval NRFX_SUCCESS       Driver was successfully initialized.
+ * @retval NRFX_ERROR_ALREADY Driver was already initialized.
  */
 nrfx_err_t nrfx_temp_init(nrfx_temp_config_t const * p_config, nrfx_temp_data_handler_t handler);
 
 /** @brief Function for uninitializing the TEMP driver. */
 void nrfx_temp_uninit(void);
+
+/**
+ * @brief Function for checking if the TEMP driver is initialized.
+ *
+ * @retval true  Driver is already initialized.
+ * @retval false Driver is not initialized.
+ */
+bool nrfx_temp_init_check(void);
 
 /**
  * @brief Function for getting the temperature measurement in a 2's complement
@@ -136,7 +146,7 @@ nrfx_err_t nrfx_temp_measure(void);
 #ifndef NRFX_DECLARE_ONLY
 NRFX_STATIC_INLINE int32_t nrfx_temp_result_get(void)
 {
-    return nrf_temp_result_get(NRF_TEMP);
+    return nrfy_temp_result_get(NRF_TEMP);
 }
 #endif // NRFX_DECLARE_ONLY
 

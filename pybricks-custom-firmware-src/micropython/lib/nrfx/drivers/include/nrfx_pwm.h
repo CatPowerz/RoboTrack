@@ -1,6 +1,8 @@
 /*
- * Copyright (c) 2015 - 2019, Nordic Semiconductor ASA
+ * Copyright (c) 2015 - 2025, Nordic Semiconductor ASA
  * All rights reserved.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -33,7 +35,7 @@
 #define NRFX_PWM_H__
 
 #include <nrfx.h>
-#include <hal/nrf_pwm.h>
+#include <haly/nrfy_pwm.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -49,57 +51,51 @@ extern "C" {
 /** @brief PWM driver instance data structure. */
 typedef struct
 {
-    NRF_PWM_Type * p_registers;  ///< Pointer to the structure with PWM peripheral instance registers.
-    uint8_t        drv_inst_idx; ///< Index of the driver instance. For internal use only.
+    NRF_PWM_Type * p_reg;       ///< Pointer to the structure with PWM peripheral instance registers.
+    uint8_t        instance_id; ///< Index of the driver instance. For internal use only.
 } nrfx_pwm_t;
 
 /** @brief Macro for creating a PWM driver instance. */
-#define NRFX_PWM_INSTANCE(id)                               \
-{                                                           \
-    .p_registers  = NRFX_CONCAT_2(NRF_PWM, id),             \
-    .drv_inst_idx = NRFX_CONCAT_3(NRFX_PWM, id, _INST_IDX), \
+#define NRFX_PWM_INSTANCE(id)                              \
+{                                                          \
+    .p_reg       = NRFX_CONCAT(NRF_, PWM, id),             \
+    .instance_id = NRFX_CONCAT(NRFX_PWM, id, _INST_IDX),   \
 }
 
 #ifndef __NRFX_DOXYGEN__
 enum {
-#if NRFX_CHECK(NRFX_PWM0_ENABLED)
-    NRFX_PWM0_INST_IDX,
-#endif
-#if NRFX_CHECK(NRFX_PWM1_ENABLED)
-    NRFX_PWM1_INST_IDX,
-#endif
-#if NRFX_CHECK(NRFX_PWM2_ENABLED)
-    NRFX_PWM2_INST_IDX,
-#endif
-#if NRFX_CHECK(NRFX_PWM3_ENABLED)
-    NRFX_PWM3_INST_IDX,
-#endif
+    /* List all enabled driver instances (in the format NRFX_\<instance_name\>_INST_IDX). */
+    NRFX_INSTANCE_ENUM_LIST(PWM)
     NRFX_PWM_ENABLED_COUNT
 };
 #endif
 
-/**
- * @brief This value can be provided instead of a pin number for any channel
- *        to specify that its output is not used and therefore does not need
- *        to be connected to a pin.
- */
-#define NRFX_PWM_PIN_NOT_USED    0xFF
-
-/** @brief This value can be added to a pin number to invert its polarity (set idle state = 1). */
-#define NRFX_PWM_PIN_INVERTED    0x80
-
 /** @brief PWM driver configuration structure. */
 typedef struct
 {
-    uint8_t output_pins[NRF_PWM_CHANNEL_COUNT]; ///< Pin numbers for individual output channels (optional).
-                                                /**< Use @ref NRFX_PWM_PIN_NOT_USED
-                                                 *   if a given output channel is not needed. */
-    uint8_t            irq_priority; ///< Interrupt priority.
-    nrf_pwm_clk_t      base_clock;   ///< Base clock frequency.
-    nrf_pwm_mode_t     count_mode;   ///< Operating mode of the pulse generator counter.
-    uint16_t           top_value;    ///< Value up to which the pulse generator counter counts.
-    nrf_pwm_dec_load_t load_mode;    ///< Mode of loading sequence data from RAM.
-    nrf_pwm_dec_step_t step_mode;    ///< Mode of advancing the active sequence.
+    uint32_t           output_pins[NRF_PWM_CHANNEL_COUNT];  ///< Pin numbers for individual output channels (optional).
+                                                            /**< Use @ref NRF_PWM_PIN_NOT_CONNECTED
+                                                             *   if a given output channel is not needed. */
+    bool               pin_inverted[NRF_PWM_CHANNEL_COUNT]; ///< Inverted pin polarity (idle state = 1).
+    uint8_t            irq_priority;                        ///< Interrupt priority.
+    nrf_pwm_clk_t      base_clock;                          ///< Base clock frequency.
+    nrf_pwm_mode_t     count_mode;                          ///< Operating mode of the pulse generator counter.
+    uint16_t           top_value;                           ///< Value up to which the pulse generator counter counts.
+    nrf_pwm_dec_load_t load_mode;                           ///< Mode of loading sequence data from RAM.
+    nrf_pwm_dec_step_t step_mode;                           ///< Mode of advancing the active sequence.
+    bool               skip_gpio_cfg;                       ///< Skip the GPIO configuration
+                                                            /**< When this flag is set, the user is responsible for
+                                                             *   providing the proper configuration of the output pins,
+                                                             *   as the driver does not touch it at all. */
+    bool               skip_psel_cfg;                       ///< Skip pin selection configuration.
+                                                            /**< When set to true, the driver does not modify
+                                                             *   pin select registers in the peripheral.
+                                                             *   Those registers are supposed to be set up
+                                                             *   externally before the driver is initialized.
+                                                             *   @note When both GPIO configuration and pin
+                                                             *   selection are to be skipped, the structure
+                                                             *   fields that specify pins can be omitted,
+                                                             *   as they are ignored anyway. */
 } nrfx_pwm_config_t;
 
 /**
@@ -117,19 +113,27 @@ typedef struct
  * @param[in] _out_2 PWM output 2 pin.
  * @param[in] _out_3 PWM output 3 pin.
  */
-#define NRFX_PWM_DEFAULT_CONFIG(_out_0, _out_1, _out_2, _out_3)  \
-{                                                                \
-    .output_pins  = { _out_0,                                    \
-                      _out_1,                                    \
-                      _out_2,                                    \
-                      _out_3                                     \
-                    },                                           \
-    .irq_priority = NRFX_PWM_DEFAULT_CONFIG_IRQ_PRIORITY,        \
-    .base_clock   = NRF_PWM_CLK_1MHz,                            \
-    .count_mode   = NRF_PWM_MODE_UP,                             \
-    .top_value    = 1000,                                        \
-    .load_mode    = NRF_PWM_LOAD_COMMON,                         \
-    .step_mode    = NRF_PWM_STEP_AUTO,                           \
+#define NRFX_PWM_DEFAULT_CONFIG(_out_0, _out_1, _out_2, _out_3) \
+{                                                               \
+    .output_pins   = {                                          \
+        _out_0,                                                 \
+        _out_1,                                                 \
+        _out_2,                                                 \
+        _out_3,                                                 \
+    },                                                          \
+    .pin_inverted  = {                                          \
+        false,                                                  \
+        false,                                                  \
+        false,                                                  \
+        false,                                                  \
+    },                                                          \
+    .irq_priority  = NRFX_PWM_DEFAULT_CONFIG_IRQ_PRIORITY,      \
+    .base_clock    = NRF_PWM_CLK_1MHz,                          \
+    .count_mode    = NRF_PWM_MODE_UP,                           \
+    .top_value     = 1000,                                      \
+    .load_mode     = NRF_PWM_LOAD_COMMON,                       \
+    .step_mode     = NRF_PWM_STEP_AUTO,                         \
+    .skip_gpio_cfg = false                                      \
 }
 
 /** @brief PWM flags providing additional playback options. */
@@ -197,18 +201,34 @@ typedef void (* nrfx_pwm_handler_t)(nrfx_pwm_evt_type_t event_type, void * p_con
  *
  * @param[in] p_instance Pointer to the driver instance structure.
  * @param[in] p_config   Pointer to the structure with the initial configuration.
+ *                       NULL if configuration is to be skipped and will be done later
+ *                       using @ref nrfx_pwm_reconfigure.
  * @param[in] handler    Event handler provided by the user. If NULL is passed
  *                       instead, event notifications are not done and PWM
  *                       interrupts are disabled.
  * @param[in] p_context  Context passed to the event handler.
  *
  * @retval NRFX_SUCCESS             Initialization was successful.
- * @retval NRFX_ERROR_INVALID_STATE The driver was already initialized.
+ * @retval NRFX_ERROR_ALREADY       The driver is already initialized.
+ * @retval NRFX_ERROR_INVALID_STATE The driver is already initialized.
+ *                                  Deprecated - use @ref NRFX_ERROR_ALREADY instead.
  */
 nrfx_err_t nrfx_pwm_init(nrfx_pwm_t const *        p_instance,
                          nrfx_pwm_config_t const * p_config,
                          nrfx_pwm_handler_t        handler,
                          void *                    p_context);
+
+/**
+ * @brief Function for reconfiguring the PWM driver.
+ *
+ * @param[in] p_instance Pointer to the driver instance structure.
+ * @param[in] p_config   Pointer to the structure with the configuration.
+ *
+ * @retval NRFX_SUCCESS             Reconfiguration was successful.
+ * @retval NRFX_ERROR_BUSY          The driver is during playback.
+ * @retval NRFX_ERROR_INVALID_STATE The driver is uninitialized.
+ */
+nrfx_err_t nrfx_pwm_reconfigure(nrfx_pwm_t const * p_instance, nrfx_pwm_config_t const * p_config);
 
 /**
  * @brief Function for uninitializing the PWM driver.
@@ -218,6 +238,16 @@ nrfx_err_t nrfx_pwm_init(nrfx_pwm_t const *        p_instance,
  * @param[in] p_instance Pointer to the driver instance structure.
  */
 void nrfx_pwm_uninit(nrfx_pwm_t const * p_instance);
+
+/**
+ * @brief Function for checking if the PWM driver instance is initialized.
+ *
+ * @param[in] p_instance Pointer to the driver instance structure.
+ *
+ * @retval true  Instance is already initialized.
+ * @retval false Instance is not initialized.
+ */
+bool nrfx_pwm_init_check(nrfx_pwm_t const * p_instance);
 
 /**
  * @brief Function for starting a single sequence playback.
@@ -305,7 +335,7 @@ NRFX_STATIC_INLINE void nrfx_pwm_step(nrfx_pwm_t const * p_instance);
  * @note This function can be instructed to wait until the playback is stopped
  *       (by setting @p wait_until_stopped to true). Depending on
  *       the length of the PMW period, this might take a significant amount of
- *       time. Alternatively, the @ref nrfx_pwm_is_stopped function can be
+ *       time. Alternatively, the @ref nrfx_pwm_stopped_check function can be
  *       used to poll the status, or the @ref NRFX_PWM_EVT_STOPPED event can
  *       be used to get the notification when the playback is stopped, provided
  *       the event handler is defined.
@@ -327,7 +357,7 @@ bool nrfx_pwm_stop(nrfx_pwm_t const * p_instance, bool wait_until_stopped);
  * @retval true  The PWM peripheral is stopped.
  * @retval false The PWM peripheral is not stopped.
  */
-bool nrfx_pwm_is_stopped(nrfx_pwm_t const * p_instance);
+bool nrfx_pwm_stopped_check(nrfx_pwm_t const * p_instance);
 
 /**
  * @brief Function for updating the sequence data during playback.
@@ -339,54 +369,6 @@ bool nrfx_pwm_is_stopped(nrfx_pwm_t const * p_instance);
 NRFX_STATIC_INLINE void nrfx_pwm_sequence_update(nrfx_pwm_t const *         p_instance,
                                                  uint8_t                    seq_id,
                                                  nrf_pwm_sequence_t const * p_sequence);
-
-/**
- * @brief Function for updating the pointer to the duty cycle values
- *        in the specified sequence during playback.
- *
- * @param[in] p_instance Pointer to the driver instance structure.
- * @param[in] seq_id     Identifier of the sequence (0 or 1).
- * @param[in] values     New pointer to the duty cycle values.
- */
-NRFX_STATIC_INLINE void nrfx_pwm_sequence_values_update(nrfx_pwm_t const * p_instance,
-                                                        uint8_t            seq_id,
-                                                        nrf_pwm_values_t   values);
-
-/**
- * @brief Function for updating the number of duty cycle values
- *        in the specified sequence during playback.
- *
- * @param[in] p_instance Pointer to the driver instance structure.
- * @param[in] seq_id     Identifier of the sequence (0 or 1).
- * @param[in] length     New number of the duty cycle values.
- */
-NRFX_STATIC_INLINE void nrfx_pwm_sequence_length_update(nrfx_pwm_t const * p_instance,
-                                                        uint8_t            seq_id,
-                                                        uint16_t           length);
-
-/**
- * @brief Function for updating the number of repeats for duty cycle values
- *        in the specified sequence during playback.
- *
- * @param[in] p_instance Pointer to the driver instance structure.
- * @param[in] seq_id     Identifier of the sequence (0 or 1).
- * @param[in] repeats    New number of repeats.
- */
-NRFX_STATIC_INLINE void nrfx_pwm_sequence_repeats_update(nrfx_pwm_t const * p_instance,
-                                                         uint8_t            seq_id,
-                                                         uint32_t           repeats);
-
-/**
- * @brief Function for updating the additional delay after the specified
- *        sequence during playback.
- *
- * @param[in] p_instance Pointer to the driver instance structure.
- * @param[in] seq_id     Identifier of the sequence (0 or 1).
- * @param[in] end_delay  New end delay value (in PWM periods).
- */
-NRFX_STATIC_INLINE void nrfx_pwm_sequence_end_delay_update(nrfx_pwm_t const * p_instance,
-                                                           uint8_t            seq_id,
-                                                           uint32_t           end_delay);
 
 /**
  * @brief Function for returning the address of a specified PWM task that can
@@ -415,64 +397,54 @@ NRFX_STATIC_INLINE uint32_t nrfx_pwm_event_address_get(nrfx_pwm_t const * p_inst
 #ifndef NRFX_DECLARE_ONLY
 NRFX_STATIC_INLINE void nrfx_pwm_step(nrfx_pwm_t const * p_instance)
 {
-    nrf_pwm_task_trigger(p_instance->p_registers, NRF_PWM_TASK_NEXTSTEP);
+    nrfy_pwm_task_trigger(p_instance->p_reg, NRF_PWM_TASK_NEXTSTEP);
 }
 
 NRFX_STATIC_INLINE void nrfx_pwm_sequence_update(nrfx_pwm_t const *         p_instance,
                                                  uint8_t                    seq_id,
                                                  nrf_pwm_sequence_t const * p_sequence)
 {
-    nrf_pwm_sequence_set(p_instance->p_registers, seq_id, p_sequence);
-}
-
-NRFX_STATIC_INLINE void nrfx_pwm_sequence_values_update(nrfx_pwm_t const * p_instance,
-                                                        uint8_t            seq_id,
-                                                        nrf_pwm_values_t   values)
-{
-    nrf_pwm_seq_ptr_set(p_instance->p_registers, seq_id, values.p_raw);
-}
-
-NRFX_STATIC_INLINE void nrfx_pwm_sequence_length_update(nrfx_pwm_t const * p_instance,
-                                                        uint8_t            seq_id,
-                                                        uint16_t           length)
-{
-    nrf_pwm_seq_cnt_set(p_instance->p_registers, seq_id, length);
-}
-
-NRFX_STATIC_INLINE void nrfx_pwm_sequence_repeats_update(nrfx_pwm_t const * p_instance,
-                                                         uint8_t            seq_id,
-                                                         uint32_t           repeats)
-{
-    nrf_pwm_seq_refresh_set(p_instance->p_registers, seq_id, repeats);
-}
-
-NRFX_STATIC_INLINE void nrfx_pwm_sequence_end_delay_update(nrfx_pwm_t const * p_instance,
-                                                           uint8_t            seq_id,
-                                                           uint32_t           end_delay)
-{
-    nrf_pwm_seq_end_delay_set(p_instance->p_registers, seq_id, end_delay);
+    nrfy_pwm_sequence_set(p_instance->p_reg, seq_id, p_sequence);
 }
 
 NRFX_STATIC_INLINE uint32_t nrfx_pwm_task_address_get(nrfx_pwm_t const * p_instance,
                                                       nrf_pwm_task_t     task)
 {
-    return nrf_pwm_task_address_get(p_instance->p_registers, task);
+    return nrfy_pwm_task_address_get(p_instance->p_reg, task);
 }
 
 NRFX_STATIC_INLINE uint32_t nrfx_pwm_event_address_get(nrfx_pwm_t const * p_instance,
                                                        nrf_pwm_event_t    event)
 {
-    return nrf_pwm_event_address_get(p_instance->p_registers, event);
+    return nrfy_pwm_event_address_get(p_instance->p_reg, event);
 }
 #endif // NRFX_DECLARE_ONLY
 
+/**
+ * @brief Macro returning PWM interrupt handler.
+ *
+ * param[in] idx PWM index.
+ *
+ * @return Interrupt handler.
+ */
+#define NRFX_PWM_INST_HANDLER_GET(idx) NRFX_CONCAT_3(nrfx_pwm_, idx, _irq_handler)
+
 /** @} */
 
-
-void nrfx_pwm_0_irq_handler(void);
-void nrfx_pwm_1_irq_handler(void);
-void nrfx_pwm_2_irq_handler(void);
-void nrfx_pwm_3_irq_handler(void);
+/*
+ * Declare interrupt handlers for all enabled driver instances in the following format:
+ * nrfx_\<periph_name\>_\<idx\>_irq_handler (for example, nrfx_pwm_0_irq_handler).
+ *
+ * A specific interrupt handler for the driver instance can be retrieved by using
+ * the NRFX_PWM_INST_HANDLER_GET macro.
+ *
+ * Here is a sample of using the NRFX_PWM_INST_HANDLER_GET macro to map an interrupt handler
+ * in a Zephyr application:
+ *
+ * IRQ_CONNECT(NRFX_IRQ_NUMBER_GET(NRF_PWM_INST_GET(\<instance_index\>)), \<priority\>,
+ *             NRFX_PWM_INST_HANDLER_GET(\<instance_index\>), 0, 0);
+ */
+NRFX_INSTANCE_IRQ_HANDLERS_DECLARE(PWM, pwm)
 
 
 #ifdef __cplusplus

@@ -201,9 +201,9 @@ static void _dcd_resume(FAR struct usbdevclass_driver_s *driver, FAR struct usbd
   dcd_event_bus_signal(0, DCD_EVENT_RESUME, true);
 }
 
-void dcd_init(uint8_t rhport)
-{
+bool dcd_init(uint8_t rhport, const tusb_rhport_init_t* rh_init) {
   (void) rhport;
+  (void) rh_init;
 
   usbdcd_driver.usbdevclass_driver.speed = USB_SPEED_HIGH;
   usbdcd_driver.usbdevclass_driver.ops = &g_driverops;
@@ -211,6 +211,8 @@ void dcd_init(uint8_t rhport)
   usbdcd_driver.setup_queue = osal_queue_create(&_setup_queue_def);
 
   usbdev_register(&usbdcd_driver.usbdevclass_driver);
+
+  return true;
 }
 
 // Enable device interrupt
@@ -337,14 +339,28 @@ bool dcd_edpt_open(uint8_t rhport, tusb_desc_endpoint_t const *p_endpoint_desc)
   return true;
 }
 
+bool dcd_edpt_iso_alloc(uint8_t rhport, uint8_t ep_addr, uint16_t largest_packet_size) {
+  (void) rhport;
+  (void) ep_addr;
+  (void) largest_packet_size;
+  return false; // TODO not implemented yet
+}
+
+bool dcd_edpt_iso_activate(uint8_t rhport, tusb_desc_endpoint_t const *desc_ep) {
+  (void) rhport;
+  (void) desc_ep;
+  return false; // TODO not implemented yet
+}
+
 void dcd_edpt_close_all (uint8_t rhport)
 {
   (void) rhport;
   // TODO implement dcd_edpt_close_all()
 }
 
-bool dcd_edpt_xfer(uint8_t rhport, uint8_t ep_addr, uint8_t *buffer, uint16_t total_bytes)
+bool dcd_edpt_xfer(uint8_t rhport, uint8_t ep_addr, uint8_t * buffer, uint16_t total_bytes, bool is_isr)
 {
+  (void) is_isr;
   (void) rhport;
 
   bool ret = true;

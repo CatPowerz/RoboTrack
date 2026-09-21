@@ -9,6 +9,7 @@
 
 #if PBSYS_CONFIG_HMI_VIRTUAL
 
+#include <pbdrv/bluetooth.h>
 #include <pbdrv/display.h>
 
 #include <pbio/busy_count.h>
@@ -143,6 +144,9 @@ void pbsys_hmi_init(void) {
     pbsys_hmi_virtual_reload_programs();
 }
 
+void pbsys_hmi_connection_changed_handler(void) {
+}
+
 void pbsys_hmi_deinit(void) {
     // For most virtual hub tests, we don't want to wait on the closing
     // credits, so we leave this empty. The EV3 variant of this function can be
@@ -154,6 +158,8 @@ void pbsys_hmi_stop_animation(void) {
 }
 
 static pbio_error_t run_ui(pbio_os_state_t *state, pbio_os_timer_t *timer) {
+
+    static pbio_os_timer_t refresh_timer;
 
     PBIO_OS_ASYNC_BEGIN(state);
 
@@ -193,7 +199,9 @@ static pbio_error_t run_ui(pbio_os_state_t *state, pbio_os_timer_t *timer) {
             }
 
             // Wait for button press, external program start, or connection change.
-            pbdrv_button_get_pressed() || pbsys_main_program_start_is_requested();
+            pbdrv_button_get_pressed() ||
+            pbsys_main_program_start_is_requested() ||
+            pbio_os_timer_is_expired(&refresh_timer);
         }));
 
         // External progran request takes precedence over buttons.
@@ -205,6 +213,7 @@ static pbio_error_t run_ui(pbio_os_state_t *state, pbio_os_timer_t *timer) {
         // Update UI state for buttons.
         uint8_t payload;
         pbsys_hmi_ev3_ui_action_t action = pbsys_hmi_ev3_ui_handle_button(pbdrv_button_get_pressed(), &payload);
+        pbio_os_timer_set(&refresh_timer, action == PBSYS_HMI_EV3_UI_ACTION_REFRESH_SOON ? 40 : INT32_MAX);
 
         if (action == PBSYS_HMI_EV3_UI_ACTION_SET_SLOT) {
             pbsys_status_set_selected_slot(payload);
@@ -231,6 +240,12 @@ static pbio_error_t run_ui(pbio_os_state_t *state, pbio_os_timer_t *timer) {
             break;
         }
     }
+
+    // A program is about to start, so stop scanning and pairing if we were
+    // doing that. Established connections are kept.
+    pbdrv_bluetooth_inquiry_stop();
+    pbdrv_bluetooth_classic_hid_pair_cancel();
+    pbdrv_bluetooth_classic_host_pair_cancel();
 
     // Wait for all buttons to be released so the user doesn't accidentally
     // push their robot off course.

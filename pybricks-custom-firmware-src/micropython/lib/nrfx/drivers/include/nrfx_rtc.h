@@ -1,6 +1,8 @@
 /*
- * Copyright (c) 2014 - 2019, Nordic Semiconductor ASA
+ * Copyright (c) 2014 - 2025, Nordic Semiconductor ASA
  * All rights reserved.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -33,7 +35,7 @@
 #define NRFX_RTC_H__
 
 #include <nrfx.h>
-#include <hal/nrf_rtc.h>
+#include <haly/nrfy_rtc.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -64,7 +66,6 @@ typedef enum
 typedef struct
 {
     NRF_RTC_Type  * p_reg;            /**< Pointer to instance register set. */
-    IRQn_Type       irq;              /**< Instance IRQ ID. */
     uint8_t         instance_id;      /**< Index of the driver instance. For internal use only. */
     uint8_t         cc_channel_count; /**< Number of capture/compare channels. */
 } nrfx_rtc_t;
@@ -72,23 +73,15 @@ typedef struct
 /** @brief Macro for creating an RTC driver instance. */
 #define NRFX_RTC_INSTANCE(id)                                   \
 {                                                               \
-    .p_reg            = NRFX_CONCAT_2(NRF_RTC, id),             \
-    .irq              = NRFX_CONCAT_3(RTC, id, _IRQn),          \
-    .instance_id      = NRFX_CONCAT_3(NRFX_RTC, id, _INST_IDX), \
+    .p_reg            = NRFX_CONCAT(NRF_, RTC, id),             \
+    .instance_id      = NRFX_CONCAT(NRFX_RTC, id, _INST_IDX),   \
     .cc_channel_count = NRF_RTC_CC_CHANNEL_COUNT(id),           \
 }
 
 #ifndef __NRFX_DOXYGEN__
 enum {
-#if NRFX_CHECK(NRFX_RTC0_ENABLED)
-    NRFX_RTC0_INST_IDX,
-#endif
-#if NRFX_CHECK(NRFX_RTC1_ENABLED)
-    NRFX_RTC1_INST_IDX,
-#endif
-#if NRFX_CHECK(NRFX_RTC2_ENABLED)
-    NRFX_RTC2_INST_IDX,
-#endif
+    /* List all enabled driver instances (in the format NRFX_\<instance_name\>_INST_IDX). */
+    NRFX_INSTANCE_ENUM_LIST(RTC)
     NRFX_RTC_ENABLED_COUNT
 };
 #endif
@@ -112,7 +105,7 @@ typedef struct
  */
 #define NRFX_RTC_DEFAULT_CONFIG                                  \
 {                                                                \
-    .prescaler          = RTC_FREQ_TO_PRESCALER(32768),          \
+    .prescaler          = NRF_RTC_FREQ_TO_PRESCALER(32768),      \
     .interrupt_priority = NRFX_RTC_DEFAULT_CONFIG_IRQ_PRIORITY,  \
     .tick_latency       = NRFX_RTC_US_TO_TICKS(2000, 32768),     \
     .reliable           = false,                                 \
@@ -132,7 +125,9 @@ typedef void (*nrfx_rtc_handler_t)(nrfx_rtc_int_type_t int_type);
  *                       Must not be NULL.
  *
  * @retval NRFX_SUCCESS             Successfully initialized.
- * @retval NRFX_ERROR_INVALID_STATE The instance is already initialized.
+ * @retval NRFX_ERROR_ALREADY       The driver is already initialized.
+ * @retval NRFX_ERROR_INVALID_STATE The driver is already initialized.
+ *                                  Deprecated - use @ref NRFX_ERROR_ALREADY instead.
  */
 nrfx_err_t nrfx_rtc_init(nrfx_rtc_t const *        p_instance,
                          nrfx_rtc_config_t const * p_config,
@@ -147,6 +142,16 @@ nrfx_err_t nrfx_rtc_init(nrfx_rtc_t const *        p_instance,
  * @param[in] p_instance Pointer to the driver instance structure.
  */
 void nrfx_rtc_uninit(nrfx_rtc_t const * p_instance);
+
+/**
+ * @brief Function for checking if the RTC driver instance is initialized.
+ *
+ * @param[in] p_instance Pointer to the driver instance structure.
+ *
+ * @retval true  Instance is already initialized.
+ * @retval false Instance is not initialized.
+ */
+bool nrfx_rtc_init_check(nrfx_rtc_t const * p_instance);
 
 /**
  * @brief Function for enabling the RTC driver instance.
@@ -177,6 +182,9 @@ void nrfx_rtc_disable(nrfx_rtc_t const * p_instance);
  *   (for prescaler = 0, RTC frequency 32 kHz).
  *  -  The requested absolute compare value is not bigger than (0x00FFFFFF)-tick_latency. It is
  *   the user's responsibility to ensure this.
+ *
+ * @warning Once the compare event is received, corresponding compare channel
+ *          will be disabled before executing event handler provided by the user.
  *
  * @param[in] p_instance Pointer to the driver instance structure.
  * @param[in] channel    One of the channels of the instance.
@@ -322,50 +330,65 @@ NRFX_STATIC_INLINE uint32_t nrfx_rtc_event_address_get(nrfx_rtc_t const * p_inst
 NRFX_STATIC_INLINE void nrfx_rtc_int_disable(nrfx_rtc_t const * p_instance,
                                              uint32_t *         p_mask)
 {
-    *p_mask = nrf_rtc_int_enable_check(p_instance->p_reg, ~0uL);
-    nrf_rtc_int_disable(p_instance->p_reg, NRF_RTC_INT_TICK_MASK |
-                                           NRF_RTC_INT_OVERFLOW_MASK |
-                                           NRF_RTC_INT_COMPARE0_MASK |
-                                           NRF_RTC_INT_COMPARE1_MASK |
-                                           NRF_RTC_INT_COMPARE2_MASK |
-                                           NRF_RTC_INT_COMPARE3_MASK);
+    *p_mask = nrfy_rtc_int_enable_check(p_instance->p_reg, ~0uL);
+    nrfy_rtc_int_disable(p_instance->p_reg, NRF_RTC_INT_TICK_MASK |
+                                            NRF_RTC_INT_OVERFLOW_MASK |
+                                            NRF_RTC_ALL_CHANNELS_INT_MASK);
 }
 
 NRFX_STATIC_INLINE void nrfx_rtc_int_enable(nrfx_rtc_t const * p_instance, uint32_t mask)
 {
-    nrf_rtc_int_enable(p_instance->p_reg, mask);
+    nrfy_rtc_int_enable(p_instance->p_reg, mask);
 }
 
 NRFX_STATIC_INLINE uint32_t nrfx_rtc_counter_get(nrfx_rtc_t const * p_instance)
 {
-    return nrf_rtc_counter_get(p_instance->p_reg);
+    return nrfy_rtc_counter_get(p_instance->p_reg);
 }
 
 NRFX_STATIC_INLINE void nrfx_rtc_counter_clear(nrfx_rtc_t const * p_instance)
 {
-    nrf_rtc_task_trigger(p_instance->p_reg, NRF_RTC_TASK_CLEAR);
+    nrfy_rtc_task_trigger(p_instance->p_reg, NRF_RTC_TASK_CLEAR);
 }
 
 NRFX_STATIC_INLINE uint32_t nrfx_rtc_task_address_get(nrfx_rtc_t const * p_instance,
                                                       nrf_rtc_task_t     task)
 {
-    return nrf_rtc_task_address_get(p_instance->p_reg, task);
+    return nrfy_rtc_task_address_get(p_instance->p_reg, task);
 }
 
 NRFX_STATIC_INLINE uint32_t nrfx_rtc_event_address_get(nrfx_rtc_t const * p_instance,
                                                        nrf_rtc_event_t    event)
 {
-    return nrf_rtc_event_address_get(p_instance->p_reg, event);
+    return nrfy_rtc_event_address_get(p_instance->p_reg, event);
 }
 #endif // NRFX_DECLARE_ONLY
 
+/**
+ * @brief Macro returning RTC interrupt handler.
+ *
+ * param[in] idx RTC index.
+ *
+ * @return Interrupt handler.
+ */
+#define NRFX_RTC_INST_HANDLER_GET(idx) NRFX_CONCAT_3(nrfx_rtc_, idx, _irq_handler)
+
 /** @} */
 
-
-void nrfx_rtc_0_irq_handler(void);
-void nrfx_rtc_1_irq_handler(void);
-void nrfx_rtc_2_irq_handler(void);
-
+/*
+ * Declare interrupt handlers for all enabled driver instances in the following format:
+ * nrfx_\<periph_name\>_\<idx\>_irq_handler (for example, nrfx_rtc_0_irq_handler).
+ *
+ * A specific interrupt handler for the driver instance can be retrieved by using
+ * the NRFX_RTC_INST_HANDLER_GET macro.
+ *
+ * Here is a sample of using the NRFX_RTC_INST_HANDLER_GET macro to map an interrupt handler
+ * in a Zephyr application:
+ *
+ * IRQ_CONNECT(NRFX_IRQ_NUMBER_GET(NRF_RTC_INST_GET(\<instance_index\>)), \<priority\>,
+ *             NRFX_RTC_INST_HANDLER_GET(\<instance_index\>), 0, 0);
+ */
+NRFX_INSTANCE_IRQ_HANDLERS_DECLARE(RTC, rtc)
 
 #ifdef __cplusplus
 }

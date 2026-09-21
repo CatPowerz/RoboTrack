@@ -205,6 +205,18 @@ typedef enum {
      * @since Pybricks Profile v1.4.0
      */
     PBIO_PYBRICKS_COMMAND_WRITE_APP_DATA = 7,
+
+    /**
+     * Requests to write telemetry commands to the hub, such as changing a
+     * sensor mode.
+     *
+     * This is the complement of ::PBIO_PYBRICKS_EVENT_WRITE_TELEMETRY. The
+     * full payload details are given in telemetry.h.
+     *
+     * Parameters:
+     * - payload: One or more telemetry commands.
+     */
+    PBIO_PYBRICKS_COMMAND_WRITE_TELEMETRY = 8,
 } pbio_pybricks_command_t;
 /**
  * Application-specific error codes that are used in ATT_ERROR_RSP.
@@ -277,9 +289,8 @@ typedef enum {
     /**
      * Telemetry data sent from the hub to the host.
      *
-     * The payload is a variable number of bytes that was written to app data.
-     *
-     * Pybricks profile version defines exact encoding of this data.
+     * The payload is one or more telemetry messages. The full payload details
+     * are given in telemetry.h.
      *
      * @since Unreleased. Should not be considered final.
      */
@@ -497,6 +508,22 @@ typedef enum {
  */
 #define PBIO_PYBRICKS_PNP_ID_SIZE 7
 
+/**
+ * Static initializer for the Device Information Service PnP ID characteristic
+ * value, the compile-time equivalent of pbio_pybricks_pnp_id().
+ *
+ * Expands to ::PBIO_PYBRICKS_PNP_ID_SIZE comma-separated array elements, so
+ * it can also be used as part of a larger array initializer.
+ *
+ * @param [in]  product_id       The Product ID Field (::pbio_pybricks_hub_kind_t).
+ * @param [in]  product_version  The Product Version Field (hub variant).
+ */
+#define PBIO_PYBRICKS_PNP_ID_INIT(product_id, product_version) \
+    0x01, /* Vendor ID Source Field - Bluetooth SIG-assigned ID */ \
+    PBIO_UINT16_LE(0x0397), /* Vendor ID Field - LEGO company identifier */ \
+    PBIO_UINT16_LE(product_id), /* Product ID Field */ \
+    PBIO_UINT16_LE(product_version) /* Product Version Field */
+
 void pbio_pybricks_pnp_id(uint8_t *buf, uint16_t product_id, uint16_t product_version);
 
 extern const uint8_t pbio_pybricks_service_uuid[];
@@ -527,7 +554,7 @@ extern const uint8_t pbio_nus_rx_char_uuid[];
 extern const uint8_t pbio_nus_tx_char_uuid[];
 
 /**
- * Characteristic namespace for ::PBIO_PYBRICKS_OUT_EP_MSG_READ requests.
+ * Characteristic namespace for characteristic read requests.
  *
  * Selects which group the 16-bit characteristic id in a read request belongs
  * to, mirroring how a BLE host distinguishes standard GATT characteristics
@@ -537,9 +564,9 @@ extern const uint8_t pbio_nus_tx_char_uuid[];
  */
 enum {
     /** Retrieve GATT characteristics */
-    PBIO_PYBRICKS_USB_INTERFACE_READ_CHARACTERISTIC_GATT = 0x01,
+    PBIO_PYBRICKS_READ_SERVICE_GATT = 0x01,
     /** Retrieve Pybricks characteristics */
-    PBIO_PYBRICKS_USB_INTERFACE_READ_CHARACTERISTIC_PYBRICKS = 0x02,
+    PBIO_PYBRICKS_READ_SERVICE_PYBRICKS = 0x02,
 };
 
 // The Pybricks USB interface uses a CDC ACM data pipe (Web Serial on the
@@ -615,7 +642,7 @@ typedef enum {
     /**
      * A characteristic read request. The payload is
      * `[service, char_id_lo, char_id_hi]`, where service is one of the
-     * ::PBIO_PYBRICKS_USB_INTERFACE_READ_CHARACTERISTIC_GATT values. The hub
+     * ::PBIO_PYBRICKS_READ_SERVICE_GATT values. The hub
      * replies with a ::PBIO_PYBRICKS_IN_EP_MSG_READ_REPLY.
      *
      * Analog of a BLE host reading a characteristic by UUID.

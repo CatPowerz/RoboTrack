@@ -92,6 +92,7 @@
 #define MICROPY_TRACKED_ALLOC       (MICROPY_SSL_MBEDTLS || MICROPY_BLUETOOTH_BTSTACK)
 #define MICROPY_READER_VFS          (1)
 #define MICROPY_ENABLE_GC           (1)
+#define MICROPY_STACK_CHECK_MARGIN  (1024)
 #define MICROPY_ENABLE_EMERGENCY_EXCEPTION_BUF (1)
 #define MICROPY_EMERGENCY_EXCEPTION_BUF_SIZE (0)
 #define MICROPY_REPL_INFO           (1)
@@ -104,6 +105,7 @@
 #define MICROPY_SCHEDULER_DEPTH     (8)
 #define MICROPY_SCHEDULER_STATIC_NODES (1)
 #define MICROPY_VFS                 (1)
+#define MICROPY_VFS_BLOCKDEV_NATIVE (1)
 
 // control over Python builtins
 #ifndef MICROPY_PY_BUILTINS_HELP_TEXT
@@ -127,7 +129,6 @@
 #define MICROPY_PY_TIME_GMTIME_LOCALTIME_MKTIME (1)
 #define MICROPY_PY_TIME_TIME_TIME_NS (1)
 #define MICROPY_PY_TIME_INCLUDEFILE "ports/renesas-ra/modtime.c"
-#define MICROPY_PY_LWIP_SOCK_RAW    (MICROPY_PY_LWIP)
 #ifndef MICROPY_PY_MACHINE
 #define MICROPY_PY_MACHINE          (1)
 #define MICROPY_PY_MACHINE_INCLUDEFILE "ports/renesas-ra/modmachine.c"
@@ -232,12 +233,6 @@
 #define MICROPY_MAKE_POINTER_CALLABLE(p) ((void *)((uint32_t)(p) | 1))
 
 #define MP_SSIZE_MAX (0x7fffffff)
-
-// Assume that if we already defined the obj repr then we also defined these items
-#ifndef MICROPY_OBJ_REPR
-typedef int mp_int_t; // must be pointer size
-typedef unsigned int mp_uint_t; // must be pointer size
-#endif
 
 typedef long mp_off_t;
 

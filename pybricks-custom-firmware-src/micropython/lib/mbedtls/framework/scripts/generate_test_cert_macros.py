@@ -54,13 +54,14 @@ INPUT_ARGS = [
 
 def main():
     parser = argparse.ArgumentParser()
-    default_output_path = os.path.join(TESTS_DIR, 'src', 'test_certs.h')
+    default_output_path = os.path.join(TESTS_DIR, 'include', 'test', 'test_certs.h')
     parser.add_argument('--output', type=str, default=default_output_path)
     parser.add_argument('--list-dependencies', action='store_true')
     args = parser.parse_args()
 
     if args.list_dependencies:
-        files_list = [arg[2] for arg in INPUT_ARGS]
+        files_list = [arg[2] for arg in INPUT_ARGS
+                      if arg[0] != "password"]
         print(" ".join(files_list))
         return
 

@@ -1,6 +1,8 @@
 /*
- * Copyright (c) 2015 - 2019, Nordic Semiconductor ASA
+ * Copyright (c) 2015 - 2025, Nordic Semiconductor ASA
  * All rights reserved.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -146,7 +148,9 @@ typedef void (*nrfx_adc_event_handler_t)(nrfx_adc_evt_t const * p_event);
  * @param[in] event_handler Event handler provided by the user.
  *
  * @retval NRFX_SUCCESS             Initialization was successful.
+ * @retval NRFX_ERROR_ALREADY       The driver is already initialized.
  * @retval NRFX_ERROR_INVALID_STATE The driver is already initialized.
+ *                                  Deprecated - use @ref NRFX_ERROR_ALREADY instead.
  */
 nrfx_err_t nrfx_adc_init(nrfx_adc_config_t const * p_config,
                          nrfx_adc_event_handler_t  event_handler);
@@ -157,6 +161,14 @@ nrfx_err_t nrfx_adc_init(nrfx_adc_config_t const * p_config,
  * This function stops all ongoing conversions and disables all channels.
  */
 void nrfx_adc_uninit(void);
+
+/**
+ * @brief Function for checking if the ADC driver is initialized.
+ *
+ * @retval true  Driver is already initialized.
+ * @retval false Driver is not initialized.
+ */
+bool nrfx_adc_init_check(void);
 
 /**
  * @brief Function for enabling an ADC channel.

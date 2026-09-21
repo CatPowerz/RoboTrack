@@ -1,6 +1,8 @@
 /*
- * Copyright (c) 2016 - 2019, Nordic Semiconductor ASA
+ * Copyright (c) 2016 - 2025, Nordic Semiconductor ASA
  * All rights reserved.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -60,7 +62,7 @@ extern "C" {
  * @sa nrf_usbd_isosplit_set
  * @sa nrf_usbd_isosplit_get
  */
-#define NRFX_USBD_ISOSIZE 1024
+#define NRFX_USBD_ISOSIZE 1023
 
 /**
  * @brief The size of internal feeder buffer.
@@ -74,6 +76,9 @@ extern "C" {
  *
  * Auxiliary macros for creating endpoint identifiers compatible with the USB specification.
  * @{
+ */
+
+/**
  * @brief Create identifier for IN endpoint.
  *
  * Simple macro to create IN endpoint identifier for given endpoint number.
@@ -383,7 +388,9 @@ typedef struct
  * @param[in] event_handler Event handler provided by the user. Cannot be null.
  *
  * @retval NRFX_SUCCESS             Initialization successful.
- * @retval NRFX_ERROR_INVALID_STATE Driver was already initialized.
+ * @retval NRFX_ERROR_ALREADY       The driver is already initialized.
+ * @retval NRFX_ERROR_INVALID_STATE The driver is already initialized.
+ *                                  Deprecated - use @ref NRFX_ERROR_ALREADY instead.
  */
 nrfx_err_t nrfx_usbd_init(nrfx_usbd_event_handler_t event_handler);
 
@@ -391,6 +398,14 @@ nrfx_err_t nrfx_usbd_init(nrfx_usbd_event_handler_t event_handler);
  * @brief Driver deinitialization.
  */
 void nrfx_usbd_uninit(void);
+
+/**
+ * @brief Function for checking if the USBD driver is initialized.
+ *
+ * @retval true  Driver is already initialized.
+ * @retval false Driver is not initialized.
+ */
+bool nrfx_usbd_init_check(void);
 
 /**
  * @brief Enable the USBD port.

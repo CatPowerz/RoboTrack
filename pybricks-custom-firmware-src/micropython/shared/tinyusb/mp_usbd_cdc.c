@@ -34,6 +34,11 @@
 
 #if MICROPY_HW_USB_CDC && MICROPY_HW_ENABLE_USBDEV && !MICROPY_EXCLUDE_SHARED_TINYUSB_USBD_CDC
 
+// TinyUSB has no public API for endpoint stall detection/clearing; this
+// private header is the intended interface for class drivers (all built-in
+// TinyUSB class drivers include it for the same purpose).
+#include "device/usbd_pvt.h"
+
 static uint8_t cdc_itf_pending; // keep track of cdc interfaces which need attention to poll
 static int8_t cdc_connected_flush_delay = 0;
 
@@ -68,7 +73,7 @@ uintptr_t mp_usbd_cdc_poll_interfaces(uintptr_t poll_flags) {
     return ret;
 }
 
-void tud_cdc_rx_cb(uint8_t itf) {
+void MICROPY_WRAP_TUD_CDC_RX_CB(tud_cdc_rx_cb)(uint8_t itf) {
     // consume pending USB data immediately to free usb buffer and keep the endpoint from stalling.
     // in case the ringbuffer is full, mark the CDC interface that need attention later on for polling
     cdc_itf_pending &= ~(1 << itf);
@@ -141,7 +146,7 @@ mp_uint_t mp_usbd_cdc_tx_strn(const char *str, mp_uint_t len) {
     return i;
 }
 
-void tud_sof_cb(uint32_t frame_count) {
+void MICROPY_WRAP_TUD_SOF_CB(tud_sof_cb)(uint32_t frame_count) {
     if (--cdc_connected_flush_delay < 0) {
         // Finished on-connection delay, disable SOF interrupt again.
         tud_sof_cb_enable(false);
@@ -172,14 +177,22 @@ static struct {
 } prev_line_state = {0};
 #endif
 
-void tud_cdc_line_state_cb(uint8_t itf, bool dtr, bool rts) {
+void MICROPY_WRAP_TUD_CDC_LINE_STATE_CB(tud_cdc_line_state_cb)(uint8_t itf, bool dtr, bool rts) {
     #if MICROPY_HW_USB_CDC && !MICROPY_EXCLUDE_SHARED_TINYUSB_USBD_CDC
     if (dtr) {
         // A host application has started to open the cdc serial port.
+        // USBD_CDC_EP_IN is the IN endpoint for itf 0; only clear stall for itf 0.
+        if (itf == 0 && usbd_edpt_stalled(TUD_OPT_RHPORT, USBD_CDC_EP_IN)) {
+            usbd_edpt_clear_stall(TUD_OPT_RHPORT, USBD_CDC_EP_IN);
+        }
         // Wait a few ms for host to be ready then send tx buffer.
         // High speed connection SOF fires at 125us, full speed at 1ms.
         cdc_connected_flush_delay = (tud_speed_get() == TUSB_SPEED_HIGH) ? 128 : 16;
         tud_sof_cb_enable(true);
+    } else {
+        // Host has closed the cdc serial port. Discard pending TX data to
+        // avoid a full FIFO blocking writes on the next connection.
+        tud_cdc_n_write_clear(itf);
     }
     #endif
     #if MICROPY_HW_USB_CDC_DTR_RTS_BOOTLOADER

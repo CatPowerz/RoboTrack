@@ -1,6 +1,8 @@
 /*
- * Copyright (c) 2015 - 2019, Nordic Semiconductor ASA
+ * Copyright (c) 2015 - 2025, Nordic Semiconductor ASA
  * All rights reserved.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -55,9 +57,8 @@ typedef struct
 
 #ifndef __NRFX_DOXYGEN__
 enum {
-#if NRFX_CHECK(NRFX_UART0_ENABLED)
-    NRFX_UART0_INST_IDX,
-#endif
+    /* List all enabled driver instances (in the format NRFX_\<instance_name\>_INST_IDX). */
+    NRFX_INSTANCE_ENUM_LIST(UART)
     NRFX_UART_ENABLED_COUNT
 };
 #endif
@@ -65,8 +66,8 @@ enum {
 /** @brief Macro for creating a UART driver instance. */
 #define NRFX_UART_INSTANCE(id)                               \
 {                                                            \
-    .p_reg        = NRFX_CONCAT_2(NRF_UART, id),             \
-    .drv_inst_idx = NRFX_CONCAT_3(NRFX_UART, id, _INST_IDX), \
+    .p_reg        = NRFX_CONCAT(NRF_, UART, id),             \
+    .drv_inst_idx = NRFX_CONCAT(NRFX_UART, id, _INST_IDX),   \
 }
 
 /** @brief Types of UART driver events. */
@@ -88,9 +89,23 @@ typedef struct
     nrf_uart_baudrate_t baudrate;           ///< Baud rate.
     uint8_t             interrupt_priority; ///< Interrupt priority.
     nrf_uart_config_t   hal_cfg;            ///< Parity, flow control and stop bits settings.
+    bool                skip_gpio_cfg;      ///< Skip GPIO configuration of pins.
+                                            /**< When set to true, the driver does not modify
+                                             *   any GPIO parameters of the used pins. Those
+                                             *   parameters are supposed to be configured
+                                             *   externally before the driver is initialized. */
+    bool                skip_psel_cfg;      ///< Skip pin selection configuration.
+                                            /**< When set to true, the driver does not modify
+                                             *   pin select registers in the peripheral.
+                                             *   Those registers are supposed to be set up
+                                             *   externally before the driver is initialized.
+                                             *   @note When both GPIO configuration and pin
+                                             *   selection are to be skipped, the structure
+                                             *   fields that specify pins can be omitted,
+                                             *   as they are ignored anyway. */
 } nrfx_uart_config_t;
 
-#if defined(UART_CONFIG_STOP_Msk) || defined(__NRFX_DOXYGEN__)
+#if NRF_UART_HAS_STOP_BITS || defined(__NRFX_DOXYGEN__)
     /** @brief UART additional stop bits configuration. */
     #define NRFX_UART_DEFAULT_EXTENDED_STOP_CONFIG   \
         .stop = NRF_UART_STOP_ONE,
@@ -98,7 +113,7 @@ typedef struct
     #define NRFX_UART_DEFAULT_EXTENDED_STOP_CONFIG
 #endif
 
-#if defined(UART_CONFIG_PARITYTYPE_Msk) || defined(__NRFX_DOXYGEN__)
+#if NRF_UART_HAS_PARITY_BIT || defined(__NRFX_DOXYGEN__)
     /**  @brief UART additional parity type configuration. */
     #define NRFX_UART_DEFAULT_EXTENDED_PARITYTYPE_CONFIG   \
         .paritytype = NRF_UART_PARITYTYPE_EVEN,
@@ -181,7 +196,9 @@ typedef void (*nrfx_uart_event_handler_t)(nrfx_uart_event_t const * p_event,
  *                          blocking mode.
  *
  * @retval NRFX_SUCCESS             Initialization is successful.
+ * @retval NRFX_ERROR_ALREADY       The driver is already initialized.
  * @retval NRFX_ERROR_INVALID_STATE The driver is already initialized.
+ *                                  Deprecated - use @ref NRFX_ERROR_ALREADY instead.
  * @retval NRFX_ERROR_BUSY          Some other peripheral with the same
  *                                  instance ID is already in use. This is
  *                                  possible only if @ref nrfx_prs module
@@ -192,11 +209,34 @@ nrfx_err_t nrfx_uart_init(nrfx_uart_t const *        p_instance,
                           nrfx_uart_event_handler_t  event_handler);
 
 /**
+ * @brief Function for reconfiguring the UART driver.
+ *
+ * @param[in] p_instance Pointer to the driver instance structure.
+ * @param[in] p_config   Pointer to the structure with the configuration.
+ *
+ * @retval NRFX_SUCCESS             Reconfiguration was successful.
+ * @retval NRFX_ERROR_BUSY          The driver is during transfer.
+ * @retval NRFX_ERROR_INVALID_STATE The driver is uninitialized.
+ */
+nrfx_err_t nrfx_uart_reconfigure(nrfx_uart_t const *        p_instance,
+                                 nrfx_uart_config_t const * p_config);
+
+/**
  * @brief Function for uninitializing the UART driver.
  *
  * @param[in] p_instance Pointer to the driver instance structure.
  */
 void nrfx_uart_uninit(nrfx_uart_t const * p_instance);
+
+/**
+ * @brief Function for checking if the UART driver instance is initialized.
+ *
+ * @param[in] p_instance Pointer to the driver instance structure.
+ *
+ * @retval true  Instance is already initialized.
+ * @retval false Instance is not initialized.
+ */
+bool nrfx_uart_init_check(nrfx_uart_t const * p_instance);
 
 /**
  * @brief Function for getting the address of the specified UART task.
@@ -368,11 +408,31 @@ NRFX_STATIC_INLINE uint32_t nrfx_uart_event_address_get(nrfx_uart_t const * p_in
 }
 #endif // NRFX_DECLARE_ONLY
 
+/**
+ * @brief Macro returning UART interrupt handler.
+ *
+ * param[in] idx UART index.
+ *
+ * @return Interrupt handler.
+ */
+#define NRFX_UART_INST_HANDLER_GET(idx) NRFX_CONCAT_3(nrfx_uart_, idx, _irq_handler)
+
 /** @} */
 
-
-void nrfx_uart_0_irq_handler(void);
-
+/*
+ * Declare interrupt handlers for all enabled driver instances in the following format:
+ * nrfx_\<periph_name\>_\<idx\>_irq_handler (for example, nrfx_uart_0_irq_handler).
+ *
+ * A specific interrupt handler for the driver instance can be retrieved by using
+ * the NRFX_UART_INST_HANDLER_GET macro.
+ *
+ * Here is a sample of using the NRFX_UART_INST_HANDLER_GET macro to map an interrupt handler
+ * in a Zephyr application:
+ *
+ * IRQ_CONNECT(NRFX_IRQ_NUMBER_GET(NRF_UART_INST_GET(\<instance_index\>)), \<priority\>,
+ *             NRFX_UART_INST_HANDLER_GET(\<instance_index\>), 0, 0);
+ */
+NRFX_INSTANCE_IRQ_HANDLERS_DECLARE(UART, uart)
 
 #ifdef __cplusplus
 }

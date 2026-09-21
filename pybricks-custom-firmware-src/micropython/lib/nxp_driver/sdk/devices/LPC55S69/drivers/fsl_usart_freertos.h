@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2016, Freescale Semiconductor, Inc.
- * Copyright 2016-2019 NXP
+ * Copyright 2016-2020 NXP
  * All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
@@ -26,8 +26,8 @@
 
 /*! @name Driver version */
 /*@{*/
-/*! @brief USART FreeRTOS driver version 2.2.0. */
-#define FSL_USART_FREERTOS_DRIVER_VERSION (MAKE_VERSION(2, 2, 0))
+/*! @brief USART FreeRTOS driver version. */
+#define FSL_USART_FREERTOS_DRIVER_VERSION (MAKE_VERSION(2, 7, 0))
 /*@}*/
 
 /*! @brief FLEX USART configuration structure */
@@ -40,6 +40,7 @@ struct rtos_usart_config
     usart_stop_bit_count_t stopbits; /*!< Number of stop bits to use */
     uint8_t *buffer;                 /*!< Buffer for background reception */
     uint32_t buffer_size;            /*!< Size of buffer for background reception */
+    bool enableHardwareFlowControl;  /*!< Enable hardware control RTS/CTS */
 };
 
 /*! @brief FLEX USART FreeRTOS handle */
@@ -50,9 +51,9 @@ typedef struct _usart_rtos_handle
     usart_transfer_t rxTransfer;   /*!< RX transfer structure */
     SemaphoreHandle_t rxSemaphore; /*!< RX semaphore for resource sharing */
     SemaphoreHandle_t txSemaphore; /*!< TX semaphore for resource sharing */
-#define RTOS_USART_COMPLETE                0x1
-#define RTOS_USART_RING_BUFFER_OVERRUN     0x2
-#define RTOS_USART_HARDWARE_BUFFER_OVERRUN 0x4
+#define RTOS_USART_COMPLETE                0x1U
+#define RTOS_USART_RING_BUFFER_OVERRUN     0x2U
+#define RTOS_USART_HARDWARE_BUFFER_OVERRUN 0x4U
     EventGroupHandle_t rxEvent; /*!< RX completion event */
     EventGroupHandle_t txEvent; /*!< TX completion event */
     void *t_state;              /*!< Transactional state of the underlying driver */
@@ -106,7 +107,7 @@ int USART_RTOS_Deinit(usart_rtos_handle_t *handle);
  * @param buffer The pointer to buffer to send.
  * @param length The number of bytes to send.
  */
-int USART_RTOS_Send(usart_rtos_handle_t *handle, const uint8_t *buffer, uint32_t length);
+int USART_RTOS_Send(usart_rtos_handle_t *handle, uint8_t *buffer, uint32_t length);
 
 /*!
  * @brief Receives data.

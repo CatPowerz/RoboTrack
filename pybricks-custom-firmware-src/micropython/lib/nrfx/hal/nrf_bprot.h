@@ -1,6 +1,8 @@
 /*
- * Copyright (c) 2019, Nordic Semiconductor ASA
+ * Copyright (c) 2019 - 2025, Nordic Semiconductor ASA
  * All rights reserved.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -67,8 +69,7 @@ NRF_STATIC_INLINE void nrf_bprot_nvm_blocks_protection_enable(NRF_BPROT_Type * p
  * NVM protection is disabled by default while debugging.
  *
  * @param[in] p_reg  Pointer to the structure of registers of the peripheral.
- * @param[in] enable True if NVM protection during debug is to be enabled.
- *                   False if otherwise.
+ * @param[in] enable True if NVM protection during debug is to be enabled, false otherwise.
  */
 NRF_STATIC_INLINE void nrf_bprot_nvm_protection_in_debug_set(NRF_BPROT_Type * p_reg,
                                                              bool             enable);

@@ -16,8 +16,8 @@
 #include <usbd_desc.h>
 #include <usbd_pybricks.h>
 
-#include <pbdrv/bluetooth.h>
-#include <pbdrv/usb.h>
+#include <pbio/bluetooth.h>
+#include <pbio/serial.h>
 #include <pbio/protocol.h>
 #include <pbio/os.h>
 #include <pbio/util.h>
@@ -28,13 +28,14 @@
 #include <pbsys/storage.h>
 
 #include "../charger/charger.h"
-#include "./usb.h"
+#include <pbdrv/usb.h>
 #include "./usb_stm32.h"
 
 // These buffers need to be 32-bit aligned because the USB driver moves data
 // to/from FIFOs in 32-bit chunks.
 static uint8_t usb_in_buf[USBD_PYBRICKS_MAX_PACKET_SIZE] __aligned(4);
 static volatile uint32_t usb_in_sz;
+static uint32_t usb_in_pos;
 static volatile bool transmitting;
 
 static USBD_HandleTypeDef husbd;
@@ -230,6 +231,7 @@ static void pbdrv_usb_stm32_reset_tx_state(void) {
 static USBD_StatusTypeDef Pybricks_Itf_Init(void) {
     USBD_Pybricks_SetRxBuffer(&husbd, usb_in_buf);
     usb_in_sz = 0;
+    usb_in_pos = 0;
     pbdrv_usb_stm32_reset_tx_state();
 
     return USBD_OK;
@@ -282,7 +284,7 @@ static USBD_StatusTypeDef Pybricks_Itf_TransmitCplt(uint8_t *Buf, uint32_t Len, 
 static USBD_StatusTypeDef Pybricks_Itf_SetControlLineState(bool dtr) {
     // The DTR signal indicates whether a host application has opened the serial
     // port. This is the USB analog of a BLE host subscribing to notifications.
-    pbdrv_usb_on_dtr_changed(dtr);
+    pbio_serial_port_changed(PBSYS_HOST_TRANSPORT_TYPE_USB, dtr);
     return USBD_OK;
 }
 
@@ -299,7 +301,7 @@ pbio_error_t pbdrv_usb_tx_reset(pbio_os_state_t *state) {
     return PBIO_SUCCESS;
 }
 
-pbio_error_t pbdrv_usb_tx_chunk(pbio_os_state_t *state, const uint8_t *data, uint32_t size) {
+pbio_error_t pbdrv_usb_tx_message(pbio_os_state_t *state, const uint8_t *data, uint32_t size) {
 
     static pbio_os_timer_t timer;
 
@@ -321,23 +323,32 @@ pbio_error_t pbdrv_usb_tx_chunk(pbio_os_state_t *state, const uint8_t *data, uin
     PBIO_OS_ASYNC_END(PBIO_SUCCESS);
 }
 
-uint32_t pbdrv_usb_get_data_and_start_receive(uint8_t *data) {
+uint32_t pbdrv_usb_rx_read(uint8_t *data, uint32_t size) {
 
     if (!usb_in_sz) {
         return 0;
     }
 
-    uint32_t size = usb_in_sz;
-    memcpy(data, usb_in_buf, size);
+    uint32_t count = usb_in_sz - usb_in_pos;
+    if (count > size) {
+        count = size;
+    }
+    memcpy(data, &usb_in_buf[usb_in_pos], count);
+    usb_in_pos += count;
 
-    // Prepare to receive the next packet
+    if (usb_in_pos < usb_in_sz) {
+        return count;
+    }
+
+    // Packet fully drained, prepare to receive the next one.
+    usb_in_pos = 0;
     usb_in_sz = 0;
     USBD_Pybricks_ReceivePacket(&husbd);
 
-    return size;
+    return count;
 }
 
-void pbdrv_usb_init_device(void) {
+void pbdrv_usb_init(void) {
     // Link the driver data structures
     husbd.pData = &hpcd;
     hpcd.pData = &husbd;
@@ -353,7 +364,7 @@ void pbdrv_usb_init_device(void) {
     #endif
 }
 
-void pbdrv_usb_deinit_device(void) {
+void pbdrv_usb_deinit(void) {
     USBD_Stop(&husbd);
     USBD_DeInit(&husbd);
 }

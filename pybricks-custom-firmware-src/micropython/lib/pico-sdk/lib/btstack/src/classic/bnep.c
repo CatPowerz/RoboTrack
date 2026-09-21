@@ -107,7 +107,8 @@ static void bnep_handle_can_send_now(uint16_t cid);
 
 static void bnep_emit_open_channel_complete(bnep_channel_t *channel, uint8_t status, uint8_t setup_connection_response)
 {
-    log_info("BNEP_EVENT_CHANNEL_OPENED status 0x%02x bd_addr: %s, handler %p", status, bd_addr_to_str(channel->remote_addr), channel->packet_handler);
+    log_info("BNEP_EVENT_CHANNEL_OPENED status 0x%02x bd_addr: %s",
+        status, bd_addr_to_str(channel->remote_addr));
     if (!channel->packet_handler) return;
 
     uint8_t event[3 + sizeof(bd_addr_t) + 4 * sizeof(uint16_t) + 3];
@@ -127,7 +128,7 @@ static void bnep_emit_open_channel_complete(bnep_channel_t *channel, uint8_t sta
 
 static void bnep_emit_channel_timeout(bnep_channel_t *channel) 
 {
-    log_info("BNEP_EVENT_CHANNEL_TIMEOUT bd_addr: %s, handler %p", bd_addr_to_str(channel->remote_addr), channel->packet_handler);
+    log_info("BNEP_EVENT_CHANNEL_TIMEOUT bd_addr: %s", bd_addr_to_str(channel->remote_addr));
     if (!channel->packet_handler) return;
 
     uint8_t event[2 + sizeof(bd_addr_t) + 3 * sizeof(uint16_t) + sizeof(uint8_t)];
@@ -144,7 +145,7 @@ static void bnep_emit_channel_timeout(bnep_channel_t *channel)
 
 static void bnep_emit_channel_closed(bnep_channel_t *channel) 
 {
-    log_info("BNEP_EVENT_CHANNEL_CLOSED bd_addr: %s, handler %p", bd_addr_to_str(channel->remote_addr), channel->packet_handler);
+    log_info("BNEP_EVENT_CHANNEL_CLOSED bd_addr: %s", bd_addr_to_str(channel->remote_addr));
     if (!channel->packet_handler) return;
 
     uint8_t event[2 + sizeof(bd_addr_t) + 3 * sizeof(uint16_t)];
@@ -816,6 +817,7 @@ static int bnep_handle_connection_request(bnep_channel_t *channel, uint8_t *pack
 {
     uint16_t uuid_size;
     uint16_t uuid_offset = 0; // avoid "may be unitialized when used" in clang
+    if (size < 2u) return 0;
     uuid_size = packet[1];
     uint16_t response_code = BNEP_SETUP_CONNECTION_RESPONSE_SUCCESS;
     bnep_service_t * service;
@@ -1164,9 +1166,10 @@ static int bnep_handle_control_packet(bnep_channel_t *channel, uint8_t *packet, 
         log_info("BNEP_CONTROL: Type: %d, size: %d, is_extension: %d", bnep_control_type, size, is_extension);
         switch (bnep_control_type) {
             case BNEP_CONTROL_TYPE_COMMAND_NOT_UNDERSTOOD:
+                if (size < 2u) return 0;
                 /* The last command we send was not understood. We should close the connection */
                 log_error("BNEP_CONTROL: Received COMMAND_NOT_UNDERSTOOD: l2cap_cid: %d, cmd: %d", channel->l2cap_cid,
-                          packet[3]);
+                          packet[1]);
                 bnep_channel_finalize(channel);
                 len = 2; // Length of command not understood packet - bnep-type field
                 break;
@@ -1342,7 +1345,7 @@ static int bnep_hci_event_handler(uint8_t *packet, uint16_t size)
             // data: event (8), len(8), channel (16)
             l2cap_cid   = little_endian_read_16(packet, 2);
             channel = bnep_channel_for_l2cap_cid(l2cap_cid);
-            log_info("L2CAP_EVENT_CHANNEL_CLOSED cid 0x%0x, channel %p", l2cap_cid, channel);
+            log_info("L2CAP_EVENT_CHANNEL_CLOSED cid 0x%0x, channel %p", l2cap_cid, (void*) channel);
 
             if (!channel) {
                 break;
@@ -1352,7 +1355,12 @@ static int bnep_hci_event_handler(uint8_t *packet, uint16_t size)
             switch (channel->state) {
                 case BNEP_CHANNEL_STATE_WAIT_FOR_CONNECTION_REQUEST:
                 case BNEP_CHANNEL_STATE_WAIT_FOR_CONNECTION_RESPONSE:
+                    // emit channel open failed
+                    bnep_emit_open_channel_complete(channel, ERROR_CODE_REMOTE_USER_TERMINATED_CONNECTION, 0);
+                    bnep_channel_finalize(channel);
+                    return 1;
                 case BNEP_CHANNEL_STATE_CONNECTED:
+                    // emit channel closed
                     bnep_channel_finalize(channel);
                     return 1;
                 default:

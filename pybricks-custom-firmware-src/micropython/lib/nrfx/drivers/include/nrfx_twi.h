@@ -1,6 +1,8 @@
 /*
- * Copyright (c) 2015 - 2019, Nordic Semiconductor ASA
+ * Copyright (c) 2015 - 2025, Nordic Semiconductor ASA
  * All rights reserved.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -59,18 +61,14 @@ typedef struct
 /** @brief Macro for creating a TWI master driver instance. */
 #define NRFX_TWI_INSTANCE(id)                               \
 {                                                           \
-    .p_twi        = NRFX_CONCAT_2(NRF_TWI, id),             \
-    .drv_inst_idx = NRFX_CONCAT_3(NRFX_TWI, id, _INST_IDX), \
+    .p_twi        = NRFX_CONCAT(NRF_, TWI, id),             \
+    .drv_inst_idx = NRFX_CONCAT(NRFX_TWI, id, _INST_IDX),   \
 }
 
 #ifndef __NRFX_DOXYGEN__
 enum {
-#if NRFX_CHECK(NRFX_TWI0_ENABLED)
-    NRFX_TWI0_INST_IDX,
-#endif
-#if NRFX_CHECK(NRFX_TWI1_ENABLED)
-    NRFX_TWI1_INST_IDX,
-#endif
+    /* List all enabled driver instances (in the format NRFX_\<instance_name\>_INST_IDX). */
+    NRFX_INSTANCE_ENUM_LIST(TWI)
     NRFX_TWI_ENABLED_COUNT
 };
 #endif
@@ -83,6 +81,20 @@ typedef struct
     nrf_twi_frequency_t frequency;          ///< TWI frequency.
     uint8_t             interrupt_priority; ///< Interrupt priority.
     bool                hold_bus_uninit;    ///< Hold pull up state on GPIO pins after uninit.
+    bool                skip_gpio_cfg;      ///< Skip GPIO configuration of pins.
+                                            /**< When set to true, the driver does not modify
+                                             *   any GPIO parameters of the used pins. Those
+                                             *   parameters are supposed to be configured
+                                             *   externally before the driver is initialized. */
+    bool                skip_psel_cfg;      ///< Skip pin selection configuration.
+                                            /**< When set to true, the driver does not modify
+                                             *   pin select registers in the peripheral.
+                                             *   Those registers are supposed to be set up
+                                             *   externally before the driver is initialized.
+                                             *   @note When both GPIO configuration and pin
+                                             *   selection are to be skipped, the structure
+                                             *   fields that specify pins can be omitted,
+                                             *   as they are ignored anyway. */
 } nrfx_twi_config_t;
 
 /**
@@ -117,7 +129,8 @@ typedef enum
     NRFX_TWI_EVT_DONE,         ///< Transfer completed event.
     NRFX_TWI_EVT_ADDRESS_NACK, ///< Error event: NACK received after sending the address.
     NRFX_TWI_EVT_DATA_NACK,    ///< Error event: NACK received after sending a data byte.
-    NRFX_TWI_EVT_OVERRUN       ///< Error event: The unread data is replaced by new data.
+    NRFX_TWI_EVT_OVERRUN,      ///< Error event: The unread data is replaced by new data.
+    NRFX_TWI_EVT_BUS_ERROR     ///< Error event: An unexpected transition occurred on the bus.
 } nrfx_twi_evt_type_t;
 
 /** @brief TWI master driver transfer types. */
@@ -205,7 +218,9 @@ typedef void (* nrfx_twi_evt_handler_t)(nrfx_twi_evt_t const * p_event,
  * @param[in] p_context     Context passed to event handler.
  *
  * @retval NRFX_SUCCESS             Initialization is successful.
- * @retval NRFX_ERROR_INVALID_STATE The driver is in invalid state.
+ * @retval NRFX_ERROR_ALREADY       The driver is already initialized.
+ * @retval NRFX_ERROR_INVALID_STATE The driver is already initialized.
+ *                                  Deprecated - use @ref NRFX_ERROR_ALREADY instead.
  * @retval NRFX_ERROR_BUSY          Some other peripheral with the same
  *                                  instance ID is already in use. This is
  *                                  possible only if @ref nrfx_prs module
@@ -217,11 +232,34 @@ nrfx_err_t nrfx_twi_init(nrfx_twi_t const *        p_instance,
                          void *                    p_context);
 
 /**
+ * @brief Function for reconfiguring the TWI instance.
+ *
+ * @param[in] p_instance Pointer to the driver instance structure.
+ * @param[in] p_config   Pointer to the structure with the configuration.
+ *
+ * @retval NRFX_SUCCESS             Reconfiguration was successful.
+ * @retval NRFX_ERROR_BUSY          The driver is during transaction.
+ * @retval NRFX_ERROR_INVALID_STATE The driver is uninitialized.
+ */
+nrfx_err_t nrfx_twi_reconfigure(nrfx_twi_t const *        p_instance,
+                                nrfx_twi_config_t const * p_config);
+
+/**
  * @brief Function for uninitializing the TWI instance.
  *
  * @param[in] p_instance Pointer to the driver instance structure.
  */
 void nrfx_twi_uninit(nrfx_twi_t const * p_instance);
+
+/**
+ * @brief Function for checking if the TWI driver instance is initialized.
+ *
+ * @param[in] p_instance Pointer to the driver instance structure.
+ *
+ * @retval true  Instance is already initialized.
+ * @retval false Instance is not initialized.
+ */
+bool nrfx_twi_init_check(nrfx_twi_t const * p_instance);
 
 /**
  * @brief Function for enabling the TWI instance.
@@ -265,7 +303,7 @@ void nrfx_twi_disable(nrfx_twi_t const * p_instance);
  * @retval NRFX_SUCCESS                   The procedure is successful.
  * @retval NRFX_ERROR_BUSY                The driver is not ready for a new transfer.
  * @retval NRFX_ERROR_NOT_SUPPORTED       The provided parameters are not supported.
- * @retval NRFX_ERROR_INTERNAL            An error is detected by hardware.
+ * @retval NRFX_ERROR_INTERNAL            An unexpected transition occurred on the bus.
  * @retval NRFX_ERROR_INVALID_STATE       Other direction of transaction is suspended on the bus.
  * @retval NRFX_ERROR_DRV_TWI_ERR_OVERRUN The unread data is replaced by new data (TXRX and RX)
  * @retval NRFX_ERROR_DRV_TWI_ERR_ANACK   Negative acknowledgement (NACK) is received after sending
@@ -332,12 +370,31 @@ NRFX_STATIC_INLINE nrfx_err_t nrfx_twi_bus_recover(uint32_t scl_pin, uint32_t sd
 }
 #endif
 
+/**
+ * @brief Macro returning TWI interrupt handler.
+ *
+ * param[in] idx TWI index.
+ *
+ * @return Interrupt handler.
+ */
+#define NRFX_TWI_INST_HANDLER_GET(idx) NRFX_CONCAT_3(nrfx_twi_, idx, _irq_handler)
+
 /** @} */
 
-
-void nrfx_twi_0_irq_handler(void);
-void nrfx_twi_1_irq_handler(void);
-
+/*
+ * Declare interrupt handlers for all enabled driver instances in the following format:
+ * nrfx_\<periph_name\>_\<idx\>_irq_handler (for example, nrfx_twi_0_irq_handler).
+ *
+ * A specific interrupt handler for the driver instance can be retrieved by using
+ * the NRFX_TWI_INST_HANDLER_GET macro.
+ *
+ * Here is a sample of using the NRFX_TWI_INST_HANDLER_GET macro to map an interrupt handler
+ * in a Zephyr application:
+ *
+ * IRQ_CONNECT(NRFX_IRQ_NUMBER_GET(NRF_TWI_INST_GET(\<instance_index\>)), \<priority\>,
+ *             NRFX_TWI_INST_HANDLER_GET(\<instance_index\>), 0, 0);
+ */
+NRFX_INSTANCE_IRQ_HANDLERS_DECLARE(TWI, twi)
 
 #ifdef __cplusplus
 }

@@ -1,6 +1,8 @@
 /*
- * Copyright (c) 2015 - 2019, Nordic Semiconductor ASA
+ * Copyright (c) 2015 - 2025, Nordic Semiconductor ASA
  * All rights reserved.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -38,12 +40,33 @@
 extern "C" {
 #endif
 
+/*
+ * Macro for generating if statement code blocks that allow extracting
+ * the number of channels associated with the specific EGU instance.
+ */
+#define NRF_INTERNAL_EGU_CHAN_NUM_EXTRACT(chan_num, p_reg)                                      \
+    if (0) {}                                                                                   \
+    NRFX_FOREACH_PRESENT(EGU, NRF_INTERNAL_ELSE_IF_EXTRACT_1, (), (), chan_num, _CH_NUM, p_reg) \
+    else                                                                                        \
+    {                                                                                           \
+        chan_num = 0;                                                                           \
+    }
+
 /**
 * @defgroup nrf_egu_hal EGU HAL
 * @{
-* @ingroup nrf_swi_egu
+* @ingroup nrf_egu
 * @brief   Hardware access layer for managing the Event Generator Unit (EGU) peripheral.
 */
+
+/**
+ * @brief Macro getting pointer to the structure of registers of the EGU peripheral.
+ *
+ * @param[in] idx EGU instance index.
+ *
+ * @return Pointer to the structure of registers of the EGU peripheral.
+ */
+#define NRF_EGU_INST_GET(idx) NRFX_CONCAT(NRF_, EGU, idx)
 
 /** @brief EGU tasks. */
 typedef enum
@@ -148,7 +171,7 @@ NRF_STATIC_INLINE uint32_t nrf_egu_task_address_get(NRF_EGU_Type const * p_reg,
 NRF_STATIC_INLINE nrf_egu_task_t nrf_egu_trigger_task_get(uint8_t channel);
 
 /**
- * @brief Function for retrieving the state of the UARTE event.
+ * @brief Function for retrieving the state of the EGU event.
  *
  * @param[in] p_reg     Pointer to the structure of registers of the peripheral.
  * @param[in] egu_event EGU event to be checked.
@@ -191,6 +214,7 @@ NRF_STATIC_INLINE nrf_egu_event_t nrf_egu_triggered_event_get(uint8_t channel);
  *
  * @param[in] p_reg Pointer to the structure of registers of the peripheral.
  * @param[in] mask  Mask of interrupts to be enabled.
+ *                  Use @ref nrf_egu_int_mask_t values for bit masking.
  */
 NRF_STATIC_INLINE void nrf_egu_int_enable(NRF_EGU_Type * p_reg, uint32_t mask);
 
@@ -199,6 +223,7 @@ NRF_STATIC_INLINE void nrf_egu_int_enable(NRF_EGU_Type * p_reg, uint32_t mask);
  *
  * @param[in] p_reg Pointer to the structure of registers of the peripheral.
  * @param[in] mask  Mask of interrupts to be checked.
+ *                  Use @ref nrf_egu_int_mask_t values for bit masking.
  *
  * @return Mask of enabled interrupts.
  */
@@ -209,6 +234,7 @@ NRF_STATIC_INLINE uint32_t nrf_egu_int_enable_check(NRF_EGU_Type const * p_reg, 
  *
  * @param[in] p_reg Pointer to the structure of registers of the peripheral.
  * @param[in] mask  Mask of interrupts to be disabled.
+ *                  Use @ref nrf_egu_int_mask_t values for bit masking.
  */
 NRF_STATIC_INLINE void nrf_egu_int_disable(NRF_EGU_Type * p_reg, uint32_t mask);
 
@@ -245,6 +271,18 @@ NRF_STATIC_INLINE void nrf_egu_subscribe_clear(NRF_EGU_Type * p_reg,
                                                nrf_egu_task_t task);
 
 /**
+ * @brief Function for getting the subscribe configuration for a given
+ *        EGU task.
+ *
+ * @param[in] p_reg Pointer to the structure of registers of the peripheral.
+ * @param[in] task  Task for which to read the configuration.
+ *
+ * @return EGU subscribe configuration.
+ */
+NRF_STATIC_INLINE uint32_t nrf_egu_subscribe_get(NRF_EGU_Type const * p_reg,
+                                                 nrf_egu_task_t       task);
+
+/**
  * @brief Function for setting the publish configuration for a given
  *        EGU event.
  *
@@ -265,35 +303,28 @@ NRF_STATIC_INLINE void nrf_egu_publish_set(NRF_EGU_Type *  p_reg,
  */
 NRF_STATIC_INLINE void nrf_egu_publish_clear(NRF_EGU_Type *  p_reg,
                                              nrf_egu_event_t event);
+
+/**
+ * @brief Function for getting the publish configuration for a given
+ *        EGU event.
+ *
+ * @param[in] p_reg Pointer to the structure of registers of the peripheral.
+ * @param[in] event Event for which to read the configuration.
+ *
+ * @return EGU publish configuration.
+ */
+NRF_STATIC_INLINE uint32_t nrf_egu_publish_get(NRF_EGU_Type const * p_reg,
+                                               nrf_egu_event_t      event);
 #endif // defined(DPPI_PRESENT) || defined(__NRFX_DOXYGEN__)
 
 #ifndef NRF_DECLARE_ONLY
 
 NRF_STATIC_INLINE uint32_t nrf_egu_channel_count(NRF_EGU_Type const * p_reg)
 {
-    if (p_reg == NRF_EGU0){
-        return EGU0_CH_NUM;
-    }
-#if EGU_COUNT > 1
-    if (p_reg == NRF_EGU1){
-        return EGU1_CH_NUM;
-    }
-#endif
-#if EGU_COUNT > 2
-    if (p_reg == NRF_EGU2){
-        return EGU2_CH_NUM;
-    }
-    if (p_reg == NRF_EGU3){
-        return EGU3_CH_NUM;
-    }
-    if (p_reg == NRF_EGU4){
-        return EGU4_CH_NUM;
-    }
-    if (p_reg == NRF_EGU5){
-        return EGU5_CH_NUM;
-    }
-#endif
-    return 0;
+    uint8_t chan_num = 0;
+    NRF_INTERNAL_EGU_CHAN_NUM_EXTRACT(chan_num, p_reg);
+
+    return chan_num;
 }
 
 NRF_STATIC_INLINE void nrf_egu_task_trigger(NRF_EGU_Type * p_reg, nrf_egu_task_t egu_task)
@@ -305,8 +336,7 @@ NRF_STATIC_INLINE void nrf_egu_task_trigger(NRF_EGU_Type * p_reg, nrf_egu_task_t
 NRF_STATIC_INLINE uint32_t nrf_egu_task_address_get(NRF_EGU_Type const * p_reg,
                                                     nrf_egu_task_t       egu_task)
 {
-    NRFX_ASSERT(p_reg);
-    return (uint32_t)((uint8_t *)p_reg + (uint32_t)egu_task);
+    return nrf_task_event_address_get(p_reg, egu_task);
 }
 
 NRF_STATIC_INLINE nrf_egu_task_t nrf_egu_trigger_task_get(uint8_t channel)
@@ -316,25 +346,20 @@ NRF_STATIC_INLINE nrf_egu_task_t nrf_egu_trigger_task_get(uint8_t channel)
 
 NRF_STATIC_INLINE bool nrf_egu_event_check(NRF_EGU_Type const * p_reg, nrf_egu_event_t egu_event)
 {
-    NRFX_ASSERT(p_reg);
-    return (bool)*(volatile uint32_t *)((uint8_t *)p_reg + (uint32_t)egu_event);
+    return nrf_event_check(p_reg, egu_event);
 }
 
 NRF_STATIC_INLINE void nrf_egu_event_clear(NRF_EGU_Type * p_reg, nrf_egu_event_t egu_event)
 {
     NRFX_ASSERT(p_reg);
     *((volatile uint32_t *)((uint8_t *)p_reg + (uint32_t)egu_event)) = 0x0UL;
-#if __CORTEX_M == 0x04
-    volatile uint32_t dummy = *((volatile uint32_t *)((uint8_t *)p_reg + (uint32_t)egu_event));
-    (void)dummy;
-#endif
+    nrf_event_readback((uint8_t *)p_reg + (uint32_t)egu_event);
 }
 
 NRF_STATIC_INLINE uint32_t nrf_egu_event_address_get(NRF_EGU_Type const * p_reg,
                                                      nrf_egu_event_t      egu_event)
 {
-    NRFX_ASSERT(p_reg);
-    return (uint32_t)((uint8_t *)p_reg + (uint32_t)egu_event);
+    return nrf_task_event_address_get(p_reg, egu_event);
 }
 
 NRF_STATIC_INLINE nrf_egu_event_t nrf_egu_triggered_event_get(uint8_t channel)
@@ -370,28 +395,44 @@ NRF_STATIC_INLINE void nrf_egu_subscribe_set(NRF_EGU_Type * p_reg,
                                              nrf_egu_task_t task,
                                              uint8_t        channel)
 {
+    NRFX_ASSERT(p_reg);
     *((volatile uint32_t *) ((uint8_t *) p_reg + (uint32_t) task + 0x80uL)) =
-            ((uint32_t)channel | EGU_SUBSCRIBE_TRIGGER_EN_Msk);
+            ((uint32_t)channel | NRF_SUBSCRIBE_PUBLISH_ENABLE);
 }
 
 NRF_STATIC_INLINE void nrf_egu_subscribe_clear(NRF_EGU_Type * p_reg,
                                                nrf_egu_task_t task)
 {
+    NRFX_ASSERT(p_reg);
     *((volatile uint32_t *) ((uint8_t *) p_reg + (uint32_t) task + 0x80uL)) = 0;
+}
+
+NRF_STATIC_INLINE uint32_t nrf_egu_subscribe_get(NRF_EGU_Type const * p_reg,
+                                                 nrf_egu_task_t       task)
+{
+    return *((volatile uint32_t const *) ((uint8_t const *) p_reg + (uint32_t) task + 0x80uL));
 }
 
 NRF_STATIC_INLINE void nrf_egu_publish_set(NRF_EGU_Type *  p_reg,
                                            nrf_egu_event_t event,
                                            uint8_t         channel)
 {
+    NRFX_ASSERT(p_reg);
     *((volatile uint32_t *) ((uint8_t *) p_reg + (uint32_t) event + 0x80uL)) =
-            ((uint32_t)channel | EGU_PUBLISH_TRIGGERED_EN_Msk);
+            ((uint32_t)channel | NRF_SUBSCRIBE_PUBLISH_ENABLE);
 }
 
 NRF_STATIC_INLINE void nrf_egu_publish_clear(NRF_EGU_Type *  p_reg,
                                              nrf_egu_event_t event)
 {
+    NRFX_ASSERT(p_reg);
     *((volatile uint32_t *) ((uint8_t *) p_reg + (uint32_t) event + 0x80uL)) = 0;
+}
+
+NRF_STATIC_INLINE uint32_t nrf_egu_publish_get(NRF_EGU_Type const * p_reg,
+                                               nrf_egu_event_t      event)
+{
+    return *((volatile uint32_t const *) ((uint8_t const *) p_reg + (uint32_t) event + 0x80uL));
 }
 #endif // defined(DPPI_PRESENT)
 

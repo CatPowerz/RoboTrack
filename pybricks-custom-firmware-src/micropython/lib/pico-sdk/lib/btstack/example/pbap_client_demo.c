@@ -53,6 +53,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <inttypes.h>
 
 #include "btstack.h"
 
@@ -69,9 +70,10 @@ static bd_addr_t    remote_addr;
 // PTS "001BDC080AA5"
 static  char * remote_addr_string = "DC:52:85:B4:AD:2B ";
 
+
+#ifdef HAVE_BTSTACK_STDIN
 static char * phone_number = "911";
 
-static const char * pb_name   = "pb";
 static const char * fav_name  = "fav";
 static const char * ich_name  = "ich";
 static const char * och_name  = "och";
@@ -79,14 +81,19 @@ static const char * mch_name  = "mch";
 static const char * cch_name  = "cch";
 static const char * spd_name  = "spd";
 
-static const char * phonebook_name;
-static char phonebook_folder[30];
-static char phonebook_path[30];
 static enum {
     PBAP_PATH_ROOT,
     PBAP_PATH_FOLDER,
     PBAP_PATH_PHONEBOOK
 } pbap_client_demo_path_type;
+#endif
+
+static const char * pb_name   = "pb";
+
+static const char * phonebook_name;
+static char phonebook_folder[30];
+static char phonebook_path[30];
+
 
 static btstack_packet_callback_registration_t hci_event_callback_registration;
 static uint16_t pbap_cid;
@@ -94,8 +101,8 @@ static uint16_t pbap_cid;
 static int sim1_selected;
 
 static void refresh_phonebook_folder_and_path(void){
-    snprintf(phonebook_path, sizeof(phonebook_path),   "%s%s.vcf", sim1_selected ? "SIM1/telecom/" : "telecom/", phonebook_name);
-    snprintf(phonebook_folder, sizeof(phonebook_folder), "%s%s",   sim1_selected ? "SIM1/telecom/" : "telecom/", phonebook_name);
+    btstack_snprintf_assert_complete(phonebook_path, sizeof(phonebook_path),   "%s%s.vcf", sim1_selected ? "SIM1/telecom/" : "telecom/", phonebook_name);
+    btstack_snprintf_assert_complete(phonebook_folder, sizeof(phonebook_folder), "%s%s",   sim1_selected ? "SIM1/telecom/" : "telecom/", phonebook_name);
     printf("[-] Phonebook folder '%s'\n", phonebook_folder);
     printf("[-] Phonebook path   '%s'\n", phonebook_path);
 }
@@ -271,6 +278,7 @@ static void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *packe
     UNUSED(size);
     int i;
     uint8_t status;
+    bd_addr_t event_addr;
     char buffer[32];
     switch (packet_type){
         case HCI_EVENT_PACKET:
@@ -280,6 +288,12 @@ static void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *packe
                     if (btstack_event_state_get_state(packet) == HCI_STATE_WORKING){
                         show_usage();
                     }
+                    break;
+                case HCI_EVENT_USER_CONFIRMATION_REQUEST:
+                    printf("SSP User Confirmation Request with numeric value '%06"PRIu32"'\n", hci_event_user_confirmation_request_get_numeric_value(packet));
+                    printf("Accepting Pairing - TODO: require actual user action\n");
+                    hci_event_user_confirmation_request_get_bd_addr(packet, event_addr);
+                    gap_ssp_confirmation_response(event_addr);
                     break;
                 case HCI_EVENT_PBAP_META:
                     switch (hci_event_pbap_meta_get_subevent_code(packet)){
@@ -342,6 +356,7 @@ static void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *packe
     UNUSED(channel);
     UNUSED(size);
     int i;
+    bd_addr_t event_addr;
     switch (packet_type){
         case HCI_EVENT_PACKET:
             switch (hci_event_packet_get_type(packet)) {
@@ -351,6 +366,12 @@ static void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *packe
                         printf("[+] Connect to Phone Book Server on %s\n", bd_addr_to_str(remote_addr));
                         pbap_connect(&packet_handler, remote_addr, &pbap_cid);
                     }
+                    break;
+                case HCI_EVENT_USER_CONFIRMATION_REQUEST:
+                    printf("SSP User Confirmation Request with numeric value '%06"PRIu32"'\n", hci_event_user_confirmation_request_get_numeric_value(packet));
+                    printf("Accepting Pairing - TODO: require actual user action\n");
+                    hci_event_user_confirmation_request_get_bd_addr(packet, event_addr);
+                    gap_ssp_confirmation_response(event_addr);
                     break;
                 case HCI_EVENT_PBAP_META:
                     switch (hci_event_pbap_meta_get_subevent_code(packet)){

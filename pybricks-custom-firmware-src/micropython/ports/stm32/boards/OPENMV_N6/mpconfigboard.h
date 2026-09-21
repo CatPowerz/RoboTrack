@@ -3,7 +3,8 @@
 
 #define MICROPY_GC_STACK_ENTRY_TYPE uint32_t
 #define MICROPY_ALLOC_GC_STACK_SIZE (128)
-#define MICROPY_FATFS_EXFAT         (1)
+
+#define MICROPY_OBJ_REPR            (MICROPY_OBJ_REPR_C)
 
 #define MICROPY_HW_ENABLE_INTERNAL_FLASH_STORAGE (0)
 #define MICROPY_HW_HAS_SWITCH       (0)
@@ -15,6 +16,7 @@
 #define MICROPY_HW_ENABLE_USB       (1)
 #define MICROPY_HW_ENABLE_SDCARD    (1)
 #define MICROPY_PY_PYB_LEGACY       (0)
+#define MICROPY_FATFS_EXFAT         (1)
 
 #define MICROPY_BOARD_ENTER_BOOTLOADER board_enter_bootloader
 #define MICROPY_BOARD_EARLY_INIT    board_early_init
@@ -53,6 +55,7 @@
 #define MICROPY_HW_UART2_CTS        (pyb_pin_BT_CTS)
 #define MICROPY_HW_UART3_TX         (pyb_pin_UART3_TX)
 #define MICROPY_HW_UART3_RX         (pyb_pin_UART3_RX)
+#define MICROPY_HW_UART3_RTS        (pyb_pin_UART3_RTS)
 #define MICROPY_HW_UART4_TX         (pyb_pin_UART4_TX)
 #define MICROPY_HW_UART4_RX         (pyb_pin_UART4_RX)
 #define MICROPY_HW_UART7_TX         (pyb_pin_UART7_TX)
@@ -74,8 +77,17 @@
 #define MICROPY_HW_SPI4_MISO        (pyb_pin_SPI4_MISO)
 #define MICROPY_HW_SPI4_MOSI        (pyb_pin_SPI4_MOSI)
 
+// FDCAN bus
+#define MICROPY_HW_CAN1_NAME        "FDCAN1"
+#define MICROPY_HW_CAN1_TX          (pyb_pin_CAN1_TX)
+#define MICROPY_HW_CAN1_RX          (pyb_pin_CAN1_RX)
+// Support is not yet added for FDCAN CAN3 (see fdcan.c for details)
+// #define MICROPY_HW_CAN3_NAME        "FDCAN3"
+// #define MICROPY_HW_CAN3_TX          (pyb_pin_CAN3_TX)
+// #define MICROPY_HW_CAN3_RX          (pyb_pin_CAN3_RX)
+
 // USER is pulled high, and pressing the button makes the input go low.
-#define MICROPY_HW_USRSW_PIN        (pyb_pin_BUTTON)
+#define MICROPY_HW_USRSW_PIN        (pyb_pin_SW)
 #define MICROPY_HW_USRSW_PULL       (GPIO_NOPULL)
 #define MICROPY_HW_USRSW_EXTI_MODE  (GPIO_MODE_IT_FALLING)
 #define MICROPY_HW_USRSW_PRESSED    (0)
@@ -123,6 +135,24 @@
 #define MICROPY_HW_USB_PID_CDC_HID  (MICROPY_HW_USB_PID)
 #define MICROPY_HW_USB_PID_CDC_MSC_HID  (MICROPY_HW_USB_PID)
 
+// Ethernet via RGMII
+#define NETWORK_LAN_PHY                         (ETH_PHY_RTL8211)
+#define MICROPY_HW_ETH_MDC                      (pin_D1)
+#define MICROPY_HW_ETH_MDIO                     (pin_D12)
+#define MICROPY_HW_ETH_RGMII_CLK125             (pin_F2)
+#define MICROPY_HW_ETH_RGMII_GTX_CLK            (pin_F0)
+#define MICROPY_HW_ETH_RGMII_TXD0               (pin_F12)
+#define MICROPY_HW_ETH_RGMII_TXD1               (pin_F13)
+#define MICROPY_HW_ETH_RGMII_TXD2               (pin_G3)
+#define MICROPY_HW_ETH_RGMII_TXD3               (pin_G4)
+#define MICROPY_HW_ETH_RGMII_TX_CTL             (pin_F11)
+#define MICROPY_HW_ETH_RGMII_RX_CLK             (pin_F7)
+#define MICROPY_HW_ETH_RGMII_RXD0               (pin_F14)
+#define MICROPY_HW_ETH_RGMII_RXD1               (pin_F15)
+#define MICROPY_HW_ETH_RGMII_RXD2               (pin_F8)
+#define MICROPY_HW_ETH_RGMII_RXD3               (pin_F9)
+#define MICROPY_HW_ETH_RGMII_RX_CTL             (pin_F10)
+
 // Murata 1YN configuration
 #define CYW43_CHIPSET_FIRMWARE_INCLUDE_FILE     "lib/cyw43-driver/firmware/w43439_sdio_1yn_7_95_59_combined.h"
 #define CYW43_WIFI_NVRAM_INCLUDE_FILE           "lib/cyw43-driver/firmware/wifi_nvram_1yn.h"
@@ -133,6 +163,11 @@
 #define MICROPY_HW_BLE_UART_BAUDRATE            (115200)
 #define MICROPY_HW_BLE_UART_BAUDRATE_SECONDARY  (3000000)
 #define MICROPY_HW_BLE_UART_BAUDRATE_DOWNLOAD_FIRMWARE (3000000)
+
+// USB CDC config
+#define CFG_TUD_CDC_EP_BUFSIZE  (4096)
+#define CFG_TUD_CDC_RX_BUFSIZE  (4096)
+#define CFG_TUD_CDC_TX_BUFSIZE  (4096)
 
 /******************************************************************************/
 // Bootloader configuration

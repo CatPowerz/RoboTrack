@@ -1,6 +1,8 @@
 /*
 
-Copyright (c) 2010 - 2018, Nordic Semiconductor ASA All rights reserved.
+Copyright (c) 2010 - 2025, Nordic Semiconductor ASA All rights reserved.
+
+SPDX-License-Identifier: BSD-3-Clause
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -50,18 +52,23 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #define NVMC_FEATURE_CACHE_PRESENT
 
+/* Memory Protection Unit */
+#define MPU_REGION_NUM 16
+
 /* GPIO */
 #define GPIO_PRESENT
 #define GPIO_COUNT 1
 
 #define P0_PIN_NUM 32
 
-/* Distributed  Peripheral to Peripheral Interconnect */
-#define DPPI_PRESENT
-#define DPPI_COUNT 1
+#define P0_FEATURE_PINS_PRESENT 0xFFFFFFFFUL
 
-#define DPPI_CH_NUM 16
-#define DPPI_GROUP_NUM 6
+/* Distributed  Peripheral to Peripheral Interconnect */
+#define DPPIC_PRESENT
+#define DPPIC_COUNT 1
+
+#define DPPIC_CH_NUM 16
+#define DPPIC_GROUP_NUM 6
 
 /* Event Generator Unit */
 #define EGU_PRESENT
@@ -107,46 +114,46 @@ POSSIBILITY OF SUCH DAMAGE.
 #define SPIM2_MAX_DATARATE  8
 #define SPIM3_MAX_DATARATE  8
 
-#define SPIM0_EASYDMA_MAXCNT_SIZE 16
-#define SPIM1_EASYDMA_MAXCNT_SIZE 16
-#define SPIM2_EASYDMA_MAXCNT_SIZE 16
-#define SPIM3_EASYDMA_MAXCNT_SIZE 16
+#define SPIM0_EASYDMA_MAXCNT_SIZE 13
+#define SPIM1_EASYDMA_MAXCNT_SIZE 13
+#define SPIM2_EASYDMA_MAXCNT_SIZE 13
+#define SPIM3_EASYDMA_MAXCNT_SIZE 13
 
 /* Serial Peripheral Interface Slave with DMA*/
 #define SPIS_PRESENT
 #define SPIS_COUNT 4
 
-#define SPIS0_EASYDMA_MAXCNT_SIZE 16
-#define SPIS1_EASYDMA_MAXCNT_SIZE 16
-#define SPIS2_EASYDMA_MAXCNT_SIZE 16
-#define SPIS3_EASYDMA_MAXCNT_SIZE 16
+#define SPIS0_EASYDMA_MAXCNT_SIZE 13
+#define SPIS1_EASYDMA_MAXCNT_SIZE 13
+#define SPIS2_EASYDMA_MAXCNT_SIZE 13
+#define SPIS3_EASYDMA_MAXCNT_SIZE 13
 
 /* Two Wire Interface Master with DMA */
 #define TWIM_PRESENT
 #define TWIM_COUNT 4
 
-#define TWIM0_EASYDMA_MAXCNT_SIZE 16
-#define TWIM1_EASYDMA_MAXCNT_SIZE 16
-#define TWIM2_EASYDMA_MAXCNT_SIZE 16
-#define TWIM3_EASYDMA_MAXCNT_SIZE 16
+#define TWIM0_EASYDMA_MAXCNT_SIZE 13
+#define TWIM1_EASYDMA_MAXCNT_SIZE 13
+#define TWIM2_EASYDMA_MAXCNT_SIZE 13
+#define TWIM3_EASYDMA_MAXCNT_SIZE 13
 
 /* Two Wire Interface Slave with DMA */
 #define TWIS_PRESENT
 #define TWIS_COUNT 4
 
-#define TWIS0_EASYDMA_MAXCNT_SIZE 16
-#define TWIS1_EASYDMA_MAXCNT_SIZE 16
-#define TWIS2_EASYDMA_MAXCNT_SIZE 16
-#define TWIS3_EASYDMA_MAXCNT_SIZE 16
+#define TWIS0_EASYDMA_MAXCNT_SIZE 13
+#define TWIS1_EASYDMA_MAXCNT_SIZE 13
+#define TWIS2_EASYDMA_MAXCNT_SIZE 13
+#define TWIS3_EASYDMA_MAXCNT_SIZE 13
 
 /* Universal Asynchronous Receiver-Transmitter with DMA */
 #define UARTE_PRESENT
 #define UARTE_COUNT 4
 
-#define UARTE0_EASYDMA_MAXCNT_SIZE 16
-#define UARTE1_EASYDMA_MAXCNT_SIZE 16
-#define UARTE2_EASYDMA_MAXCNT_SIZE 16
-#define UARTE3_EASYDMA_MAXCNT_SIZE 16
+#define UARTE0_EASYDMA_MAXCNT_SIZE 13
+#define UARTE1_EASYDMA_MAXCNT_SIZE 13
+#define UARTE2_EASYDMA_MAXCNT_SIZE 13
+#define UARTE3_EASYDMA_MAXCNT_SIZE 13
 
 /* Successive Approximation Analog to Digital Converter */
 #define SAADC_PRESENT
@@ -200,9 +207,60 @@ POSSIBILITY OF SUCH DAMAGE.
 #define SPU_PRESENT
 #define SPU_COUNT 1
 
-/* CRYPTOCELL */
-#define CRYPTOCELL_PRESENT
+#define SPU_RAMREGION_SIZE 0x2000ul
+
+/*CRYPTOCELL register interface*/
+#define CRYPTOCELL_PRESENT 1
 #define CRYPTOCELL_COUNT 1
+#define CRYPTOCELL_VERSION 310
+
+/*CRYPTOCELL AES engine*/
+#define CC_AES_PRESENT 1
+#define CC_AES_COUNT 1
+
+/*CRYPTOCELL AHB interface*/
+#define CC_AHB_PRESENT 1
+#define CC_AHB_COUNT 1
+
+/*CRYPTOCELL CHACHA engine*/
+#define CC_CHACHA_PRESENT 1
+#define CC_CHACHA_COUNT 1
+
+/*CRYPTOCELL CTL interface*/
+#define CC_CTL_PRESENT 1
+#define CC_CTL_COUNT 1
+
+/*CRYPTOCELL Data IN interface*/
+#define CC_DIN_PRESENT 1
+#define CC_DIN_COUNT 1
+
+/*CRYPTOCELL Data OUT interface*/
+#define CC_DOUT_PRESENT 1
+#define CC_DOUT_COUNT 1
+
+/*CRYPTOCELL HASH engine*/
+#define CC_HASH_PRESENT 1
+#define CC_HASH_COUNT 1
+
+/*CRYPTOCELL HOST register interface*/
+#define CC_HOST_RGF_PRESENT 1
+#define CC_HOST_RGF_COUNT 1
+
+/*CRYPTOCELL MISC interface*/
+#define CC_MISC_PRESENT 1
+#define CC_MISC_COUNT 1
+
+/*CRYPTOCELL PKA engine*/
+#define CC_PKA_PRESENT 1
+#define CC_PKA_COUNT 1
+
+/*CRYPTOCELL RNG engine*/
+#define CC_RNG_PRESENT 1
+#define CC_RNG_COUNT 1
+
+/*CRYPTOCELL RNG SRAM interface*/
+#define CC_RNG_SRAM_PRESENT 1
+#define CC_RNG_SRAM_COUNT 1
 
 /* KMU */
 #define KMU_PRESENT
@@ -219,5 +277,24 @@ POSSIBILITY OF SUCH DAMAGE.
 #define REGULATORS_PRESENT
 #define REGULATORS_COUNT 1
 
+/*Embedded Trace Macrocell*/
+#define ETM_PRESENT 1
+#define ETM_COUNT 1
+
+/*Embedded Trace Buffer*/
+#define ETB_PRESENT 1
+#define ETB_COUNT 1
+
+/*Trace Port Interface Unit*/
+#define TPIU_PRESENT 1
+#define TPIU_COUNT 1
+
+/*ATB Replicator module*/
+#define ATBREPLICATOR_PRESENT 1
+#define ATBREPLICATOR_COUNT 1
+
+/*ATB funnel module*/
+#define ATBFUNNEL_PRESENT 1
+#define ATBFUNNEL_COUNT 2
 
 #endif  // _NRF9160_PERIPHERALS_H

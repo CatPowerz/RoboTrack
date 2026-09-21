@@ -1,6 +1,8 @@
 /*
- * Copyright (c) 2018 - 2019, Nordic Semiconductor ASA
+ * Copyright (c) 2018 - 2025, Nordic Semiconductor ASA
  * All rights reserved.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -32,6 +34,12 @@
 #ifndef NRFX_COREDEP_H__
 #define NRFX_COREDEP_H__
 
+#include <nrfx.h>
+#if NRFX_CHECK(ISA_RISCV)
+#include <hal/nrf_vpr_csr.h>
+#include <hal/nrf_vpr_csr_vtim.h>
+#endif
+
 /**
  * @defgroup nrfx_coredep Core-dependent functionality
  * @{
@@ -53,15 +61,18 @@
  */
 #define NRFX_COREDEP_DELAY_US_LOOP_CYCLES
 
+#elif defined(NRFX_DELAY_CPU_FREQ_MHZ) && defined(NRFX_DELAY_DWT_PRESENT)
+    /* Do nothing. */
 #elif defined(NRF51)
     #define NRFX_DELAY_CPU_FREQ_MHZ 16
     #define NRFX_DELAY_DWT_PRESENT  0
-#elif defined(NRF52810_XXAA) || defined(NRF52811_XXAA)
+#elif defined(NRF52805_XXAA) || defined(NRF52810_XXAA) || \
+      defined(NRF52811_XXAA) || defined(NRF52820_XXAA)
     #define NRFX_DELAY_CPU_FREQ_MHZ 64
     #define NRFX_DELAY_DWT_PRESENT  0
 #elif defined(NRF52832_XXAA) || defined(NRF52832_XXAB) || \
       defined(NRF52833_XXAA) || defined(NRF52840_XXAA) || \
-      defined(NRF9160_XXAA)
+      defined(NRF9120_XXAA)  || defined(NRF9160_XXAA)
     #define NRFX_DELAY_CPU_FREQ_MHZ 64
     #define NRFX_DELAY_DWT_PRESENT  1
 #elif defined(NRF5340_XXAA_APPLICATION)
@@ -70,9 +81,14 @@
 #elif defined(NRF5340_XXAA_NETWORK)
     #define NRFX_DELAY_CPU_FREQ_MHZ 64
     #define NRFX_DELAY_DWT_PRESENT  1
-#else
+#elif defined(NRF54H20_XXAA) || defined(NRF9230_ENGB_XXAA)
     #define NRFX_DELAY_CPU_FREQ_MHZ (SystemCoreClock / 1000000)
     #define NRFX_DELAY_DWT_PRESENT  0
+#elif defined(LUMOS_XXAA) || defined(NRF7120_ENGA_XXAA)
+    #define NRFX_DELAY_CPU_FREQ_MHZ (SystemCoreClock / 1000000)
+    #define NRFX_DELAY_DWT_PRESENT  1
+#else
+    #error "Unknown device"
 #endif
 
 /**
@@ -135,6 +151,7 @@ NRF_STATIC_INLINE void nrfx_coredep_delay_us(uint32_t time_us)
         return;
     }
 
+#if NRFX_CHECK(ISA_ARM)
     // Allow overriding the number of cycles per loop iteration, in case it is
     // needed to adjust this number externally (for example, when the SoC is
     // emulated).
@@ -142,7 +159,8 @@ NRF_STATIC_INLINE void nrfx_coredep_delay_us(uint32_t time_us)
         #if defined(NRF51)
             // The loop takes 4 cycles: 1 for SUBS, 3 for BHI.
             #define NRFX_COREDEP_DELAY_US_LOOP_CYCLES  4
-        #elif defined(NRF52810_XXAA) || defined(NRF52811_XXAA)
+        #elif defined(NRF52805_XXAA) || defined(NRF52810_XXAA) || \
+              defined(NRF52811_XXAA) || defined(NRF52820_XXAA)
             // The loop takes 7 cycles: 1 for SUBS, 2 for BHI, 2 wait states
             // for each instruction.
             #define NRFX_COREDEP_DELAY_US_LOOP_CYCLES  7
@@ -166,6 +184,27 @@ NRF_STATIC_INLINE void nrfx_coredep_delay_us(uint32_t time_us)
         (delay_func_t)((((uint32_t)delay_machine_code) | 1));
     uint32_t cycles = time_us * NRFX_DELAY_CPU_FREQ_MHZ;
     delay_cycles(cycles);
+#elif NRFX_CHECK(ISA_RISCV)
+#if !NRFX_CHECK(NRFX_COREDEP_VPR_LEGACY)
+    nrf_vpr_csr_vtim_count_mode_set(1, NRF_VPR_CSR_VTIM_COUNT_TRIGGER_COMBINED);
+    nrf_vpr_csr_vtim_combined_counter_set(time_us * NRFX_DELAY_CPU_FREQ_MHZ);
+    nrf_vpr_csr_vtim_combined_wait_trigger();
+#else
+    #if !defined(NRFX_DELAY_RISCV_SLOWDOWN)
+        #if defined(NRF54L_SERIES) || defined(NRF7120_ENGA_XXAA)
+            #define NRFX_DELAY_RISCV_SLOWDOWN 15
+        #else
+            #define NRFX_DELAY_RISCV_SLOWDOWN 50
+        #endif
+    #endif // !defined(NRFX_DELAY_RISCV_SLOWDOWN)
+
+    for (volatile uint32_t i = 0;
+             i < ((NRFX_DELAY_CPU_FREQ_MHZ * time_us) / NRFX_DELAY_RISCV_SLOWDOWN);
+             i++)
+        {}
+
+#endif // !NRFX_CHECK(NRFX_CONFIG_COREDEP_VPR_LEGACY)
+#endif // NRFX_CHECK(ISA_ARM)
 }
 
 #endif // !NRFX_CHECK(NRFX_DELAY_DWT_BASED_DELAY)

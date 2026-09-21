@@ -1,22 +1,24 @@
 /*
 ** ###################################################################
 **     Processors:          MIMXRT1021CAF4A
+**                          MIMXRT1021CAF4B
 **                          MIMXRT1021CAG4A
+**                          MIMXRT1021CAG4B
 **                          MIMXRT1021DAF5A
+**                          MIMXRT1021DAF5B
 **                          MIMXRT1021DAG5A
+**                          MIMXRT1021DAG5B
 **
 **     Compiler:            GNU C Compiler
-**     Reference manual:    IMXRT1020RM Rev.1, 12/2018 | IMXRT1020SRM Rev.3
+**     Reference manual:    IMXRT1020RM Rev.2, 01/2021 | IMXRT102XSRM Rev.0
 **     Version:             rev. 0.1, 2017-06-06
-**     Build:               b210226
+**     Build:               b230821
 **
 **     Abstract:
 **         Linker file for the GNU C Compiler
 **
 **     Copyright 2016 Freescale Semiconductor, Inc.
-**     Copyright 2016-2021 NXP
-**     All rights reserved.
-**
+**     Copyright 2016-2023 NXP
 **     SPDX-License-Identifier: BSD-3-Clause
 **
 **     http:                 www.nxp.com
@@ -198,6 +200,13 @@ SECTIONS
   text_end = ORIGIN(m_text) + LENGTH(m_text);
   ASSERT(__DATA_END <= text_end, "region m_text overflowed with text and data")
 
+  .qadata :
+  {
+    . = ALIGN(4);
+    *(DataQuickAccess)       /* quick access data section */
+    . = ALIGN(4);
+  } > m_data2
+
   /* Uninitialized data section */
   .bss :
   {
@@ -238,4 +247,3 @@ SECTIONS
 
   .ARM.attributes 0 : { *(.ARM.attributes) }
 }
-

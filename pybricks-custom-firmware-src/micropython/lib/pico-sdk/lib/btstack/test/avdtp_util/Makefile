@@ -1,16 +1,13 @@
-# Requirements: cpputest.github.io
+include ../common.make
 
-BTSTACK_ROOT =  ../..
+DEFINES := -DUNIT_TEST
+INCLUDES := -I${BTSTACK_ROOT}/src
+INCLUDES += -I${BTSTACK_ROOT}/3rd-party/bluedroid/decoder/include
+INCLUDES += -I${BTSTACK_ROOT}/3rd-party/bluedroid/encoder/include
+INCLUDES += -I..
 
-# CppuTest from pkg-config
-CFLAGS  += ${shell pkg-config --cflags CppuTest}
-LDFLAGS += ${shell pkg-config --libs   CppuTest}
-
-CFLAGS += -DUNIT_TEST -g -Wall -Wnarrowing -Wconversion-null
-CFLAGS += -I${BTSTACK_ROOT}/src
-CFLAGS += -I${BTSTACK_ROOT}/3rd-party/bluedroid/decoder/include
-CFLAGS += -I${BTSTACK_ROOT}/3rd-party/bluedroid/encoder/include
-CFLAGS += -I..
+CFLAGS += ${INCLUDES} ${DEFINES}
+CXXFLAGS += ${INCLUDES} ${DEFINES}
 
 VPATH += ${BTSTACK_ROOT}/src
 VPATH += ${BTSTACK_ROOT}/src/classic
@@ -19,50 +16,29 @@ VPATH += ${BTSTACK_ROOT}/platform/posix
 COMMON = \
 	btstack_util.c		  \
 	btstack_linked_list.c \
-	hci_dump.c 			  \
-    avdtp_util.c		  \
-
-
-CFLAGS_COVERAGE = ${CFLAGS} -fprofile-arcs -ftest-coverage
-CFLAGS_ASAN     = ${CFLAGS} -fsanitize=address -DHAVE_ASSERT
-
-LDFLAGS += -lCppUTest -lCppUTestExt
-LDFLAGS_COVERAGE = ${LDFLAGS} -fprofile-arcs -ftest-coverage
-LDFLAGS_ASAN     = ${LDFLAGS} -fsanitize=address
+	hci_dump.c			  \
+    avdtp_util.c         \
+    avdtp_initiator.c
 
 COMMON_OBJ_COVERAGE = $(addprefix build-coverage/,$(COMMON:.c=.o))
 COMMON_OBJ_ASAN     = $(addprefix build-asan/,    $(COMMON:.c=.o))
+COMMON_CODEC = $(filter-out avdtp_initiator.c,${COMMON})
+COMMON_CODEC_OBJ_COVERAGE = $(addprefix build-coverage/,$(COMMON_CODEC:.c=.o))
+COMMON_CODEC_OBJ_ASAN     = $(addprefix build-asan/,    $(COMMON_CODEC:.c=.o))
 
-all: build-coverage/avdtp_util_test build-asan/avdtp_util_test
+all: coverage test
 
-build-%:
-	mkdir -p $@
+build-coverage/avdtp_util_test: ${COMMON_OBJ_COVERAGE}
+build-coverage/codec_serialization_test: ${COMMON_CODEC_OBJ_COVERAGE}
 
-build-coverage/%.o: %.c | build-coverage
-	${CC} -c $(CFLAGS_COVERAGE) $< -o $@
+build-asan/avdtp_util_test: ${COMMON_OBJ_ASAN}
+build-asan/codec_serialization_test: ${COMMON_CODEC_OBJ_ASAN}
 
-build-coverage/%.o: %.cpp | build-coverage
-	${CXX} -c $(CFLAGS_COVERAGE) $< -o $@
-
-build-asan/%.o: %.c | build-asan
-	${CC} -c $(CFLAGS_ASAN) $< -o $@
-
-build-asan/%.o: %.cpp | build-asan
-	${CXX} -c $(CFLAGS_ASAN) $< -o $@
-
-build-coverage/avdtp_util_test: ${COMMON_OBJ_COVERAGE} build-coverage/avdtp_util_test.o | build-coverage
-	${CXX} $^ ${LDFLAGS_COVERAGE} -o $@
-
-build-asan/avdtp_util_test: ${COMMON_OBJ_ASAN} build-asan/avdtp_util_test.o | build-asan
-	${CXX} $^ ${LDFLAGS_ASAN} -o $@
-
-test: all
+test: build-asan/avdtp_util_test build-asan/codec_serialization_test
 	build-asan/avdtp_util_test
+	build-asan/codec_serialization_test
 
-coverage: all
-	rm -f build-coverage/*.gcda
-	build-coverage/avdtp_util_test
+coverage: build-coverage/avdtp_util_test.info
 
-clean:
-	rm -rf build-coverage build-asan
+clean: clean-common
 	

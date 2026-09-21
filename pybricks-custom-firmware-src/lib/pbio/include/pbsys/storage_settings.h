@@ -13,11 +13,13 @@
 #define _PBSYS_STORAGE_SETTINGS_H_
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
-#include <pbio/error.h>
+#include <pbdrv/bluetooth.h>
 
 #include <pbio/config.h>
+#include <pbio/error.h>
 #include <pbio/imu.h>
 #include <pbsys/config.h>
 
@@ -44,6 +46,10 @@ typedef struct _pbsys_storage_settings_t {
     uint32_t flags;
     #if PBIO_CONFIG_IMU
     pbio_imu_persistent_settings_t imu_settings;
+    #endif
+    #if PBDRV_CONFIG_BLUETOOTH_CLASSIC
+    /** Bonding records for Bluetooth Classic devices, most recent first. */
+    pbio_bluetooth_classic_link_key_t bluetooth_bonds[PBIO_BLUETOOTH_CLASSIC_NUM_BONDS];
     #endif
 } pbsys_storage_settings_t;
 

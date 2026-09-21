@@ -1,3 +1,7 @@
+/* metadata:
+manufacturer: WCH
+*/
+
 #include <stdio.h>
 
 // https://github.com/openwch/ch32v307/pull/90
@@ -8,6 +12,7 @@
 #endif
 
 #include "ch32v20x.h"
+#include "ch32v20x_it.h"
 
 #ifdef __GNUC__
 #pragma GCC diagnostic pop
@@ -16,61 +21,61 @@
 #include "bsp/board_api.h"
 #include "board.h"
 
-/* CH32v203 depending on variants can support 2 USB IPs: FSDEV and USBFS.
+/* CH32v203 depending on variants can support 2 USB IPs: FSDEV (port0) and USBFS (port1).
  * By default, we use FSDEV, but you can explicitly select by define:
  * - CFG_TUD_WCH_USBIP_FSDEV
  * - CFG_TUD_WCH_USBIP_USBFS
  */
 
-// USBFS
-__attribute__((interrupt)) __attribute__((used))
-void USBHD_IRQHandler(void) {
+// Port0: USBD (fsdev)
+__attribute__((interrupt)) __attribute__((used)) void USB_LP_CAN1_RX0_IRQHandler(void) {
+  #if CFG_TUD_WCH_USBIP_FSDEV
+  tud_int_handler(0);
+  #endif
+}
+
+__attribute__((interrupt)) __attribute__((used)) void USB_HP_CAN1_TX_IRQHandler(void) {
+  #if CFG_TUD_WCH_USBIP_FSDEV
+  tud_int_handler(0);
+  #endif
+
+}
+
+__attribute__((interrupt)) __attribute__((used)) void USBWakeUp_IRQHandler(void) {
+  #if CFG_TUD_WCH_USBIP_FSDEV
+  tud_int_handler(0);
+  #endif
+}
+
+// Port1: USBFS
+__attribute__((interrupt)) __attribute__((used)) void USBHD_IRQHandler(void) {
+  #if CFG_TUD_ENABLED && CFG_TUD_WCH_USBIP_USBFS
+  tud_int_handler(1);
+  #endif
+
+  #if CFG_TUH_ENABLED
+  tuh_int_handler(1);
+  #endif
+}
+
+__attribute__((interrupt)) __attribute__((used)) void USBHDWakeUp_IRQHandler(void) {
   #if CFG_TUD_WCH_USBIP_USBFS
   tud_int_handler(0);
   #endif
 }
 
-__attribute__((interrupt)) __attribute__((used))
-void USBHDWakeUp_IRQHandler(void) {
-  #if CFG_TUD_WCH_USBIP_USBFS
-  tud_int_handler(0);
-  #endif
-}
-
-// USBD (fsdev)
-__attribute__((interrupt)) __attribute__((used))
-void USB_LP_CAN1_RX0_IRQHandler(void) {
-  #if CFG_TUD_WCH_USBIP_FSDEV
-  tud_int_handler(0);
-  #endif
-}
-
-__attribute__((interrupt)) __attribute__((used))
-void USB_HP_CAN1_TX_IRQHandler(void) {
-  #if CFG_TUD_WCH_USBIP_FSDEV
-  tud_int_handler(0);
-  #endif
-
-}
-
-__attribute__((interrupt)) __attribute__((used))
-void USBWakeUp_IRQHandler(void) {
-  #if CFG_TUD_WCH_USBIP_FSDEV
-  tud_int_handler(0);
-  #endif
-}
-
-
+//--------------------------------------------------------------------+
+// Board API
+//--------------------------------------------------------------------+
 #if CFG_TUSB_OS == OPT_OS_NONE
 volatile uint32_t system_ticks = 0;
 
-__attribute__((interrupt))
-void SysTick_Handler(void) {
+__attribute__((interrupt)) void SysTick_Handler(void) {
   SysTick->SR = 0;
   system_ticks++;
 }
 
-uint32_t SysTick_Config(uint32_t ticks) {
+static uint32_t SysTick_Config(uint32_t ticks) {
   NVIC_EnableIRQ(SysTicK_IRQn);
   SysTick->CTLR = 0;
   SysTick->SR = 0;
@@ -80,7 +85,7 @@ uint32_t SysTick_Config(uint32_t ticks) {
   return 0;
 }
 
-uint32_t board_millis(void) {
+uint32_t tusb_time_millis_api(void) {
   return system_ticks;
 }
 #endif
@@ -92,11 +97,11 @@ void board_init(void) {
   SysTick_Config(SystemCoreClock / 1000);
 #endif
 
-  RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
+  LED_CLOCK_EN();
 
   GPIO_InitTypeDef GPIO_InitStructure = {
     .GPIO_Pin = LED_PIN,
-    .GPIO_Mode = GPIO_Mode_Out_OD,
+    .GPIO_Mode = LED_MODE,
     .GPIO_Speed = GPIO_Speed_10MHz,
   };
   GPIO_Init(LED_PORT, &GPIO_InitStructure);
@@ -104,7 +109,7 @@ void board_init(void) {
 #ifdef UART_DEV
   UART_CLOCK_EN();
   GPIO_InitTypeDef usart_init = {
-    .GPIO_Pin = UART_TX_PIN,
+    .GPIO_Pin = UART_TX_PIN | UART_RX_PIN,
     .GPIO_Speed = GPIO_Speed_50MHz,
     .GPIO_Mode = GPIO_Mode_AF_PP,
   };
@@ -115,7 +120,7 @@ void board_init(void) {
     .USART_WordLength = USART_WordLength_8b,
     .USART_StopBits = USART_StopBits_1,
     .USART_Parity = USART_Parity_No,
-    .USART_Mode = USART_Mode_Tx,
+    .USART_Mode = USART_Mode_Tx | USART_Mode_Rx,
     .USART_HardwareFlowControl = USART_HardwareFlowControl_None,
   };
   USART_Init(UART_DEV, &usart);
@@ -185,25 +190,36 @@ size_t board_get_unique_id(uint8_t id[], size_t max_len) {
 }
 
 int board_uart_read(uint8_t *buf, int len) {
-  (void) buf;
-  (void) len;
+#ifdef UART_DEV
+  int count;
+  for (count = 0; count < len; count++) {
+    if (USART_GetFlagStatus(UART_DEV, USART_FLAG_RXNE) == RESET) {
+      break;
+    }
+    buf[count] = USART_ReceiveData(UART_DEV);
+  }
+  return count;
+#else
+  (void) buf; (void) len;
   return 0;
+#endif
 }
 
 int board_uart_write(void const *buf, int len) {
 #ifdef UART_DEV
-  const char *bufc = (const char *) buf;
-  for (int i = 0; i < len; i++) {
-    while (USART_GetFlagStatus(UART_DEV, USART_FLAG_TC) == RESET);
-    USART_SendData(UART_DEV, *bufc++);
+  uint8_t const *p = (uint8_t const *) buf;
+  int count = 0;
+  while (count < len) {
+    if (USART_GetFlagStatus(UART_DEV, USART_FLAG_TC) != RESET) {
+      USART_SendData(UART_DEV, p[count]);
+      count++;
+    } else {
+      break;
+    }
   }
+  return count;
 #else
   (void) buf; (void) len;
+  return -1;
 #endif
-
-  return len;
 }
-
-//--------------------------------------------------------------------
-// Neopixel
-//--------------------------------------------------------------------

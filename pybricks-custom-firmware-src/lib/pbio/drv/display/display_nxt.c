@@ -39,6 +39,8 @@
 #include "nxos/drivers/systick.h"
 #include "nxos/drivers/aic.h"
 
+#include <lego/device.h>
+
 /*
  * Internal command bytes implementing part of the basic command set of
  * the UC1601.
@@ -104,6 +106,12 @@ __attribute__((section(".noinit")));
  * encoded and sent to the display driver.
  */
 static bool pbdrv_display_user_frame_update_requested;
+
+/**
+ * Number of display updates so far. External readers of the frame buffer
+ * compare this to a previously read value to know whether the buffer changed.
+ */
+static uint32_t pbdrv_display_update_count;
 
 /*
  * Buffer to send one page of pixels to the display, using its internal
@@ -326,6 +334,7 @@ static pbio_error_t pbdrv_display_nxt_process_thread(pbio_os_state_t *state, voi
     while (pbdrv_display_nxt_process.request != PBIO_OS_PROCESS_REQUEST_TYPE_CANCEL) {
         PBIO_OS_AWAIT_UNTIL(state, pbdrv_display_user_frame_update_requested);
         pbdrv_display_user_frame_update_requested = false;
+        pbdrv_display_update_count++;
         for (page = 0; page < PBDRV_CONFIG_DISPLAY_NUM_ROWS / 8; page++) {
             // Convert pixel format.
             pbdrv_display_nxt_convert_page(page);
@@ -384,6 +393,55 @@ void pbdrv_display_init(void) {
 
 pbio_image_t *pbdrv_display_get_image(void) {
     return &pbdrv_display_image;
+}
+
+// chunks of 32 packed rows, so we can send the whole screen in fixed size chunks.
+#define PBDRV_DISPLAY_TELEMETRY_CHUNK_ROWS (32)
+#define PBDRV_DISPLAY_TELEMETRY_CHUNK_SIZE (PBDRV_DISPLAY_TELEMETRY_CHUNK_ROWS * PBDRV_CONFIG_DISPLAY_NUM_COLS / 8)
+#define PBDRV_DISPLAY_TELEMETRY_CHUNK_NUM (PBDRV_CONFIG_DISPLAY_NUM_ROWS / PBDRV_DISPLAY_TELEMETRY_CHUNK_ROWS)
+
+pbsys_telemetry_error_t pbdrv_display_iterate_data(pbsys_telemetry_packet_t *tel, bool *done, uint32_t *size) {
+
+    // Display update count when the current frame read-out started. Initialized
+    // to differ from the update count so the first frame is always sent.
+    static uint32_t last_update_count = UINT32_MAX;
+
+    // Next chunk to send. Zero means between frames.
+    static uint32_t chunk = 0;
+
+    // Doesn't fit now. Caller retries this same chunk with a fresh buffer.
+    if (*size < PBDRV_DISPLAY_TELEMETRY_CHUNK_SIZE) {
+        return PBSYS_TELEMETRY_ERROR_NO_ROOM;
+    }
+
+    // Between frames, start reading out a new one only if it changed. Changes
+    // during read-out are picked up by the next one, accepting that a read-out
+    // may span parts of two frames.
+    if (chunk == 0) {
+        if (last_update_count == pbdrv_display_update_count) {
+            *done = true;
+            return PBSYS_TELEMETRY_ERROR_NO_REPORT;
+        }
+        last_update_count = pbdrv_display_update_count;
+    }
+
+    for (uint32_t i = 0; i < PBDRV_DISPLAY_TELEMETRY_CHUNK_SIZE; i++) {
+        // Pack 8 consecutive pixels, 1 bit per byte.
+        const uint8_t *p = (const uint8_t *)pbdrv_display_user_frame + (chunk * PBDRV_DISPLAY_TELEMETRY_CHUNK_SIZE + i) * 8;
+        tel->payload[i] =
+            p[0] | p[1] << 1 | p[2] << 2 | p[3] << 3 | p[4] << 4 | p[5] << 5 | p[6] << 6 | p[7] << 7;
+    }
+
+    // Header with position indicating chunk progress.
+    tel->manufacturer = PBSYS_TELEMETRY_MANUFACTURER_LEGO;
+    tel->id = LEGO_DEVICE_TYPE_ID_NXT_DISPLAY;
+    tel->location = chunk;
+    tel->mode = 0;
+    *size = PBDRV_DISPLAY_TELEMETRY_CHUNK_SIZE;
+
+    chunk = (chunk + 1) % PBDRV_DISPLAY_TELEMETRY_CHUNK_NUM;
+    *done = chunk == 0;
+    return PBSYS_TELEMETRY_SUCCESS;
 }
 
 uint8_t pbdrv_display_get_max_value(void) {

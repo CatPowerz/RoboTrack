@@ -4,7 +4,51 @@
 
 ## [Unreleased]
 
-[Unreleased]: https://github.com/pybricks/pybricks-micropython/compare/v4.1.0b2...HEAD
+### Added
+- Support for setting a custom hub name when flashing NXT and EV3
+  firmware ([support#2342]).
+
+### Changed
+- Updated MicroPython to v1.29.0.
+- On the Move Hub, `bytes()` and `bytes.find()` now truncate out-of-range
+  values instead of raising `ValueError`.
+- The USB product string now reports the hub name and hub type,
+  e.g. "robot (SPIKE Prime)", instead of a fixed product name. The EV3
+  Bluetooth Classic device name uses the same format. The BLE device name
+  remains just the hub name ([support#2630]).
+
+### Fixed
+- Fixed slow broadcasting while observing at the same time ([support#2822]).
+- Fixed slow observing while connected to a computer or app ([support#2822]).
+- Fixed connected remote preventing Move Hub from advertising.
+- Fixed Move Hub not broadcasting while connected to a PC ([support#2826]).
+
+[support#2822]: https://github.com/orgs/pybricks/discussions/2822
+[support#2826]: https://github.com/pybricks/support/issues/2826
+
+[Unreleased]: https://github.com/pybricks/pybricks-micropython/compare/v4.1.0b3...HEAD
+
+### Fixed
+- Fixed output missing on Technic Hub and City Hub ([support#2814]).
+
+[support#2342]: https://github.com/pybricks/support/issues/2342
+[support#2630]: https://github.com/pybricks/support/issues/2630
+[support#2812]: https://github.com/pybricks/support/issues/2814
+
+[Unreleased]: https://github.com/pybricks/pybricks-micropython/compare/v4.1.0b3...HEAD
+
+## [4.1.0b3] - 2026-08-25
+
+### Changed
+- Combined USB and BLE data flows for faster throughput with less resources.
+- `pybricks.ev3devices.InfraredSensor.keypad` returns a set instead of a list.
+
+### Fixed
+- Fixed stdin buffer being less than nett MTU size, which caused larger stdin
+  values to be rejected ([support#2788]).
+
+[support#2788]: https://github.com/pybricks/support/issues/2788
+[4.1.0b3]: https://github.com/pybricks/pybricks-micropython/compare/v4.1.0b2...v4.1.0b3
 
 ## [4.1.0b2] - 2026-07-14
 

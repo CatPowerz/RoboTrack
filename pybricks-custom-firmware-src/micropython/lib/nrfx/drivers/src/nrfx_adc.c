@@ -1,6 +1,8 @@
 /*
- * Copyright (c) 2015 - 2019, Nordic Semiconductor ASA
+ * Copyright (c) 2015 - 2025, Nordic Semiconductor ASA
  * All rights reserved.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -61,7 +63,11 @@ nrfx_err_t nrfx_adc_init(nrfx_adc_config_t const * p_config,
 
     if (m_cb.state != NRFX_DRV_STATE_UNINITIALIZED)
     {
+#if NRFX_API_VER_AT_LEAST(3, 2, 0)
+        err_code = NRFX_ERROR_ALREADY;
+#else
         err_code = NRFX_ERROR_INVALID_STATE;
+#endif
         NRFX_LOG_WARNING("Function: %s, error code: %s.",
                          __func__,
                          NRFX_LOG_ERROR_STRING_GET(err_code));
@@ -84,6 +90,8 @@ nrfx_err_t nrfx_adc_init(nrfx_adc_config_t const * p_config,
 
 void nrfx_adc_uninit(void)
 {
+    NRFX_ASSERT(m_cb.state != NRFX_DRV_STATE_UNINITIALIZED);
+
     NRFX_IRQ_DISABLE(ADC_IRQn);
     nrf_adc_int_disable(NRF_ADC, NRF_ADC_INT_END_MASK);
     nrf_adc_task_trigger(NRF_ADC, NRF_ADC_TASK_STOP);
@@ -95,6 +103,12 @@ void nrfx_adc_uninit(void)
     m_cb.p_head = NULL;
 
     m_cb.state = NRFX_DRV_STATE_UNINITIALIZED;
+    NRFX_LOG_INFO("Uninitialized.");
+}
+
+bool nrfx_adc_init_check(void)
+{
+    return (m_cb.state != NRFX_DRV_STATE_UNINITIALIZED);
 }
 
 void nrfx_adc_channel_enable(nrfx_adc_channel_t * const p_channel)
@@ -204,7 +218,7 @@ nrfx_err_t nrfx_adc_sample_convert(nrfx_adc_channel_t const * p_channel,
     }
 }
 
-static bool adc_sample_process()
+static bool adc_sample_process(void)
 {
     nrf_adc_event_clear(NRF_ADC, NRF_ADC_EVENT_END);
     nrf_adc_disable(NRF_ADC);
@@ -243,6 +257,7 @@ static bool adc_sample_process()
 nrfx_err_t nrfx_adc_buffer_convert(nrf_adc_value_t * buffer, uint16_t size)
 {
     NRFX_ASSERT(m_cb.state != NRFX_DRV_STATE_UNINITIALIZED);
+    NRFX_ASSERT(buffer);
 
     nrfx_err_t err_code;
 
@@ -302,7 +317,7 @@ void nrfx_adc_irq_handler(void)
     if (m_cb.p_buffer == NULL)
     {
         nrf_adc_event_clear(NRF_ADC, NRF_ADC_EVENT_END);
-        NRFX_LOG_DEBUG("Event: %s.",NRFX_LOG_ERROR_STRING_GET(NRF_ADC_EVENT_END));
+        NRFX_LOG_DEBUG("Event: %s.", EVT_TO_STR(NRF_ADC_EVENT_END));
         nrf_adc_int_disable(NRF_ADC, NRF_ADC_INT_END_MASK);
         nrf_adc_disable(NRF_ADC);
         nrfx_adc_evt_t evt;
@@ -315,7 +330,7 @@ void nrfx_adc_irq_handler(void)
     }
     else if (adc_sample_process())
     {
-        NRFX_LOG_DEBUG("Event: %s.", NRFX_LOG_ERROR_STRING_GET(NRF_ADC_EVENT_END));
+        NRFX_LOG_DEBUG("Event: %s.", EVT_TO_STR(NRF_ADC_EVENT_END));
         nrf_adc_int_disable(NRF_ADC, NRF_ADC_INT_END_MASK);
         nrfx_adc_evt_t evt;
         evt.type = NRFX_ADC_EVT_DONE;

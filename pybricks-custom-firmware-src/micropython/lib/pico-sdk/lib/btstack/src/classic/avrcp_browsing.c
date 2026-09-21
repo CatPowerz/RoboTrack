@@ -215,6 +215,7 @@ static void avrcp_browsing_packet_handler(uint8_t packet_type, uint16_t channel,
 
     switch (packet_type){
         case L2CAP_DATA_PACKET:
+            if (size < 1u) break;
             switch (avrcp_get_frame_type(packet[0])){
                 case AVRCP_RESPONSE_FRAME:
                     (*avrcp_browsing_controller_packet_handler)(packet_type, channel, packet, size);
@@ -548,13 +549,6 @@ uint8_t avrcp_browsing_decline_incoming_connection(uint16_t avrcp_browsing_cid){
     if (!connection_target){
         return ERROR_CODE_UNKNOWN_CONNECTION_IDENTIFIER;
     }
-    
-    if (!connection_controller->browsing_connection){
-        return ERROR_CODE_UNKNOWN_CONNECTION_IDENTIFIER;
-    }
-    if (!connection_target->browsing_connection){
-        return ERROR_CODE_UNKNOWN_CONNECTION_IDENTIFIER;
-    }
 
     if (connection_controller->browsing_connection->state != AVCTP_CONNECTION_W4_ERTM_CONFIGURATION){
         return ERROR_CODE_COMMAND_DISALLOWED;
@@ -574,13 +568,6 @@ uint8_t avrcp_browsing_disconnect(uint16_t avrcp_browsing_cid){
     }
     avrcp_connection_t * connection_target = avrcp_get_connection_for_browsing_cid_for_role(AVRCP_TARGET, avrcp_browsing_cid);
     if (!connection_target){
-        return ERROR_CODE_UNKNOWN_CONNECTION_IDENTIFIER;
-    }
-    
-    if (!connection_controller->browsing_connection){
-        return ERROR_CODE_UNKNOWN_CONNECTION_IDENTIFIER;
-    }
-    if (!connection_target->browsing_connection){
         return ERROR_CODE_UNKNOWN_CONNECTION_IDENTIFIER;
     }
 

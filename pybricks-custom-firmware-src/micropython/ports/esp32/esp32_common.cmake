@@ -23,7 +23,7 @@ if(CONFIG_IDF_TARGET_ARCH_RISCV)
 endif()
 
 if(NOT DEFINED MICROPY_PY_TINYUSB)
-    if(CONFIG_IDF_TARGET_ESP32S2 OR CONFIG_IDF_TARGET_ESP32S3)
+    if(CONFIG_IDF_TARGET_ESP32S2 OR CONFIG_IDF_TARGET_ESP32S3 OR CONFIG_IDF_TARGET_ESP32P4)
         set(MICROPY_PY_TINYUSB ON)
     endif()
 endif()
@@ -97,6 +97,14 @@ if(MICROPY_PY_TINYUSB)
     list(APPEND MICROPY_INC_TINYUSB
         ${MICROPY_DIR}/shared/tinyusb/
     )
+
+    # Build the Espressif tinyusb component with MicroPython shared/tinyusb/tusb_config.h
+    idf_component_get_property(tusb_lib espressif__tinyusb COMPONENT_LIB)
+    target_include_directories(${tusb_lib} PRIVATE
+        ${MICROPY_DIR}/shared/tinyusb
+        ${MICROPY_DIR}
+        ${MICROPY_PORT_DIR}
+        ${MICROPY_BOARD_DIR})
 endif()
 
 list(APPEND MICROPY_SOURCE_PORT
@@ -121,6 +129,7 @@ list(APPEND MICROPY_SOURCE_PORT
     network_lan.c
     network_ppp.c
     network_wlan.c
+    network_wlan_csi.c
     mpnimbleport.c
     modsocket.c
     lwip_patch.c
@@ -130,6 +139,7 @@ list(APPEND MICROPY_SOURCE_PORT
     esp32_pcnt.c
     esp32_rmt.c
     esp32_ulp.c
+    esp32_ldo.c
     modesp32.c
     machine_hw_spi.c
     mpthreadport.c
@@ -158,7 +168,9 @@ list(APPEND IDF_COMPONENTS
     driver
     esp_adc
     esp_app_format
+    esp_mm
     esp_common
+    esp_driver_gptimer
     esp_eth
     esp_event
     esp_hw_support
@@ -186,6 +198,11 @@ list(APPEND IDF_COMPONENTS
     usb
     vfs
 )
+
+if($ENV{IDF_VERSION} VERSION_GREATER_EQUAL "5.4")
+    list(APPEND IDF_COMPONENTS
+        esp_driver_touch_sens)
+endif()
 
 # Provide the default LD fragment if not set
 if (MICROPY_USER_LDFRAGMENTS)
@@ -234,7 +251,11 @@ set(MICROPY_TARGET ${COMPONENT_TARGET})
 if(CONFIG_IDF_TARGET_ARCH_XTENSA)
     set(MICROPY_CROSS_FLAGS -march=xtensawin)
 elseif(CONFIG_IDF_TARGET_ARCH_RISCV)
-    set(MICROPY_CROSS_FLAGS -march=rv32imc)
+    if (CONFIG_IDF_TARGET_ESP32P4)
+        set(MICROPY_CROSS_FLAGS "-march=rv32imc -march-flags=zcmp")
+    else()
+        set(MICROPY_CROSS_FLAGS -march=rv32imc)
+    endif()
 endif()
 
 # Set compile options for this port.
@@ -258,6 +279,11 @@ target_compile_options(${MICROPY_TARGET} PUBLIC
     -Wno-missing-field-initializers
 )
 
+# User C modules don't pick up certain compile options set by the IDF, most
+# importantly the optimisation level.  So set them here.
+idf_build_get_property(idf_compile_options COMPILE_OPTIONS)
+target_compile_options(usermod INTERFACE ${idf_compile_options})
+
 # Additional include directories needed for private NimBLE headers.
 target_include_directories(${MICROPY_TARGET} PUBLIC
     ${IDF_PATH}/components/bt/host/nimble/nimble
@@ -265,7 +291,8 @@ target_include_directories(${MICROPY_TARGET} PUBLIC
 
 # Add additional extmod and usermod components.
 if (MICROPY_PY_BTREE)
-    target_link_libraries(${MICROPY_TARGET} micropy_extmod_btree)
+    target_link_libraries(${MICROPY_TARGET} $<TARGET_OBJECTS:micropy_extmod_btree>)
+    target_link_libraries(${MICROPY_TARGET} "-u abort_")  # micropy_extmod_btree links to this symbol found in MICROPY_TARGET
 endif()
 target_link_libraries(${MICROPY_TARGET} usermod)
 
@@ -281,6 +308,7 @@ target_link_options(${MICROPY_TARGET} PUBLIC
   # Enable the panic handler wrapper
   -Wl,--undefined=esp_panic_handler
   -Wl,--wrap=esp_panic_handler
+  -Wl,--wrap=esp_efuse_rtc_calib_get_ver
 )
 
 # Collect all of the include directories and compile definitions for the IDF components,
@@ -289,6 +317,10 @@ foreach(comp ${__COMPONENT_NAMES_RESOLVED})
     micropy_gather_target_properties(__idf_${comp})
     micropy_gather_target_properties(${comp})
 endforeach()
+
+# Explicitly add extra definitions for MicroPython's preprocessing stage
+# (these are not picked up by the above micropy_gather_target_properties).
+list(APPEND MICROPY_CPP_DEF_EXTRA "ESP_PLATFORM")
 
 # Include the main MicroPython cmake rules.
 include(${MICROPY_DIR}/py/mkrules.cmake)

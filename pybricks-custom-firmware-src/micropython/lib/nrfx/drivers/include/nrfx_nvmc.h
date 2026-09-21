@@ -1,6 +1,8 @@
 /*
- * Copyright (c) 2019, Nordic Semiconductor ASA
+ * Copyright (c) 2019 - 2025, Nordic Semiconductor ASA
  * All rights reserved.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -35,6 +37,7 @@
 #include <nrfx.h>
 #include <hal/nrf_nvmc.h>
 #include <hal/nrf_ficr.h>
+#include <nrf_erratas.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -82,7 +85,7 @@ nrfx_err_t nrfx_nvmc_uicr_erase(void);
  */
 void nrfx_nvmc_all_erase(void);
 
-#if defined(NRF_NVMC_PARTIAL_ERASE_PRESENT)
+#if NRF_NVMC_HAS_PARTIAL_ERASE || defined(__NRFX_DOXYGEN__)
 /**
  * @brief Function for initiating a complete page erase split into parts (also known as partial erase).
  *
@@ -121,7 +124,7 @@ nrfx_err_t nrfx_nvmc_page_partial_erase_init(uint32_t address, uint32_t duration
  */
 bool nrfx_nvmc_page_partial_erase_continue(void);
 
-#endif // defined(NRF_NVMC_PARTIAL_ERASE_PRESENT)
+#endif // NRF_NVMC_HAS_PARTIAL_ERASE || defined(__NRFX_DOXYGEN__)
 
 /**
  * @brief Function for checking whether a byte is writable at the specified address.
@@ -153,6 +156,37 @@ bool nrfx_nvmc_byte_writable_check(uint32_t address, uint8_t value);
  * @param value   Value to write.
  */
 void nrfx_nvmc_byte_write(uint32_t address, uint8_t value);
+
+/**
+ * @brief Function for checking whether a halfword is writable at the specified address.
+ *
+ * The NVMC is only able to write '0' to bits in the Flash that are erased (set to '1').
+ * It cannot rewrite a bit back to '1'. This function checks if the value currently
+ * residing at the specified address can be transformed to the desired value
+ * without any '0' to '1' transitions.
+ *
+ * @param address Address to be checked. Must be halfword-aligned.
+ * @param value   Value to be checked.
+ *
+ * @retval true  Halfword can be written at the specified address.
+ * @retval false Halfword cannot be written at the specified address.
+ *               Erase page or change address.
+ */
+bool nrfx_nvmc_halfword_writable_check(uint32_t address, uint16_t value);
+
+/**
+ * @brief Function for writing a 16-bit halfword to flash.
+ *
+ * To determine if the flash write has been completed, use @ref nrfx_nvmc_write_done_check().
+ *
+ * @note Depending on the source of the code being executed,
+ *       the CPU may be halted during the operation.
+ *       Refer to the Product Specification for more information.
+ *
+ * @param address Address to write to. Must be halfword-aligned.
+ * @param value   Value to write.
+ */
+void nrfx_nvmc_halfword_write(uint32_t address, uint16_t value);
 
 /**
  * @brief Function for checking whether a word is writable at the specified address.
@@ -216,6 +250,34 @@ void nrfx_nvmc_bytes_write(uint32_t address, void const * src, uint32_t num_byte
 void nrfx_nvmc_words_write(uint32_t address, void const * src, uint32_t num_words);
 
 /**
+ * @brief Function for reading a 16-bit aligned halfword from the OTP (UICR)
+ *
+ * OTP is a region of the UICR present in some chips. This function must be used
+ * to read halfword data from this region since unaligned accesses are not
+ * available on the OTP flash area.
+ *
+ * @param address Address to read from. Must be halfword-aligned.
+ *
+ * @retval The contents at @p address.
+ */
+uint16_t nrfx_nvmc_otp_halfword_read(uint32_t address);
+
+/**
+ * @brief Function for reading a 32-bit aligned word from the UICR
+ *
+ * This function should be used to read from the UICR since reading
+ * the flash main memory area straight after reading the UICR results
+ * in undefined behaviour for nRF9160.
+ *
+ * @note See anomaly 7 in the errata document.
+ *
+ * @param address Address to read from. Must be word-aligned.
+ *
+ * @retval The contents at @p address.
+ */
+NRFX_STATIC_INLINE uint32_t nrfx_nvmc_uicr_word_read(uint32_t const volatile *address);
+
+/**
  * @brief Function for getting the total flash size in bytes.
  *
  * @return Flash total size in bytes.
@@ -244,7 +306,7 @@ uint32_t nrfx_nvmc_flash_page_count_get(void);
  */
 NRFX_STATIC_INLINE bool nrfx_nvmc_write_done_check(void);
 
-#if defined(NVMC_FEATURE_CACHE_PRESENT)
+#if defined(NVMC_FEATURE_CACHE_PRESENT) || defined(__NRFX_DOXYGEN__)
 /**
  * @brief Function for enabling the Instruction Cache (ICache).
  *
@@ -256,12 +318,35 @@ NRFX_STATIC_INLINE void nrfx_nvmc_icache_enable(void);
 /** @brief Function for disabling ICache. */
 NRFX_STATIC_INLINE void nrfx_nvmc_icache_disable(void);
 
-#endif // defined(NVMC_FEATURE_CACHE_PRESENT)
+#endif
 
 #ifndef NRFX_DECLARE_ONLY
 NRFX_STATIC_INLINE bool nrfx_nvmc_write_done_check(void)
 {
     return nrf_nvmc_ready_check(NRF_NVMC);
+}
+
+NRFX_STATIC_INLINE uint32_t nrfx_nvmc_uicr_word_read(uint32_t const volatile *address)
+{
+#if NRF91_ERRATA_7_ENABLE_WORKAROUND
+    bool irq_disabled = __get_PRIMASK() == 1;
+    if (!irq_disabled)
+    {
+        __disable_irq();
+    }
+#endif
+
+    uint32_t value = nrf_nvmc_word_read((uint32_t)address);
+
+#if NRF91_ERRATA_7_ENABLE_WORKAROUND
+    __DSB();
+    if (!irq_disabled)
+    {
+        __enable_irq();
+    }
+#endif
+
+    return value;
 }
 
 #if defined(NVMC_FEATURE_CACHE_PRESENT)

@@ -246,7 +246,7 @@ void asm_thumb_mov_reg_reg(asm_thumb_t *as, uint reg_dest, uint reg_src) {
 void asm_thumb_mov_reg_i16(asm_thumb_t *as, uint mov_op, uint reg_dest, int i16_src) {
     assert(reg_dest < ASM_THUMB_REG_R15);
     // mov[wt] reg_dest, #i16_src
-    asm_thumb_op32(as, mov_op | ((i16_src >> 1) & 0x0400) | ((i16_src >> 12) & 0xf), ((i16_src << 4) & 0x7000) | (reg_dest << 8) | (i16_src & 0xff));
+    asm_thumb_op32(as, mov_op | ((i16_src >> 1) & 0x0400) | ((i16_src >> 12) & 0xf), (((uint16_t)i16_src << 4) & 0x7000) | (reg_dest << 8) | (i16_src & 0xff));
 }
 
 static void asm_thumb_mov_rlo_i16(asm_thumb_t *as, uint rlo_dest, int i16_src) {
@@ -267,9 +267,8 @@ bool asm_thumb_b_n_label(asm_thumb_t *as, uint label) {
 
 #define OP_BCC_N(cond, byte_offset) (0xd000 | ((cond) << 8) | (((byte_offset) >> 1) & 0x00ff))
 
-// all these bit-arithmetic operations need coverage testing!
-#define OP_BCC_W_HI(cond, byte_offset) (0xf000 | ((cond) << 6) | (((byte_offset) >> 10) & 0x0400) | (((byte_offset) >> 14) & 0x003f))
-#define OP_BCC_W_LO(byte_offset) (0x8000 | ((byte_offset) & 0x2000) | (((byte_offset) >> 1) & 0x0fff))
+#define OP_BCC_W_HI(cond, byte_offset) (0xf000 | ((cond) << 6) | (((byte_offset) >> 10) & 0x0400) | (((byte_offset) >> 12) & 0x003f))
+#define OP_BCC_W_LO(byte_offset) (0x8000 | (((byte_offset) >> 5) & 0x2000) | (((byte_offset) >> 8) & 0x0800) | (((byte_offset) >> 1) & 0x07ff))
 
 bool asm_thumb_bcc_nw_label(asm_thumb_t *as, int cond, uint label, bool wide) {
     mp_uint_t dest = get_label_dest(as, label);

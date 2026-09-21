@@ -1,6 +1,8 @@
 /*
- * Copyright (c) 2015 - 2019, Nordic Semiconductor ASA
+ * Copyright (c) 2015 - 2025, Nordic Semiconductor ASA
  * All rights reserved.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -44,6 +46,15 @@ extern "C" {
  * @ingroup nrf_spi
  * @brief   Hardware access layer for managing the SPI peripheral.
  */
+
+/**
+ * @brief Macro getting pointer to the structure of registers of the SPI peripheral.
+ *
+ * @param[in] idx SPI instance index.
+ *
+ * @return Pointer to the structure of registers of the SPI peripheral.
+ */
+#define NRF_SPI_INST_GET(idx) NRFX_CONCAT(NRF_, SPI, idx)
 
 /**
  * @brief This value can be used as a parameter for the @ref nrf_spi_pins_set
@@ -134,6 +145,7 @@ NRF_STATIC_INLINE uint32_t nrf_spi_event_address_get(NRF_SPI_Type const * p_reg,
  *
  * @param[in] p_reg Pointer to the structure of registers of the peripheral.
  * @param[in] mask  Mask of interrupts to be enabled.
+ *                  Use @ref nrf_spi_int_mask_t values for bit masking.
  */
 NRF_STATIC_INLINE void nrf_spi_int_enable(NRF_SPI_Type * p_reg,
                                           uint32_t       mask);
@@ -143,6 +155,7 @@ NRF_STATIC_INLINE void nrf_spi_int_enable(NRF_SPI_Type * p_reg,
  *
  * @param[in] p_reg Pointer to the structure of registers of the peripheral.
  * @param[in] mask  Mask of interrupts to be disabled.
+ *                  Use @ref nrf_spi_int_mask_t values for bit masking.
  */
 NRF_STATIC_INLINE void nrf_spi_int_disable(NRF_SPI_Type * p_reg,
                                            uint32_t       mask);
@@ -152,6 +165,7 @@ NRF_STATIC_INLINE void nrf_spi_int_disable(NRF_SPI_Type * p_reg,
  *
  * @param[in] p_reg Pointer to the structure of registers of the peripheral.
  * @param[in] mask  Mask of interrupts to be checked.
+ *                  Use @ref nrf_spi_int_mask_t values for bit masking.
  *
  * @return Mask of enabled interrupts.
  */
@@ -186,6 +200,57 @@ NRF_STATIC_INLINE void nrf_spi_pins_set(NRF_SPI_Type * p_reg,
                                         uint32_t       sck_pin,
                                         uint32_t       mosi_pin,
                                         uint32_t       miso_pin);
+
+/**
+ * @brief Function for setting the SCK pin.
+ *
+ * @param[in] p_reg Pointer to the structure of registers of the peripheral.
+ * @param[in] pin   SCK pin number.
+ */
+NRF_STATIC_INLINE void nrf_spi_sck_pin_set(NRF_SPI_Type * p_reg, uint32_t pin);
+
+/**
+ * @brief Function for setting the MOSI pin
+ *
+ * @param[in] p_reg Pointer to the structure of registers of the peripheral.
+ * @param[in] pin   MOSI pin number.
+ */
+NRF_STATIC_INLINE void nrf_spi_mosi_pin_set(NRF_SPI_Type * p_reg, uint32_t pin);
+
+/**
+ * @brief Function for setting the MISO pin.
+ *
+ * @param[in] p_reg Pointer to the structure of registers of the peripheral.
+ * @param[in] pin   MISO pin number.
+ */
+NRF_STATIC_INLINE void nrf_spi_miso_pin_set(NRF_SPI_Type * p_reg, uint32_t pin);
+
+/**
+ * @brief Function for getting the SCK pin selection.
+ *
+ * @param[in] p_reg Pointer to the structure of registers of the peripheral.
+ *
+ * @return SCK pin selection;
+ */
+NRF_STATIC_INLINE uint32_t nrf_spi_sck_pin_get(NRF_SPI_Type const * p_reg);
+
+/**
+ * @brief Function for getting the MOSI pin selection.
+ *
+ * @param[in] p_reg Pointer to the structure of registers of the peripheral.
+ *
+ * @return MOSI pin selection;
+ */
+NRF_STATIC_INLINE uint32_t nrf_spi_mosi_pin_get(NRF_SPI_Type const * p_reg);
+
+/**
+ * @brief Function for getting the MISO pin selection.
+ *
+ * @param[in] p_reg Pointer to the structure of registers of the peripheral.
+ *
+ * @return MISO pin selection;
+ */
+NRF_STATIC_INLINE uint32_t nrf_spi_miso_pin_get(NRF_SPI_Type const * p_reg);
 
 /**
  * @brief Function for writing data to the SPI transmitter register.
@@ -231,22 +296,19 @@ NRF_STATIC_INLINE void nrf_spi_event_clear(NRF_SPI_Type *  p_reg,
                                            nrf_spi_event_t event)
 {
     *((volatile uint32_t *)((uint8_t *)p_reg + (uint32_t)event)) = 0x0UL;
-#if __CORTEX_M == 0x04
-    volatile uint32_t dummy = *((volatile uint32_t *)((uint8_t *)p_reg + (uint32_t)event));
-    (void)dummy;
-#endif
+    nrf_event_readback((uint8_t *)p_reg + (uint32_t)event);
 }
 
 NRF_STATIC_INLINE bool nrf_spi_event_check(NRF_SPI_Type const * p_reg,
                                            nrf_spi_event_t      event)
 {
-    return (bool)*(volatile uint32_t *)((uint8_t *)p_reg + (uint32_t)event);
+    return nrf_event_check(p_reg, event);
 }
 
 NRF_STATIC_INLINE uint32_t nrf_spi_event_address_get(NRF_SPI_Type const * p_reg,
                                                      nrf_spi_event_t      event)
 {
-    return (uint32_t)((uint8_t *)p_reg + (uint32_t)event);
+    return nrf_task_event_address_get(p_reg, event);
 }
 
 NRF_STATIC_INLINE void nrf_spi_int_enable(NRF_SPI_Type * p_reg,
@@ -300,6 +362,60 @@ NRF_STATIC_INLINE void nrf_spi_pins_set(NRF_SPI_Type * p_reg,
 #endif
 }
 
+NRF_STATIC_INLINE void nrf_spi_sck_pin_set(NRF_SPI_Type * p_reg, uint32_t pin)
+{
+#if defined(SPI_PSEL_SCK_CONNECT_Pos)
+    p_reg->PSEL.SCK = pin;
+#else
+    p_reg->PSELSCK  = pin;
+#endif
+}
+
+NRF_STATIC_INLINE void nrf_spi_mosi_pin_set(NRF_SPI_Type * p_reg, uint32_t pin)
+{
+#if defined(SPI_PSEL_MOSI_CONNECT_Pos)
+    p_reg->PSEL.MOSI = pin;
+#else
+    p_reg->PSELMOSI = pin;
+#endif
+}
+
+NRF_STATIC_INLINE void nrf_spi_miso_pin_set(NRF_SPI_Type * p_reg, uint32_t pin)
+{
+#if defined(SPI_PSEL_MISO_CONNECT_Pos)
+    p_reg->PSEL.MISO = pin;
+#else
+    p_reg->PSELMISO = pin;
+#endif
+}
+
+NRF_STATIC_INLINE uint32_t nrf_spi_sck_pin_get(NRF_SPI_Type const * p_reg)
+{
+#if defined(SPI_PSEL_SCK_CONNECT_Pos)
+    return p_reg->PSEL.SCK;
+#else
+    return p_reg->PSELSCK;
+#endif
+}
+
+NRF_STATIC_INLINE uint32_t nrf_spi_mosi_pin_get(NRF_SPI_Type const * p_reg)
+{
+#if defined(SPI_PSEL_MOSI_CONNECT_Pos)
+    return p_reg->PSEL.MOSI;
+#else
+    return p_reg->PSELMOSI;
+#endif
+}
+
+NRF_STATIC_INLINE uint32_t nrf_spi_miso_pin_get(NRF_SPI_Type const * p_reg)
+{
+#if defined(SPI_PSEL_MISO_CONNECT_Pos)
+    return p_reg->PSEL.MISO;
+#else
+    return p_reg->PSELMISO;
+#endif
+}
+
 NRF_STATIC_INLINE void nrf_spi_txd_set(NRF_SPI_Type * p_reg, uint8_t data)
 {
     p_reg->TXD = data;
@@ -307,7 +423,7 @@ NRF_STATIC_INLINE void nrf_spi_txd_set(NRF_SPI_Type * p_reg, uint8_t data)
 
 NRF_STATIC_INLINE uint8_t nrf_spi_rxd_get(NRF_SPI_Type const * p_reg)
 {
-    return p_reg->RXD;
+    return (uint8_t)p_reg->RXD;
 }
 
 NRF_STATIC_INLINE void nrf_spi_frequency_set(NRF_SPI_Type *      p_reg,

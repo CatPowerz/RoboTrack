@@ -1,4 +1,4 @@
-; Copyright (c) 2009-2018 ARM Limited. All rights reserved.
+; Copyright (c) 2009-2025 ARM Limited. All rights reserved.
 ; 
 ;     SPDX-License-Identifier: Apache-2.0
 ; 
@@ -30,7 +30,7 @@ Stack_Size      EQU __STARTUP_CONFIG_STACK_SIZE
                 ELIF :DEF: __STACK_SIZE
 Stack_Size      EQU __STACK_SIZE
                 ELSE
-Stack_Size      EQU 8192
+Stack_Size      EQU 16384
                 ENDIF
                 
                 IF :DEF: __STARTUP_CONFIG
@@ -48,7 +48,7 @@ Heap_Size       EQU __STARTUP_CONFIG_HEAP_SIZE
                 ELIF :DEF: __HEAP_SIZE
 Heap_Size       EQU __HEAP_SIZE
                 ELSE
-Heap_Size       EQU 8192
+Heap_Size       EQU 16384
                 ENDIF
 
                 AREA    HEAP, NOINIT, READWRITE, ALIGN=3
@@ -92,11 +92,11 @@ __Vectors       DCD     __initial_sp              ; Top of Stack
                 DCD     CLOCK_POWER_IRQHandler
                 DCD     0                         ; Reserved
                 DCD     0                         ; Reserved
-                DCD     SPIM0_SPIS0_TWIM0_TWIS0_UARTE0_IRQHandler
-                DCD     SPIM1_SPIS1_TWIM1_TWIS1_UARTE1_IRQHandler
-                DCD     SPIM2_IRQHandler
-                DCD     0                         ; Reserved
-                DCD     0                         ; Reserved
+                DCD     SERIAL0_IRQHandler
+                DCD     SERIAL1_IRQHandler
+                DCD     SPIM4_IRQHandler
+                DCD     SERIAL2_IRQHandler
+                DCD     SERIAL3_IRQHandler
                 DCD     GPIOTE0_IRQHandler
                 DCD     SAADC_IRQHandler
                 DCD     TIMER0_IRQHandler
@@ -120,7 +120,7 @@ __Vectors       DCD     __initial_sp              ; Top of Stack
                 DCD     PWM0_IRQHandler
                 DCD     PWM1_IRQHandler
                 DCD     PWM2_IRQHandler
-                DCD     0                         ; Reserved
+                DCD     PWM3_IRQHandler
                 DCD     0                         ; Reserved
                 DCD     PDM0_IRQHandler
                 DCD     0                         ; Reserved
@@ -135,8 +135,8 @@ __Vectors       DCD     __initial_sp              ; Top of Stack
                 DCD     0                         ; Reserved
                 DCD     0                         ; Reserved
                 DCD     0                         ; Reserved
-                DCD     QDEC_IRQHandler
-                DCD     0                         ; Reserved
+                DCD     QDEC0_IRQHandler
+                DCD     QDEC1_IRQHandler
                 DCD     0                         ; Reserved
                 DCD     USBD_IRQHandler
                 DCD     USBREGULATOR_IRQHandler
@@ -401,9 +401,11 @@ Default_Handler PROC
                 EXPORT   CACHE_IRQHandler [WEAK]
                 EXPORT   SPU_IRQHandler [WEAK]
                 EXPORT   CLOCK_POWER_IRQHandler [WEAK]
-                EXPORT   SPIM0_SPIS0_TWIM0_TWIS0_UARTE0_IRQHandler [WEAK]
-                EXPORT   SPIM1_SPIS1_TWIM1_TWIS1_UARTE1_IRQHandler [WEAK]
-                EXPORT   SPIM2_IRQHandler [WEAK]
+                EXPORT   SERIAL0_IRQHandler [WEAK]
+                EXPORT   SERIAL1_IRQHandler [WEAK]
+                EXPORT   SPIM4_IRQHandler [WEAK]
+                EXPORT   SERIAL2_IRQHandler [WEAK]
+                EXPORT   SERIAL3_IRQHandler [WEAK]
                 EXPORT   GPIOTE0_IRQHandler [WEAK]
                 EXPORT   SAADC_IRQHandler [WEAK]
                 EXPORT   TIMER0_IRQHandler [WEAK]
@@ -423,13 +425,15 @@ Default_Handler PROC
                 EXPORT   PWM0_IRQHandler [WEAK]
                 EXPORT   PWM1_IRQHandler [WEAK]
                 EXPORT   PWM2_IRQHandler [WEAK]
+                EXPORT   PWM3_IRQHandler [WEAK]
                 EXPORT   PDM0_IRQHandler [WEAK]
                 EXPORT   I2S0_IRQHandler [WEAK]
                 EXPORT   IPC_IRQHandler [WEAK]
                 EXPORT   QSPI_IRQHandler [WEAK]
                 EXPORT   NFCT_IRQHandler [WEAK]
                 EXPORT   GPIOTE1_IRQHandler [WEAK]
-                EXPORT   QDEC_IRQHandler [WEAK]
+                EXPORT   QDEC0_IRQHandler [WEAK]
+                EXPORT   QDEC1_IRQHandler [WEAK]
                 EXPORT   USBD_IRQHandler [WEAK]
                 EXPORT   USBREGULATOR_IRQHandler [WEAK]
                 EXPORT   KMU_IRQHandler [WEAK]
@@ -438,9 +442,11 @@ FPU_IRQHandler
 CACHE_IRQHandler
 SPU_IRQHandler
 CLOCK_POWER_IRQHandler
-SPIM0_SPIS0_TWIM0_TWIS0_UARTE0_IRQHandler
-SPIM1_SPIS1_TWIM1_TWIS1_UARTE1_IRQHandler
-SPIM2_IRQHandler
+SERIAL0_IRQHandler
+SERIAL1_IRQHandler
+SPIM4_IRQHandler
+SERIAL2_IRQHandler
+SERIAL3_IRQHandler
 GPIOTE0_IRQHandler
 SAADC_IRQHandler
 TIMER0_IRQHandler
@@ -460,13 +466,15 @@ EGU5_IRQHandler
 PWM0_IRQHandler
 PWM1_IRQHandler
 PWM2_IRQHandler
+PWM3_IRQHandler
 PDM0_IRQHandler
 I2S0_IRQHandler
 IPC_IRQHandler
 QSPI_IRQHandler
 NFCT_IRQHandler
 GPIOTE1_IRQHandler
-QDEC_IRQHandler
+QDEC0_IRQHandler
+QDEC1_IRQHandler
 USBD_IRQHandler
 USBREGULATOR_IRQHandler
 KMU_IRQHandler

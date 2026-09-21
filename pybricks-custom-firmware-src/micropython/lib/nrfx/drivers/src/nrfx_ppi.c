@@ -1,6 +1,8 @@
 /*
- * Copyright (c) 2015 - 2019, Nordic Semiconductor ASA
+ * Copyright (c) 2015 - 2025, Nordic Semiconductor ASA
  * All rights reserved.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -34,13 +36,16 @@
 #if NRFX_CHECK(NRFX_PPI_ENABLED)
 
 #include <nrfx_ppi.h>
+#include <helpers/nrfx_flag32_allocator.h>
 
 #define NRFX_LOG_MODULE PPI
 #include <nrfx_log.h>
 
+/** @brief Bitmask representing channels availability. */
+static nrfx_atomic_t m_channels_allocated = NRFX_PPI_PROG_APP_CHANNELS_MASK;
 
-static uint32_t         m_channels_allocated; /**< Bitmap representing channels availability. 1 when a channel is allocated, 0 otherwise. */
-static uint8_t          m_groups_allocated;   /**< Bitmap representing groups availability. 1 when a group is allocated, 0 otherwise.*/
+/** @brief Bitmask representing groups availability. */
+static nrfx_atomic_t m_groups_allocated = NRFX_PPI_ALL_APP_GROUPS_MASK;
 
 
 /**
@@ -80,7 +85,6 @@ static bool is_programmable_app_channel(nrf_ppi_channel_t channel)
  */
 static bool are_app_channels(uint32_t channel_mask)
 {
-    //lint -e(587)
     return ((~(NRFX_PPI_ALL_APP_CHANNELS_MASK) & channel_mask) == 0);
 }
 
@@ -114,166 +118,43 @@ static bool is_app_group(nrf_ppi_channel_group_t group)
 }
 
 
-/**
- * @brief Check whether a channel is allocated.
- *
- * @param[in] channel_num  Channel number to check.
- *
- * @retval true  The channel is allocated.
- * @retval false The channel is not allocated.
- */
-static bool is_allocated_channel(nrf_ppi_channel_t channel)
-{
-    return ((m_channels_allocated & nrfx_ppi_channel_to_mask(channel)) != 0);
-}
-
-
-/**
- * @brief Set channel allocated indication.
- *
- * @param[in] channel_num Specifies the channel to set the "allocated" indication.
- */
-static void channel_allocated_set(nrf_ppi_channel_t channel)
-{
-    m_channels_allocated |= nrfx_ppi_channel_to_mask(channel);
-}
-
-
-/**
- * @brief Clear channel allocated indication.
- *
- * @param[in] channel_num Specifies the channel to clear the "allocated" indication.
- */
-static void channel_allocated_clr(nrf_ppi_channel_t channel)
-{
-    m_channels_allocated &= ~nrfx_ppi_channel_to_mask(channel);
-}
-
-
-/**
- * @brief Clear all allocated channels.
- */
-static void channel_allocated_clr_all(void)
-{
-    m_channels_allocated &= ~NRFX_PPI_ALL_APP_CHANNELS_MASK;
-}
-
-
-/**
- * @brief Check whether a group is allocated.
- *
- * @param[in] group_num Group number to check.
- *
- * @retval true  The group is allocated.
- *         false The group is not allocated.
- */
-static bool is_allocated_group(nrf_ppi_channel_group_t group)
-{
-    return ((m_groups_allocated & group_to_mask(group)) != 0);
-}
-
-
-/**
- * @brief Set group allocated indication.
- *
- * @param[in] group_num Specifies the group to set the "allocated" indication.
- */
-static void group_allocated_set(nrf_ppi_channel_group_t group)
-{
-    m_groups_allocated |= group_to_mask(group);
-}
-
-
-/**
- * @brief Clear group allocated indication.
- *
- * @param[in] group_num Specifies the group to clear the "allocated" indication.
- */
-static void group_allocated_clr(nrf_ppi_channel_group_t group)
-{
-    m_groups_allocated &= ~group_to_mask(group);
-}
-
-
-/**
- * @brief Clear all allocated groups.
- */
-static void group_allocated_clr_all()
-{
-    m_groups_allocated &= ~NRFX_PPI_ALL_APP_GROUPS_MASK;
-}
-
-
 void nrfx_ppi_free_all(void)
 {
     uint32_t mask = NRFX_PPI_ALL_APP_GROUPS_MASK;
-    nrf_ppi_channel_group_t group;
 
     // Disable all channels and groups
     nrf_ppi_channels_disable(NRF_PPI, NRFX_PPI_ALL_APP_CHANNELS_MASK);
 
-    for (group = NRF_PPI_CHANNEL_GROUP0; mask != 0; mask &= ~group_to_mask(group), group++)
+    for (uint8_t group_idx = NRF_PPI_CHANNEL_GROUP0; mask != 0; group_idx++)
     {
+        nrf_ppi_channel_group_t group = (nrf_ppi_channel_group_t)group_idx;
         if (mask & group_to_mask(group))
         {
             nrf_ppi_group_clear(NRF_PPI, group);
         }
+        mask &= ~group_to_mask(group);
     }
-    channel_allocated_clr_all();
-    group_allocated_clr_all();
+    nrfx_flag32_init(&m_channels_allocated, NRFX_PPI_PROG_APP_CHANNELS_MASK);
+    nrfx_flag32_init(&m_groups_allocated, NRFX_PPI_ALL_APP_GROUPS_MASK);
 }
 
 
 nrfx_err_t nrfx_ppi_channel_alloc(nrf_ppi_channel_t * p_channel)
 {
-    nrfx_err_t err_code = NRFX_SUCCESS;
-    nrf_ppi_channel_t channel;
-    uint32_t mask = 0;
-    err_code = NRFX_ERROR_NO_MEM;
-
-    mask = NRFX_PPI_PROG_APP_CHANNELS_MASK;
-    for (channel = NRF_PPI_CHANNEL0;
-         mask != 0;
-         mask &= ~nrfx_ppi_channel_to_mask(channel), channel++)
-    {
-        NRFX_CRITICAL_SECTION_ENTER();
-        if ((mask & nrfx_ppi_channel_to_mask(channel)) && (!is_allocated_channel(channel)))
-        {
-            channel_allocated_set(channel);
-            *p_channel = channel;
-            err_code   = NRFX_SUCCESS;
-        }
-        NRFX_CRITICAL_SECTION_EXIT();
-        if (err_code == NRFX_SUCCESS)
-        {
-            NRFX_LOG_INFO("Allocated channel: %d.", channel);
-            break;
-        }
-    }
-
-    NRFX_LOG_INFO("Function: %s, error code: %s.", __func__, NRFX_LOG_ERROR_STRING_GET(err_code));
-    return err_code;
+    return nrfx_flag32_alloc(&m_channels_allocated, (uint8_t *)p_channel);
 }
 
 
 nrfx_err_t nrfx_ppi_channel_free(nrf_ppi_channel_t channel)
 {
-    nrfx_err_t err_code = NRFX_SUCCESS;
-
     if (!is_programmable_app_channel(channel))
     {
-        err_code = NRFX_ERROR_INVALID_PARAM;
+        return NRFX_ERROR_INVALID_PARAM;
     }
-    else
-    {
-        // First disable this channel
-        nrf_ppi_channel_disable(NRF_PPI, channel);
-        NRFX_CRITICAL_SECTION_ENTER();
-        channel_allocated_clr(channel);
-        NRFX_CRITICAL_SECTION_EXIT();
-    }
-    NRFX_LOG_INFO("Function: %s, error code: %s.", __func__, NRFX_LOG_ERROR_STRING_GET(err_code));
-    return err_code;
+
+    nrf_ppi_channel_disable(NRF_PPI, channel);
+
+    return nrfx_flag32_free(&m_channels_allocated, channel);
 }
 
 
@@ -290,7 +171,7 @@ nrfx_err_t nrfx_ppi_channel_assign(nrf_ppi_channel_t channel, uint32_t eep, uint
     {
         err_code = NRFX_ERROR_INVALID_PARAM;
     }
-    else if (!is_allocated_channel(channel))
+    else if (!nrfx_flag32_is_allocated(m_channels_allocated, channel))
     {
         err_code = NRFX_ERROR_INVALID_STATE;
     }
@@ -310,7 +191,7 @@ nrfx_err_t nrfx_ppi_channel_fork_assign(nrf_ppi_channel_t channel, uint32_t fork
 {
     nrfx_err_t err_code = NRFX_SUCCESS;
 #ifdef PPI_FEATURE_FORKS_PRESENT
-    if (!is_allocated_channel(channel))
+    if (!nrfx_flag32_is_allocated(m_channels_allocated, channel))
     {
         err_code = NRFX_ERROR_INVALID_STATE;
     }
@@ -322,6 +203,9 @@ nrfx_err_t nrfx_ppi_channel_fork_assign(nrf_ppi_channel_t channel, uint32_t fork
     NRFX_LOG_INFO("Function: %s, error code: %s.", __func__, NRFX_LOG_ERROR_STRING_GET(err_code));
     return err_code;
 #else
+    (void)channel;
+    (void)fork_tep;
+
     err_code = NRFX_ERROR_NOT_SUPPORTED;
     NRFX_LOG_WARNING("Function: %s, error code: %s.",
                      __func__,
@@ -338,7 +222,8 @@ nrfx_err_t nrfx_ppi_channel_enable(nrf_ppi_channel_t channel)
     {
         err_code = NRFX_ERROR_INVALID_PARAM;
     }
-    else if (is_programmable_app_channel(channel) && !is_allocated_channel(channel))
+    else if (is_programmable_app_channel(channel) &&
+             !nrfx_flag32_is_allocated(m_channels_allocated, channel))
     {
         err_code = NRFX_ERROR_INVALID_STATE;
     }
@@ -359,7 +244,8 @@ nrfx_err_t nrfx_ppi_channel_disable(nrf_ppi_channel_t channel)
     {
         err_code = NRFX_ERROR_INVALID_PARAM;
     }
-    else if (is_programmable_app_channel(channel) && !is_allocated_channel(channel))
+    else if (is_programmable_app_channel(channel) &&
+             !nrfx_flag32_is_allocated(m_channels_allocated, channel))
     {
         err_code = NRFX_ERROR_INVALID_STATE;
     }
@@ -375,56 +261,14 @@ nrfx_err_t nrfx_ppi_channel_disable(nrf_ppi_channel_t channel)
 
 nrfx_err_t nrfx_ppi_group_alloc(nrf_ppi_channel_group_t * p_group)
 {
-    nrfx_err_t err_code;
-    uint32_t mask = 0;
-    nrf_ppi_channel_group_t group;
-
-    err_code = NRFX_ERROR_NO_MEM;
-
-    mask = NRFX_PPI_ALL_APP_GROUPS_MASK;
-    for (group = NRF_PPI_CHANNEL_GROUP0; mask != 0; mask &= ~group_to_mask(group), group++)
-    {
-        NRFX_CRITICAL_SECTION_ENTER();
-        if ((mask & group_to_mask(group)) && (!is_allocated_group(group)))
-        {
-            group_allocated_set(group);
-            *p_group = group;
-            err_code = NRFX_SUCCESS;
-        }
-        NRFX_CRITICAL_SECTION_EXIT();
-        if (err_code == NRFX_SUCCESS)
-        {
-            NRFX_LOG_INFO("Allocated group: %d.", group);
-            break;
-        }
-    }
-
-    NRFX_LOG_INFO("Function: %s, error code: %s.", __func__, NRFX_LOG_ERROR_STRING_GET(err_code));
-    return err_code;
+    return nrfx_flag32_alloc(&m_groups_allocated, (uint8_t *)p_group);
 }
 
 
 nrfx_err_t nrfx_ppi_group_free(nrf_ppi_channel_group_t group)
 {
-    nrfx_err_t err_code = NRFX_SUCCESS;
-
-    if (!is_app_group(group))
-    {
-        err_code = NRFX_ERROR_INVALID_PARAM;
-    }
-    if (!is_allocated_group(group))
-    {
-        err_code = NRFX_ERROR_INVALID_STATE;
-    }
-    else
-    {
-        nrf_ppi_group_disable(NRF_PPI, group);
-        NRFX_CRITICAL_SECTION_ENTER();
-        group_allocated_clr(group);
-        NRFX_CRITICAL_SECTION_EXIT();
-    }
-    NRFX_LOG_INFO("Function: %s, error code: %s.", __func__, NRFX_LOG_ERROR_STRING_GET(err_code));
-    return err_code;
+    nrf_ppi_group_disable(NRF_PPI, group);
+    return nrfx_flag32_free(&m_groups_allocated, group);
 }
 
 
@@ -436,7 +280,7 @@ nrfx_err_t nrfx_ppi_group_enable(nrf_ppi_channel_group_t group)
     {
         err_code = NRFX_ERROR_INVALID_PARAM;
     }
-    else if (!is_allocated_group(group))
+    else if (!nrfx_flag32_is_allocated(m_groups_allocated, group))
     {
         err_code = NRFX_ERROR_INVALID_STATE;
     }
@@ -474,7 +318,7 @@ nrfx_err_t nrfx_ppi_channels_remove_from_group(uint32_t                channel_m
     {
         err_code = NRFX_ERROR_INVALID_PARAM;
     }
-    else if (!is_allocated_group(group))
+    else if (!nrfx_flag32_is_allocated(m_groups_allocated, group))
     {
         err_code = NRFX_ERROR_INVALID_STATE;
     }
@@ -501,7 +345,7 @@ nrfx_err_t nrfx_ppi_channels_include_in_group(uint32_t                channel_ma
     {
         err_code = NRFX_ERROR_INVALID_PARAM;
     }
-    else if (!is_allocated_group(group))
+    else if (!nrfx_flag32_is_allocated(m_groups_allocated, group))
     {
         err_code = NRFX_ERROR_INVALID_STATE;
     }

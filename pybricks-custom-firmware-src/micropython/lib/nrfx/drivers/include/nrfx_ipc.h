@@ -1,6 +1,8 @@
 /*
- * Copyright (c) 2019, Nordic Semiconductor ASA
+ * Copyright (c) 2019 - 2025, Nordic Semiconductor ASA
  * All rights reserved.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -48,10 +50,10 @@ extern "C" {
 /**
  * @brief IPC driver handler type.
  *
- * @param[in] event_mask Bitmask with events that triggered the interrupt.
- * @param[in] p_context  Context passed to the interrupt handler, set on initialization.
+ * @param[in] event_idx IPC event index.
+ * @param[in] p_context Context passed to the interrupt handler, set on initialization.
  */
-typedef void (*nrfx_ipc_handler_t)(uint32_t event_mask, void * p_context);
+typedef void (*nrfx_ipc_handler_t)(uint8_t event_idx, void * p_context);
 
 /** @brief IPC configuration structure. */
 typedef struct
@@ -65,11 +67,12 @@ typedef struct
  * @brief Function for initializing the IPC driver.
  *
  * @param irq_priority Interrupt priority.
- * @param handler      Event handler provided by the user. Cannot be NULL.
+ * @param handler      Event handler provided by the user.
+ *                     Must not be NULL.
  * @param p_context    Context passed to event handler.
  *
- * @retval NRFX_SUCCESS             Initialization was successful.
- * @retval NRFX_ERROR_INVALID_STATE Driver is already initialized.
+ * @retval NRFX_SUCCESS       Initialization was successful.
+ * @retval NRFX_ERROR_ALREADY Driver is already initialized.
  */
 nrfx_err_t nrfx_ipc_init(uint8_t irq_priority, nrfx_ipc_handler_t handler, void * p_context);
 
@@ -91,7 +94,7 @@ void nrfx_ipc_config_load(nrfx_ipc_config_t const * p_config);
 NRFX_STATIC_INLINE void nrfx_ipc_signal(uint8_t send_index);
 
 /**
- * @brief Function for storing data in GPMEM register in the IPC peripheral.
+ * @brief Function for storing data in the general purpose memory register.
  *
  * @param mem_index Index of the memory cell.
  * @param data      Data to be saved.
@@ -99,16 +102,24 @@ NRFX_STATIC_INLINE void nrfx_ipc_signal(uint8_t send_index);
 NRFX_STATIC_INLINE void nrfx_ipc_gpmem_set(uint8_t mem_index, uint32_t data);
 
 /**
- * @brief Function for getting data from the GPMEM register in the IPC peripheral.
+ * @brief Function for getting data from the general purpose memory register.
  *
  * @param mem_index Index of the memory cell.
  *
  * @return Saved data.
  */
-NRFX_STATIC_INLINE uint32_t nrfx_ipc_mem_get(uint8_t mem_index);
+NRFX_STATIC_INLINE uint32_t nrfx_ipc_gpmem_get(uint8_t mem_index);
 
 /** @brief Function for uninitializing the IPC module. */
 void nrfx_ipc_uninit(void);
+
+/**
+ * @brief Function for checking if the IPC driver is initialized.
+ *
+ * @retval true  Driver is already initialized.
+ * @retval false Driver is not initialized.
+ */
+bool nrfx_ipc_init_check(void);
 
 /**
  * @brief Function for enabling events to generate interrupt.
@@ -181,7 +192,7 @@ NRFX_STATIC_INLINE void nrfx_ipc_gpmem_set(uint8_t mem_index, uint32_t data)
     nrf_ipc_gpmem_set(NRF_IPC, mem_index, data);
 }
 
-NRFX_STATIC_INLINE uint32_t nrfx_ipc_mem_get(uint8_t mem_index)
+NRFX_STATIC_INLINE uint32_t nrfx_ipc_gpmem_get(uint8_t mem_index)
 {
     NRFX_ASSERT(mem_index < NRFX_ARRAY_SIZE(NRF_IPC->GPMEM));
     return nrf_ipc_gpmem_get(NRF_IPC, mem_index);

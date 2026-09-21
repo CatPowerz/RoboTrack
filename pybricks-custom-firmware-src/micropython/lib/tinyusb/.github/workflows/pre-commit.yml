@@ -20,7 +20,7 @@ jobs:
         ruby-version: '3.0'
 
     - name: Checkout TinyUSB
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
     - name: Get Dependencies
       run: |
@@ -29,10 +29,12 @@ jobs:
         #ceedling test:all
 
     - name: Run pre-commit
-      uses: pre-commit/action@v3.0.0
+      uses: pre-commit/action@v3.0.1
 
     - name: Build Fuzzer
       run: |
+        sudo apt install libc++-dev libc++abi-dev
+        clang --version
         export CC=clang
         export CXX=clang++
         fuzz_harness=$(ls -d test/fuzz/device/*/)

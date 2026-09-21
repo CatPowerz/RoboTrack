@@ -1,6 +1,8 @@
 /*
- * Copyright (c) 2016 - 2019, Nordic Semiconductor ASA
+ * Copyright (c) 2016 - 2025, Nordic Semiconductor ASA
  * All rights reserved.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -79,8 +81,8 @@ typedef void (* nrfx_rng_evt_handler_t)(uint8_t rng_data);
  * @param[in] p_config Pointer to the structure with the initial configuration.
  * @param[in] handler  Event handler provided by the user. Must not be NULL.
  *
- * @retval NRFX_SUCCESS                   Driver was successfully initialized.
- * @retval NRFX_ERROR_ALREADY_INITIALIZED Driver was already initialized.
+ * @retval NRFX_SUCCESS       Driver was successfully initialized.
+ * @retval NRFX_ERROR_ALREADY Driver was already initialized.
  */
 nrfx_err_t nrfx_rng_init(nrfx_rng_config_t const * p_config, nrfx_rng_evt_handler_t handler);
 
@@ -100,6 +102,14 @@ void nrfx_rng_stop(void);
 
 /** @brief Function for uninitializing the nrfx_rng module. */
 void nrfx_rng_uninit(void);
+
+/**
+ * @brief Function for checking if the RNG driver is initialized.
+ *
+ * @retval true  Driver is already initialized.
+ * @retval false Driver is not initialized.
+ */
+bool nrfx_rng_init_check(void);
 
 /** @} */
 

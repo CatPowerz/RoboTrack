@@ -1,0 +1,23 @@
+{
+    "device-id": 129,
+    "firmware-version": "local-build-v4.1.0b3-79-ge45921c9d-dirty",
+    "metadata-version": "3.0.0",
+    "variants": [
+        {
+            "checksum-size": 983040,
+            "checksum-type": "none",
+            "firmware": "firmware-base-prime_hub_f4.bin",
+            "hub-name-offset": 295664,
+            "hub-name-size": 16,
+            "platform": "prime_hub_f4"
+        },
+        {
+            "checksum-size": 983040,
+            "checksum-type": "none",
+            "firmware": "firmware-base-prime_hub_h5.bin",
+            "hub-name-offset": 308708,
+            "hub-name-size": 16,
+            "platform": "prime_hub_h5"
+        }
+    ]
+}

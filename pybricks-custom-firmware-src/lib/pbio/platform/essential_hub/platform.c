@@ -11,7 +11,7 @@
 #include <pbdrv/ioport.h>
 #include "pbio/light_matrix.h"
 #include "pbio/version.h"
-#include <pbio/port_interface.h>
+#include <pbio/port.h>
 
 #include "../../drv/adc/adc_stm32_hal.h"
 #include "../../drv/block_device/block_device_w25qxx_stm32.h"
@@ -225,7 +225,7 @@ const pbdrv_ioport_platform_data_t pbdrv_ioport_platform_data[PBDRV_CONFIG_IOPOR
         .uart_driver_index = UART_PORT_A,
         .external_port_index = 0,
         .counter_driver_index = PBDRV_IOPORT_INDEX_NOT_AVAILABLE,
-        .pins = &(pbdrv_ioport_pins_t) {
+        .pins = &(const pbdrv_ioport_pins_t) {
             .p5 = { .bank = GPIOC, .pin = 1 },
             .p6 = { .bank = GPIOC, .pin = 0 },
             .uart_buf = { .bank = GPIOB, .pin = 9 },
@@ -247,7 +247,7 @@ const pbdrv_ioport_platform_data_t pbdrv_ioport_platform_data[PBDRV_CONFIG_IOPOR
         .motor_driver_index = 1,
         .external_port_index = 1,
         .counter_driver_index = PBDRV_IOPORT_INDEX_NOT_AVAILABLE,
-        .pins = &(pbdrv_ioport_pins_t) {
+        .pins = &(const pbdrv_ioport_pins_t) {
             .p5 = { .bank = GPIOA, .pin = 5 },
             .p6 = { .bank = GPIOA, .pin = 4 },
             .uart_buf = { .bank = GPIOB, .pin = 8 },

@@ -491,10 +491,10 @@ void mp_parse_node_print(const mp_print_t *print, mp_parse_node_t pn, size_t ind
         uintptr_t arg = MP_PARSE_NODE_LEAF_ARG(pn);
         switch (MP_PARSE_NODE_LEAF_KIND(pn)) {
             case MP_PARSE_NODE_ID:
-                mp_printf(print, "id(%s)\n", qstr_str(arg));
+                mp_printf(print, "id(%q)\n", (qstr)arg);
                 break;
             case MP_PARSE_NODE_STRING:
-                mp_printf(print, "str(%s)\n", qstr_str(arg));
+                mp_printf(print, "str(%q)\n", (qstr)arg);
                 break;
             default:
                 assert(MP_PARSE_NODE_LEAF_KIND(pn) == MP_PARSE_NODE_TOKEN);
@@ -771,12 +771,6 @@ static bool fold_constants(parser_t *parser, uint8_t rule_id, size_t num_args) {
             if (!mp_parse_node_get_number_maybe(pn, &arg1)) {
                 return false;
             }
-            #if !MICROPY_COMP_CONST_FLOAT
-            if (op == MP_BINARY_OP_POWER && mp_obj_int_sign(arg1) < 0) {
-                // ** can't have negative rhs
-                return false;
-            }
-            #endif
             if (!binary_op_maybe(op, arg0, arg1, &arg0)) {
                 return false;
             }
@@ -796,16 +790,6 @@ static bool fold_constants(parser_t *parser, uint8_t rule_id, size_t num_args) {
                 return false;
             }
             mp_token_kind_t tok = MP_PARSE_NODE_LEAF_ARG(peek_result(parser, i));
-            if (tok == MP_TOKEN_OP_AT) {
-                // Can't fold @
-                return false;
-            }
-            #if !MICROPY_COMP_CONST_FLOAT
-            if (tok == MP_TOKEN_OP_SLASH) {
-                // Can't fold /
-                return false;
-            }
-            #endif
             mp_binary_op_t op = MP_BINARY_OP_LSHIFT + (tok - MP_TOKEN_OP_DBL_LESS);
             if (!binary_op_maybe(op, arg0, arg1, &arg0)) {
                 return false;
@@ -836,50 +820,54 @@ static bool fold_constants(parser_t *parser, uint8_t rule_id, size_t num_args) {
         if (!MP_PARSE_NODE_IS_NULL(pn1)
             && !(MP_PARSE_NODE_IS_STRUCT_KIND(pn1, RULE_expr_stmt_augassign)
                  || MP_PARSE_NODE_IS_STRUCT_KIND(pn1, RULE_expr_stmt_assign_list))) {
-            // this node is of the form <x> = <y>
+            // this node is of the form <x> = <y> or <x> : <type> = <y>
             mp_parse_node_t pn0 = peek_result(parser, 1);
-            if (MP_PARSE_NODE_IS_ID(pn0)
-                && MP_PARSE_NODE_IS_STRUCT_KIND(pn1, RULE_atom_expr_normal)
-                && MP_PARSE_NODE_IS_ID(((mp_parse_node_struct_t *)pn1)->nodes[0])
-                && MP_PARSE_NODE_LEAF_ARG(((mp_parse_node_struct_t *)pn1)->nodes[0]) == MP_QSTR_const
-                && MP_PARSE_NODE_IS_STRUCT_KIND(((mp_parse_node_struct_t *)pn1)->nodes[1], RULE_trailer_paren)
-                ) {
-                // code to assign dynamic constants: id = const(value)
-
-                // get the id
-                qstr id = MP_PARSE_NODE_LEAF_ARG(pn0);
-
-                // get the value
-                mp_parse_node_t pn_value = ((mp_parse_node_struct_t *)((mp_parse_node_struct_t *)pn1)->nodes[1])->nodes[0];
-                if (!mp_parse_node_is_const(pn_value)) {
-                    mp_obj_t exc = mp_obj_new_exception_msg(&mp_type_SyntaxError,
-                        MP_ERROR_TEXT("not a constant"));
-                    mp_obj_exception_add_traceback(exc, parser->lexer->source_name,
-                        ((mp_parse_node_struct_t *)pn1)->source_line, MP_QSTRnull);
-                    nlr_raise(exc);
+            if (MP_PARSE_NODE_IS_ID(pn0)) {
+                if (MP_PARSE_NODE_IS_STRUCT_KIND(pn1, RULE_annassign)) {
+                    // extract annassign rhs
+                    pn1 = ((mp_parse_node_struct_t *)pn1)->nodes[1];
                 }
-                mp_obj_t value = mp_parse_node_convert_to_obj(pn_value);
+                if (MP_PARSE_NODE_IS_STRUCT_KIND(pn1, RULE_atom_expr_normal)
+                    && MP_PARSE_NODE_IS_ID(((mp_parse_node_struct_t *)pn1)->nodes[0])
+                    && MP_PARSE_NODE_LEAF_ARG(((mp_parse_node_struct_t *)pn1)->nodes[0]) == MP_QSTR_const
+                    && MP_PARSE_NODE_IS_STRUCT_KIND(((mp_parse_node_struct_t *)pn1)->nodes[1], RULE_trailer_paren)) {
+                    // code to assign dynamic constants: id = const(value)
 
-                // store the value in the table of dynamic constants
-                mp_map_elem_t *elem = mp_map_lookup(&parser->consts, MP_OBJ_NEW_QSTR(id), MP_MAP_LOOKUP_ADD_IF_NOT_FOUND);
-                assert(elem->value == MP_OBJ_NULL);
-                elem->value = value;
+                    // get the id
+                    qstr id = MP_PARSE_NODE_LEAF_ARG(pn0);
 
-                // If the constant starts with an underscore then treat it as a private
-                // variable and don't emit any code to store the value to the id.
-                if (qstr_str(id)[0] == '_') {
-                    pop_result(parser); // pop const(value)
-                    pop_result(parser); // pop id
-                    push_result_rule(parser, 0, RULE_pass_stmt, 0); // replace with "pass"
-                    return true;
+                    // get the value
+                    mp_parse_node_t pn_value = ((mp_parse_node_struct_t *)((mp_parse_node_struct_t *)pn1)->nodes[1])->nodes[0];
+                    if (!mp_parse_node_is_const(pn_value)) {
+                        mp_obj_t exc = mp_obj_new_exception_msg(&mp_type_SyntaxError,
+                            MP_ERROR_TEXT("not a constant"));
+                        mp_obj_exception_add_traceback(exc, parser->lexer->source_name,
+                            ((mp_parse_node_struct_t *)pn1)->source_line, MP_QSTRnull);
+                        nlr_raise(exc);
+                    }
+                    mp_obj_t value = mp_parse_node_convert_to_obj(pn_value);
+
+                    // store the value in the table of dynamic constants
+                    mp_map_elem_t *elem = mp_map_lookup(&parser->consts, MP_OBJ_NEW_QSTR(id), MP_MAP_LOOKUP_ADD_IF_NOT_FOUND);
+                    assert(elem->value == MP_OBJ_NULL);
+                    elem->value = value;
+
+                    // If the constant starts with an underscore then treat it as a private
+                    // variable and don't emit any code to store the value to the id.
+                    if (qstr_str(id)[0] == '_') {
+                        pop_result(parser); // pop const(value)
+                        pop_result(parser); // pop id
+                        push_result_rule(parser, 0, RULE_pass_stmt, 0); // replace with "pass"
+                        return true;
+                    }
+
+                    // replace const(value) with value
+                    pop_result(parser);
+                    push_result_node(parser, pn_value);
+
+                    // finished folding this assignment, but we still want it to be part of the tree
+                    return false;
                 }
-
-                // replace const(value) with value
-                pop_result(parser);
-                push_result_node(parser, pn_value);
-
-                // finished folding this assignment, but we still want it to be part of the tree
-                return false;
             }
         }
         return false;

@@ -1,7 +1,9 @@
 /*
 ** ###################################################################
 **     Processors:          MIMXRT1015CAF4A
+**                          MIMXRT1015CAF4B
 **                          MIMXRT1015DAF5A
+**                          MIMXRT1015DAF5B
 **
 **     Compilers:           Freescale C/C++ for Embedded ARM
 **                          GNU C Compiler
@@ -9,9 +11,9 @@
 **                          Keil ARM C/C++ Compiler
 **                          MCUXpresso Compiler
 **
-**     Reference manual:    IMXRT1015RM Rev.0, 12/2018 | IMXRT1015SRM Rev.3
-**     Version:             rev. 1.2, 2019-04-29
-**     Build:               b191113
+**     Reference manual:    IMXRT1015RM Rev.1, 02/2021 | IMXRT102XSRM Rev.0
+**     Version:             rev. 1.3, 2021-08-10
+**     Build:               b230821
 **
 **     Abstract:
 **         Provides a system configuration function and a global variable that
@@ -19,9 +21,7 @@
 **         the oscillator (PLL) that is part of the microcontroller device.
 **
 **     Copyright 2016 Freescale Semiconductor, Inc.
-**     Copyright 2016-2019 NXP
-**     All rights reserved.
-**
+**     Copyright 2016-2023 NXP
 **     SPDX-License-Identifier: BSD-3-Clause
 **
 **     http:                 www.nxp.com
@@ -36,14 +36,16 @@
 **         Update register SRC_SRSR's bitfield LOCKUP_SYSRESETREQ to LOCKUP.
 **     - rev. 1.2 (2019-04-29)
 **         Add SET/CLR/TOG register group to register CTRL, STAT, CHANNELCTRL, CH0STAT, CH0OPTS, CH1STAT, CH1OPTS, CH2STAT, CH2OPTS, CH3STAT, CH3OPTS of DCP module.
+**     - rev. 1.3 (2021-08-10)
+**         Update header files to align with IMXRT1015RM Rev.1.
 **
 ** ###################################################################
 */
 
 /*!
  * @file MIMXRT1015
- * @version 1.2
- * @date 2019-04-29
+ * @version 1.3
+ * @date 2021-08-10
  * @brief Device specific configuration file for MIMXRT1015 (header file)
  *
  * Provides a system configuration function and a global variable that contains

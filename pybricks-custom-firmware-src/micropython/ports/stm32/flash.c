@@ -148,7 +148,7 @@ static const flash_layout_t flash_layout[] = {
 #define FLASH_LAYOUT_SECTOR_SIZE    (0x200)
 #define FLASH_LAYOUT_NUM_SECTORS    (1024)
 
-#elif defined(STM32H5)
+#elif defined(STM32H5) || defined(STM32U5)
 
 #define FLASH_LAYOUT_IS_HOMOGENEOUS (1)
 #define FLASH_LAYOUT_START_ADDR     (FLASH_BASE_NS)
@@ -159,8 +159,13 @@ static const flash_layout_t flash_layout[] = {
 
 #define FLASH_LAYOUT_IS_HOMOGENEOUS (1)
 #define FLASH_LAYOUT_START_ADDR     (FLASH_BASE)
+#if defined(STM32H7A3xx) || defined(STM32H7A3xxQ)
+#define FLASH_LAYOUT_SECTOR_SIZE    (0x2000)
+#define FLASH_LAYOUT_NUM_SECTORS    (256)
+#else
 #define FLASH_LAYOUT_SECTOR_SIZE    (0x20000)
 #define FLASH_LAYOUT_NUM_SECTORS    (16)
+#endif
 
 #else
 #error Unsupported processor
@@ -220,7 +225,7 @@ static uint32_t get_page(uint32_t addr) {
     return (addr - FLASH_LAYOUT_START_ADDR) / FLASH_LAYOUT_SECTOR_SIZE;
 }
 
-#elif defined(STM32G0) || defined(STM32G4)
+#elif defined(STM32G0) || defined(STM32G4) || defined(STM32U5)
 
 static uint32_t get_page(uint32_t addr) {
     return (addr - FLASH_LAYOUT_START_ADDR) / FLASH_LAYOUT_SECTOR_SIZE;
@@ -252,6 +257,16 @@ bool flash_is_valid_addr(uint32_t addr) {
         flash_layout[last].sector_count * flash_layout[last].sector_size;
     #endif
     return base <= addr && addr < end_of_flash;
+}
+
+uint32_t flash_get_max_sector_size(void) {
+    #if FLASH_LAYOUT_IS_HOMOGENEOUS
+    // All sectors are the same size.
+    return FLASH_LAYOUT_SECTOR_SIZE;
+    #else
+    // The last sector is the largest.
+    return flash_layout[MP_ARRAY_SIZE(flash_layout) - 1].sector_size;
+    #endif
 }
 
 int32_t flash_get_sector_info(uint32_t addr, uint32_t *start_addr, uint32_t *size) {
@@ -327,12 +342,12 @@ int flash_erase(uint32_t flash_dest) {
 
     // ... the erase type and number of pages/sectors,
     #if defined(STM32F0) || defined(STM32G0) || defined(STM32G4) || defined(STM32L0) \
-    || defined(STM32L1) || defined(STM32L4) || defined(STM32WB) || defined(STM32WL)
+    || defined(STM32L1) || defined(STM32L4) || defined(STM32U5) || defined(STM32WB) || defined(STM32WL)
 
     EraseInitStruct.TypeErase = FLASH_TYPEERASE_PAGES;
     EraseInitStruct.NbPages = num_sectors;
 
-    #elif defined(STM32F4) || defined(STM32F7) || defined(STM32H5) || defined(STM32H7)
+    #elif defined(STM32F4) || defined(STM32F7) || defined(STM32H5) || defined(STM32H7) || defined(STM32U5)
 
     EraseInitStruct.TypeErase = TYPEERASE_SECTORS;
     EraseInitStruct.NbSectors = num_sectors;
@@ -349,7 +364,7 @@ int flash_erase(uint32_t flash_dest) {
     // ... and the flash bank and page/sector.
     #if defined(STM32F0) || defined(STM32L0) || defined(STM32L1)
     EraseInitStruct.PageAddress = flash_dest;
-    #elif defined(STM32G0) || defined(STM32G4) || (defined(STM32L4) && defined(SYSCFG_MEMRMP_FB_MODE))
+    #elif defined(STM32G0) || defined(STM32G4) || (defined(STM32L4) && defined(SYSCFG_MEMRMP_FB_MODE)) || defined(STM32U5)
     EraseInitStruct.Page = get_page(flash_dest);
     EraseInitStruct.Banks = get_bank(flash_dest);
     #elif (defined(STM32L4) && !defined(SYSCFG_MEMRMP_FB_MODE)) || defined(STM32WB) || defined(STM32WL)
@@ -453,9 +468,9 @@ int flash_write(uint32_t flash_dest, const uint32_t *src, uint32_t num_word32) {
         #endif
     }
 
-    #elif defined(STM32H5) || defined(STM32H7)
+    #elif defined(STM32H5) || defined(STM32H7) || defined(STM32U5)
 
-    #if defined(STM32H5)
+    #if defined(STM32H5) || defined(STM32U5)
     static const unsigned int WORD32_PER_FLASHWORD = 4;
     static const unsigned int PROGRAM_TYPE = FLASH_TYPEPROGRAM_QUADWORD;
     #else

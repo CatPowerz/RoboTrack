@@ -1,6 +1,8 @@
 /*
- * Copyright (c) 2019, Nordic Semiconductor ASA
+ * Copyright (c) 2019 - 2025, Nordic Semiconductor ASA
  * All rights reserved.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -45,10 +47,10 @@
 #define NRFX_TEMP_TIME_US 4
 
 /** @brief Maximum attempts to check whether conversion passed.*/
-#define NRFX_TEMP_ATTEMPTS 10
+#define NRFX_TEMP_ATTEMPTS 100
 
 /** @brief Internal state of TEMP driver. */
-static nrfx_drv_state_t m_temp_state;
+static nrfx_drv_state_t m_temp_state = NRFX_DRV_STATE_UNINITIALIZED;
 
 /** @brief Pointer to handler to be called from interrupt routine. */
 static nrfx_temp_data_handler_t m_data_handler;
@@ -59,20 +61,22 @@ nrfx_err_t nrfx_temp_init(nrfx_temp_config_t const * p_config, nrfx_temp_data_ha
 
     if (m_temp_state != NRFX_DRV_STATE_UNINITIALIZED)
     {
-        return NRFX_ERROR_ALREADY_INITIALIZED;
+        return NRFX_ERROR_ALREADY;
     }
 
 #if NRFX_CHECK(USE_WORKAROUND_FOR_TEMP_OFFSET_ANOMALY)
     *(uint32_t volatile *)0x4000C504 = 0;
 #endif
 
+#if NRFY_TEMP_HAS_CALIBRATION && defined(FICR_TRIM_GLOBAL_TEMP_CALIB_VALUE_Msk)
+    nrfy_temp_calibration_coeff_set(NRF_TEMP, NRF_FICR->TRIM.GLOBAL.TEMP.CALIB);
+#endif
+
     m_data_handler = handler;
 
     if (m_data_handler)
     {
-        nrf_temp_int_enable(NRF_TEMP, NRF_TEMP_INT_DATARDY_MASK);
-        NRFX_IRQ_PRIORITY_SET(TEMP_IRQn, p_config->interrupt_priority);
-        NRFX_IRQ_ENABLE(TEMP_IRQn);
+        nrfy_temp_int_init(NRF_TEMP, 0, p_config->interrupt_priority, true);
     }
 
     m_temp_state = NRFX_DRV_STATE_INITIALIZED;
@@ -82,15 +86,20 @@ nrfx_err_t nrfx_temp_init(nrfx_temp_config_t const * p_config, nrfx_temp_data_ha
 void nrfx_temp_uninit(void)
 {
     NRFX_ASSERT(m_temp_state == NRFX_DRV_STATE_INITIALIZED);
-    nrf_temp_task_trigger(NRF_TEMP, NRF_TEMP_TASK_STOP);
 
+    nrfy_temp_task_trigger(NRF_TEMP, NRF_TEMP_TASK_STOP);
     if (m_data_handler)
     {
-        nrf_temp_int_disable(NRF_TEMP, NRF_TEMP_INT_DATARDY_MASK);
-        NRFX_IRQ_DISABLE(TEMP_IRQn);
+        nrfy_temp_int_disable(NRF_TEMP, NRF_TEMP_INT_DATARDY_MASK);
+        nrfy_temp_int_uninit(NRF_TEMP);
     }
 
     m_temp_state = NRFX_DRV_STATE_UNINITIALIZED;
+}
+
+bool nrfx_temp_init_check(void)
+{
+    return (m_temp_state != NRFX_DRV_STATE_UNINITIALIZED);
 }
 
 int32_t nrfx_temp_calculate(int32_t raw_measurement)
@@ -107,13 +116,14 @@ nrfx_err_t nrfx_temp_measure(void)
     NRFX_ASSERT(m_temp_state == NRFX_DRV_STATE_INITIALIZED);
 
     nrfx_err_t result = NRFX_SUCCESS;
-    nrf_temp_event_clear(NRF_TEMP, NRF_TEMP_EVENT_DATARDY);
-    nrf_temp_task_trigger(NRF_TEMP, NRF_TEMP_TASK_START);
+
+    nrfy_temp_event_clear(NRF_TEMP, NRF_TEMP_EVENT_DATARDY);
+    nrfy_temp_task_trigger(NRF_TEMP, NRF_TEMP_TASK_START);
 
     if (!m_data_handler)
     {
         bool ev_result;
-        NRFX_WAIT_FOR(nrf_temp_event_check(NRF_TEMP, NRF_TEMP_EVENT_DATARDY),
+        NRFX_WAIT_FOR(nrfy_temp_event_check(NRF_TEMP, NRF_TEMP_EVENT_DATARDY),
                       NRFX_TEMP_ATTEMPTS,
                       NRFX_TEMP_TIME_US,
                       ev_result);
@@ -123,9 +133,9 @@ nrfx_err_t nrfx_temp_measure(void)
         }
         else
         {
-            nrf_temp_event_clear(NRF_TEMP, NRF_TEMP_EVENT_DATARDY);
+            nrfy_temp_event_clear(NRF_TEMP, NRF_TEMP_EVENT_DATARDY);
         }
-        nrf_temp_task_trigger(NRF_TEMP, NRF_TEMP_TASK_STOP);
+        nrfy_temp_task_trigger(NRF_TEMP, NRF_TEMP_TASK_STOP);
     }
 
     return result;
@@ -138,8 +148,7 @@ void nrfx_temp_irq_handler(void)
     nrf_temp_task_trigger(NRF_TEMP, NRF_TEMP_TASK_STOP);
     nrf_temp_event_clear(NRF_TEMP, NRF_TEMP_EVENT_DATARDY);
 
-    uint32_t raw_temp = nrfx_temp_result_get();
-
+    int32_t raw_temp = nrfx_temp_result_get();
     m_data_handler(raw_temp);
 }
 

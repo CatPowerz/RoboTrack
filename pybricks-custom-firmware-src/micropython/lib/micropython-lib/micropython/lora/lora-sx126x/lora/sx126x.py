@@ -224,16 +224,13 @@ class _SX126x(BaseModem):
 
         # If DIO1 is set, mask in just the IRQs that the driver may need to be
         # interrupted by. This is important because otherwise an unrelated IRQ
-        # can trigger the ISR and may not be reset by the driver, leaving DIO1 high.
-        #
-        # If DIO1 is not set, all IRQs can stay masked which is the power-on state.
+        # can trigger the ISR and may not be reset by the driver, leaving DIO1
+        # high.
         if dio1:
-            # Note: we set both Irq mask and DIO1 mask to the same value, which is redundant
-            # (one could be 0xFFFF) but may save a few bytes of bytecode.
             self._cmd(
                 ">BHHHH",
                 _CMD_CFG_DIO_IRQ,
-                (_IRQ_RX_DONE | _IRQ_TX_DONE | _IRQ_TIMEOUT),  # IRQ mask
+                (_IRQ_RX_DONE | _IRQ_TX_DONE | _IRQ_TIMEOUT | _IRQ_CRC_ERR),  # IRQ mask
                 (_IRQ_RX_DONE | _IRQ_TX_DONE | _IRQ_TIMEOUT),  # DIO1 mask
                 0x0,  # DIO2Mask, not used
                 0x0,  # DIO3Mask, not used
@@ -501,7 +498,7 @@ class _SX126x(BaseModem):
 
         self._cmd(">BH", _CMD_CALIBRATE_IMAGE, args)
 
-        # Can't find anythign in Datasheet about how long image calibration
+        # Can't find anything in Datasheet about how long image calibration
         # takes or exactly how it signals completion. Assuming it will be
         # similar to _CMD_CALIBRATE.
         self._wait_not_busy(_CALIBRATE_TIMEOUT_US)

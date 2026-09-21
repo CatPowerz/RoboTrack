@@ -1,6 +1,8 @@
 /*
- * Copyright (c) 2015 - 2019, Nordic Semiconductor ASA
+ * Copyright (c) 2015 - 2025, Nordic Semiconductor ASA
  * All rights reserved.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -55,11 +57,24 @@ __STATIC_INLINE void nrfx_power_clock_irq_init(void)
     #error "This code is not supposed to be compiled when neither POWER nor CLOCK is enabled."
 #endif
 
-    if (!NRFX_IRQ_IS_ENABLED(nrfx_get_irq_number(NRF_CLOCK)))
+#if defined(NRF54L05_XXAA) || defined(NRF54L10_XXAA) || defined(NRF54L15_XXAA)
+    IRQn_Type irqn = CLOCK_POWER_IRQn;
+#else
+    IRQn_Type irqn = nrfx_get_irq_number(NRF_CLOCK);
+#endif
+    if (!NRFX_IRQ_IS_ENABLED(irqn))
     {
-        NRFX_IRQ_PRIORITY_SET(nrfx_get_irq_number(NRF_CLOCK), priority);
-        NRFX_IRQ_ENABLE(nrfx_get_irq_number(NRF_CLOCK));
+        NRFX_IRQ_PRIORITY_SET(irqn, priority);
+        NRFX_IRQ_ENABLE(irqn);
     }
+#if NRFX_CHECK(NRFX_CLOCK_CONFIG_USE_LFRC_CALIBRATION) && \
+    NRFX_CHECK(NRFX_CLOCK_CONFIG_LF_CAL_ENABLED)
+    if (!NRFX_IRQ_IS_ENABLED(LFRC_IRQn))
+    {
+        NRFX_IRQ_PRIORITY_SET(LFRC_IRQn, priority);
+        NRFX_IRQ_ENABLE(LFRC_IRQn);
+    }
+#endif
 }
 
 #if NRFX_CHECK(NRFX_POWER_ENABLED) && NRFX_CHECK(NRFX_CLOCK_ENABLED)
