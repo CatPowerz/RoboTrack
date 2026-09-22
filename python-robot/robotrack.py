@@ -67,7 +67,7 @@ def updatelastangles():
         except:
             aux_last_angles[name] = 0
     
-currentslot = 0
+
 editmode = False
 tracking = False
 running = False
@@ -164,7 +164,7 @@ def peekinline():
         return None
 
 
-    
+
 def processcommand(data):
     data = data.upper()
     parts = data.split("|", 1)
@@ -242,7 +242,7 @@ def turnto(angle, speed, precision, specificdir):
             speed = 2
         err = err * speed
         robot.drive(0, err)
-        wait(10)
+        wait(20)
     robot.stop()
 
 def clearslot(slot):
@@ -313,11 +313,11 @@ def runprogram(slot):
         elif cmd == 2:
             turnto(p1, flag1, flag2, flag3)
         elif cmd == 3:
-            wait(20)
+            continue
 
 def saveinstruction(slot, cmd, p1, p2, flag1, flag2, flag3):
     offset = countinstructions(slot)
-    totaloffset = offset * 8 + bytesperprogram * slot
+    totaloffset = offset + bytesperprogram * slot
     data = ustruct.pack(">BhhBBB", cmd, p1, p2, flag1, flag2, flag3)
     writeflash(totaloffset, data)
 
@@ -328,9 +328,18 @@ def countinstructions(slot):
         cmd = data[offset]  # Byte 0 is het type instructie
         if cmd == 0:
             break
-        offset += 1
     return offset
-
+def playmotorsnapshot(p1, p2, flag1, flag2, flag3):
+    for idx, (name, m) in enumerate(aux_motors):
+        if name is None:
+            continue
+        try:
+            if flag1 & (1 << idx):
+                delta = p1 if idx == 0 else p2
+                m.run_target(flag2, aux_last_angles.get(name, 0) + delta, wait=flag3)
+        except:
+            print("Error with playmotorsnapshot")
+    
 def motorsnapshot(speed, waitformotors):
     
     global aux_last_angles
@@ -376,14 +385,17 @@ while True:
         processcommand(newdata)
     
     if Button.CENTER in hub.buttons.pressed():
-        selectslot()
-        while Button.CENTER in hub.buttons.pressed():
-            wait(20)
+        if tracking:
+            saveinstruction(selectedslot, 3, int(x), int(y), 10, 10, 0)
+        else:
+            selectslot()
+            while Button.CENTER in hub.buttons.pressed():
+                wait(20)
 
     if Button.RIGHT in hub.buttons.pressed():
         if tracking:
 
-            saveinstruction(currentslot, 1, int(x), int(y), 10, 10, 0)
+            saveinstruction(selectedslot, 1, int(x), int(y), 10, 10, 0)
         else:
             if selectedslot == 24:
                 selectedslot = 0
