@@ -296,23 +296,81 @@ def runprogram(slot):
     # EVERY instruction has 8 bytes. Every bite consists of eight bits (0 or 1)
     # The first byte contains the type of instruction (from 0 to 255)
     # A byte is SIGNED if it can also contain negative numbers, UNSIGNED if only positive
-    # Byte 2 and 3 is parameter 1, byte 4 and 5 parameter 2, byte 6 and 7 parameter 3 (speed)
-    # Final byte is for small extras like reverse or not.
+    # Byte 2 and 3 is parameter 1, byte 4 and 5 parameter 2, byte 6, 7 and 8 are 'flags'.
+    # Flags are for small extras like reverse or not.
     data = loadslot(slot)
     for i in range(0, bytesperprogram // 8):
 
     
         curroffset = 8 * i
     
-        cmd, p1, p2, p3, flag = ustruct.unpack(">BhhhB", data[curroffset : curroffset + 8])
+        cmd, p1, p2, flag1, flag2, flag3 = ustruct.unpack(">BhhBBB", data[curroffset : curroffset + 8])
         
         if cmd == 0:
             break
+        elif cmd == 1:
+            drive_to(p1, p2, flag1, flag2)
+        elif cmd == 2:
+            turnto(p1, flag1, flag2, flag3)
+        elif cmd == 3:
+            wait(20)
 
+def saveinstruction(slot, cmd, p1, p2, flag1, flag2, flag3):
+    offset = countinstructions(slot)
+    totaloffset = offset * 8 + bytesperprogram * slot
+    data = ustruct.pack(">BhhBBB", cmd, p1, p2, flag1, flag2, flag3)
+    writeflash(totaloffset, data)
+
+def countinstructions(slot):
+    data = loadslot(slot)
+    offset = 0
+    for offset in range(0, bytesperprogram, 8):
+        cmd = data[offset]  # Byte 0 is het type instructie
+        if cmd == 0:
+            break
+        offset += 1
+    return offset
+
+def motorsnapshot(speed, waitformotors):
+    
+    global aux_last_angles
+    editedmotors = []
+    mask = 0
+    for idx, (name, m) in enumerate(aux_motors):
+        if name is None:
+            continue
+        try:
+            if m.angle() - aux_last_angles[name] > 5 or m.angle() - aux_last_angles[name] < -5:
+                delta = int(m.angle() - aux_last_angles.get(name, 0))
+                mask |= (1 << idx)
+                editedmotors.append(delta)
+            else:
+                print("motor " + name + " has not moved more than 5 deg")
+            
+        except:
+            print("Error with motorsnapshot")
+    if len(editedmotors) == 0:
+        return None
+    
+    p1 = editedmotors[0]
+    if len(editedmotors) >= 2:
+        
+        p2 = editedmotors[1]
+    else:
+        p2 = 0
+    flag1 = mask
+    flag2 = speed
+    flag3 = waitformotors
+    updatelastangles()
+    return ustruct.pack(">BhhBBB", 3, p1, p2, flag1, flag2, flag3)
+
+    
+    
+    
+    
 while True:
     update_odometry()
     updateinterface()
-    updatelastangles()
     newdata = peekinline()
     if newdata != None:
         processcommand(newdata)
@@ -324,7 +382,8 @@ while True:
 
     if Button.RIGHT in hub.buttons.pressed():
         if tracking:
-            wait(20)
+
+            saveinstruction(currentslot, 1, int(x), int(y), 10, 10, 0)
         else:
             if selectedslot == 24:
                 selectedslot = 0
@@ -349,6 +408,8 @@ while True:
             
             while Button.LEFT in hub.buttons.pressed():
                 wait(20)
+
+        
     
     
 
