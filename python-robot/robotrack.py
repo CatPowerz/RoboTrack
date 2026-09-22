@@ -1,16 +1,17 @@
+
 from pybricks.hubs import PrimeHub
 from pybricks.pupdevices import Motor, ColorSensor, UltrasonicSensor, ForceSensor
 from pybricks.parameters import Button, Color, Direction, Port, Side, Stop
 from pybricks.robotics import DriveBase
 from pybricks.tools import wait, StopWatch
-from umath import sin, cos, atan2, sqrt, pi, floor, ceil, round
+from umath import sin, cos, atan2, sqrt, pi
 from usys import stdin
 from uselect import poll
 import ustruct
 hub = PrimeHub()
-
+hub.display.orientation(Side.LEFT)
 hub.system.set_stop_button(None)
-
+timer = StopWatch()
 poller = poll()
 poller.register(stdin)
 leftmotorport = Port.F
@@ -59,7 +60,7 @@ for name in ["A", "B", "C", "D", "E", "F"]:
 
 def updatelastangles():
     for name, m in aux_motors:
-        if port is None:
+        if name is None:
             continue
         try:
             aux_last_angles[name] = int(m.angle())
@@ -249,41 +250,64 @@ def clearslot(slot):
     writeflash(slotoffset, bytes([0] * bytesperprogram))
 
 def updateinterface():
-    blink_on = (hub.system.time() % 400) < 200
+    global timer
+    blink_on = (timer.time() % 200) < 100
     if tracking:
-        hub.display.off()
+        
         if(blink_on):
-            hub.display.pixel(selectedslot % 5, selectedslot // 5, brightness=100)
+            hub.display.pixel(selectedslot // 5, selectedslot % 5, brightness=100)
+        else:
+            hub.display.off()
        
         
     elif editmode:
         hub.display.off()
-        hub.display.pixel(selectedslot % 5, selectedslot // 5, brightness=100)
-        hub.display.pixel(4, 4, brightness=50)
+        hub.display.pixel(selectedslot // 5, selectedslot % 5, brightness=100)
+        if selectedslot == 24:
+            hub.display.pixel(4, 4, brightness=75)
+        else:
+            hub.display.pixel(4, 4, brightness=50)
     else:
         hub.display.off()
-        hub.display.pixel(selectedslot % 5, selectedslot // 5, brightness=100)
+        hub.display.pixel(selectedslot // 5, selectedslot % 5, brightness=100)
 
-def selectslot(slot):
-    global tracking, editmode
+def selectslot():
+    global tracking, editmode, selectedslot
     if tracking:
         tracking = False
     elif editmode:
-        if slot == 24:
+        if selectedslot == 24:
             editmode = False
         else:
             tracking = True
+            editmode = False
     else:
-        if slot == 24:
+        if selectedslot == 24:
             editmode = True
+            selectedslot = 0
         else:
-            runprogram()
+            if not editmode:
 
-def runprogram():
-    wait(20)
-    # here comes run program script
+                runprogram(selectedslot)
+
+
+def runprogram(slot):
+    global bytesperprogram, selectedslot
+    # EVERY instruction has 8 bytes. Every bite consists of eight bits (0 or 1)
+    # The first byte contains the type of instruction (from 0 to 255)
+    # A byte is SIGNED if it can also contain negative numbers, UNSIGNED if only positive
+    # Byte 2 and 3 is parameter 1, byte 4 and 5 parameter 2, byte 6 and 7 parameter 3 (speed)
+    # Final byte is for small extras like reverse or not.
+    data = loadslot(slot)
+    for i in range(0, bytesperprogram // 8):
+
     
+        curroffset = 8 * i
+    
+        cmd, p1, p2, p3, flag = ustruct.unpack(">BhhhB", data[curroffset : curroffset + 8])
         
+        if cmd == 0:
+            break
 
 while True:
     update_odometry()
@@ -294,11 +318,41 @@ while True:
         processcommand(newdata)
     
     if Button.CENTER in hub.buttons.pressed():
-        selectslot(selectedslot)
+        selectslot()
         while Button.CENTER in hub.buttons.pressed():
             wait(20)
 
-    wait(10)
+    if Button.RIGHT in hub.buttons.pressed():
+        if tracking:
+            wait(20)
+        else:
+            if selectedslot == 24:
+                selectedslot = 0
+            elif selectedslot >= maxprograms:
+                selectedslot = 24
+            else:
+                selectedslot = selectedslot + 1
+        
+        while Button.RIGHT in hub.buttons.pressed():
+            wait(20)
+
+    if Button.LEFT in hub.buttons.pressed():
+        if tracking:
+            wait(20)
+        else:
+            if selectedslot <= 0:
+                selectedslot = 24
+            elif selectedslot == 24:
+                selectedslot = maxprograms
+            else:
+                selectedslot = selectedslot - 1
+            
+            while Button.LEFT in hub.buttons.pressed():
+                wait(20)
+    
+    
+
+    wait(20)
 
     
 
