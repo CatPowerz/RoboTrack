@@ -36,7 +36,7 @@ global aux_motors, aux_last_angles
 aux_motors = []
 aux_last_angles = {}
 
-nowtracking = True
+tracking = False
 whattracking = 0
 editmode = True
 selectedslot = 0
@@ -67,7 +67,7 @@ def updatelastangles():
         except:
             aux_last_angles[name] = 0
     
-currentslot = 0
+
 editmode = False
 tracking = False
 running = False
@@ -102,21 +102,24 @@ def update_odometry():
 
     # spicy formulas
 
-    rad = angle * pi / 180
+    rad = -angle * pi / 180
 
     x += difference * cos(rad)
     y += difference * sin(rad)
 
     # so basically because you know the robot heading and the distance he travelled you can know where it went
-
+    last_distance = distance
     return x, y, angle
 
-def reset_odometrie():
+def reset_odometry():
     global x, y, last_distance
     x = 0.0
     y = 0.0
     hub.imu.reset_heading(0)
-    last_distance = robot.distance()
+    robot.reset()
+    wait(10)
+    last_distance = robot.distance()  # Lees de werkelijke beginstand uit!
+    
 
 def writeflash(start, data):
     try:
@@ -164,7 +167,7 @@ def peekinline():
         return None
 
 
-    
+
 def processcommand(data):
     data = data.upper()
     parts = data.split("|", 1)
@@ -185,19 +188,23 @@ def processcommand(data):
     #add more when there comes
 
 def drive_to(tx, ty, speed, precision):
-    if speed == '':
-        speed = 10
+    if speed == '' or speed < 100:
+        speed = 150
+
     update_odometry()
     differencex = tx-x
     differencey = ty-y
     distance=sqrt(differencex**2 + differencey**2)
+    tangle = -atan2(differencey, differencex) * 180 / pi
+    turnto(tangle, 100, precision, '')
+    
     while distance > precision:
         update_odometry()
         differencex = tx-x
         differencey = ty-y
         distance=sqrt(differencex**2 + differencey**2)
-        tangle = atan2(differencey, differencex) * 180 / pi
         
+        tangle = -atan2(differencey, differencex) * 180 / pi
         err = tangle - hub.imu.heading()
         if err > 180:
             err -= 360
@@ -205,9 +212,16 @@ def drive_to(tx, ty, speed, precision):
             err += 360
         if speed < 0:
             err = -err
-        robot.drive(speed, err)
+        if distance < precision * 2:
+            err = 0
+        turn_rate = max(-60, min(60, err * 1.0))
+        current_speed = min(speed, max(40, distance * 1.5))
+        robot.drive(current_speed, turn_rate)
+        wait(10)
+
 
     robot.stop()
+    wait(100)
 
 def turnto(angle, speed, precision, specificdir):
     update_odometry()
@@ -238,11 +252,14 @@ def turnto(angle, speed, precision, specificdir):
             elif specificdir == Direction.COUNTERCLOCKWISE:
                 if err > 0:
                     err -= 360
-        if speed > 2:
-            speed = 2
-        err = err * speed
+        turnrate = max(-speed, min(speed, err * 2.0))
+        if abs(turnrate) < 25:
+            if err > 0:
+                turnrate = 25
+            else:
+                turnrate = -25
         robot.drive(0, err)
-        wait(10)
+        wait(20)
     robot.stop()
 
 def clearslot(slot):
@@ -279,6 +296,8 @@ def selectslot():
         if selectedslot == 24:
             editmode = False
         else:
+            clearslot(selectedslot)
+            reset_odometry()
             tracking = True
             editmode = False
     else:
@@ -292,6 +311,7 @@ def selectslot():
 
 
 def runprogram(slot):
+    reset_odometry()
     global bytesperprogram, selectedslot
     # EVERY instruction has 8 bytes. Every bite consists of eight bits (0 or 1)
     # The first byte contains the type of instruction (from 0 to 255)
@@ -303,9 +323,9 @@ def runprogram(slot):
 
     
         curroffset = 8 * i
-    
+        print("RAW BYTES:", list(data[:24]))
         cmd, p1, p2, flag1, flag2, flag3 = ustruct.unpack(">BhhBBB", data[curroffset : curroffset + 8])
-        
+        print("DOEL:", p1, p2, "HUIDIG:", int(x), int(y), "HEADING:", int(hub.imu.heading()))
         if cmd == 0:
             break
         elif cmd == 1:
@@ -313,24 +333,34 @@ def runprogram(slot):
         elif cmd == 2:
             turnto(p1, flag1, flag2, flag3)
         elif cmd == 3:
-            wait(20)
+            continue
 
 def saveinstruction(slot, cmd, p1, p2, flag1, flag2, flag3):
     offset = countinstructions(slot)
-    totaloffset = offset * 8 + bytesperprogram * slot
+    totaloffset = (offset * 8) + (bytesperprogram * slot)
     data = ustruct.pack(">BhhBBB", cmd, p1, p2, flag1, flag2, flag3)
     writeflash(totaloffset, data)
 
 def countinstructions(slot):
     data = loadslot(slot)
-    offset = 0
+    count = 0
     for offset in range(0, bytesperprogram, 8):
         cmd = data[offset]  # Byte 0 is het type instructie
         if cmd == 0:
             break
-        offset += 1
-    return offset
-
+        count += 1
+    return count
+def playmotorsnapshot(p1, p2, flag1, flag2, flag3):
+    for idx, (name, m) in enumerate(aux_motors):
+        if name is None:
+            continue
+        try:
+            if flag1 & (1 << idx):
+                delta = p1 if idx == 0 else p2
+                m.run_target(flag2, aux_last_angles.get(name, 0) + delta, wait=flag3)
+        except:
+            print("Error with playmotorsnapshot")
+    
 def motorsnapshot(speed, waitformotors):
     
     global aux_last_angles
@@ -363,12 +393,8 @@ def motorsnapshot(speed, waitformotors):
     flag3 = waitformotors
     updatelastangles()
     return ustruct.pack(">BhhBBB", 3, p1, p2, flag1, flag2, flag3)
-
-    
-    
-    
-    
 while True:
+    print(str(x) + " " + str(y))
     update_odometry()
     updateinterface()
     newdata = peekinline()
@@ -376,14 +402,20 @@ while True:
         processcommand(newdata)
     
     if Button.CENTER in hub.buttons.pressed():
-        selectslot()
+        if tracking:
+            reset_odometry()
+            tracking = False
+            editmode = False
+        else:
+            selectslot()
         while Button.CENTER in hub.buttons.pressed():
             wait(20)
 
     if Button.RIGHT in hub.buttons.pressed():
         if tracking:
 
-            saveinstruction(currentslot, 1, int(x), int(y), 10, 10, 0)
+            saveinstruction(selectedslot, 1, int(x), int(y), 150, 10, 0)
+            
         else:
             if selectedslot == 24:
                 selectedslot = 0
@@ -416,5 +448,4 @@ while True:
     wait(20)
 
     
-
 
