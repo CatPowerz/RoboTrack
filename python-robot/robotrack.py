@@ -68,6 +68,7 @@ def updatelastangles():
             aux_last_angles[name] = 0
     
 
+
 editmode = False
 tracking = False
 running = False
@@ -168,6 +169,7 @@ def peekinline():
 
 
 
+
 def processcommand(data):
     data = data.upper()
     parts = data.split("|", 1)
@@ -260,6 +262,7 @@ def turnto(angle, speed, precision, specificdir):
                 turnrate = -25
         robot.drive(0, err)
         wait(20)
+        wait(20)
     robot.stop()
 
 def clearslot(slot):
@@ -333,6 +336,7 @@ def runprogram(slot):
         elif cmd == 2:
             turnto(p1, flag1, flag2, flag3)
         elif cmd == 3:
+            continue
             continue
 
 def saveinstruction(slot, cmd, p1, p2, flag1, flag2, flag3):
