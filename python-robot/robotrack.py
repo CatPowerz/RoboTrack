@@ -3,7 +3,7 @@ from pybricks.pupdevices import Motor, ColorSensor, UltrasonicSensor, ForceSenso
 from pybricks.parameters import Button, Color, Direction, Port, Side, Stop
 from pybricks.robotics import DriveBase
 from pybricks.tools import wait, StopWatch
-from umath import sin, cos, atan2, sqrt, pi
+from umath import sin, cos, atan2, sqrt, pi, floor, ceil, round
 from usys import stdin
 from uselect import poll
 import ustruct
@@ -35,6 +35,11 @@ global aux_motors, aux_last_angles
 aux_motors = []
 aux_last_angles = {}
 
+nowtracking = True
+whattracking = 0
+editmode = True
+selectedslot = 0
+
 excluded = {"F", "B"}
 for name in ["A", "B", "C", "D", "E", "F"]:
     if name in excluded:
@@ -53,7 +58,7 @@ for name in ["A", "B", "C", "D", "E", "F"]:
         pass
 
 def updatelastangles():
-    for port in aux_motors:
+    for name, m in aux_motors:
         if port is None:
             continue
         try:
@@ -238,4 +243,63 @@ def turnto(angle, speed, precision, specificdir):
         robot.drive(0, err)
         wait(10)
     robot.stop()
+
+def clearslot(slot):
+    slotoffset = slot * bytesperprogram
+    writeflash(slotoffset, bytes([0] * bytesperprogram))
+
+def updateinterface():
+    blink_on = (hub.system.time() % 400) < 200
+    if tracking:
+        hub.display.off()
+        if(blink_on):
+            hub.display.pixel(selectedslot % 5, selectedslot // 5, brightness=100)
+       
         
+    elif editmode:
+        hub.display.off()
+        hub.display.pixel(selectedslot % 5, selectedslot // 5, brightness=100)
+        hub.display.pixel(4, 4, brightness=50)
+    else:
+        hub.display.off()
+        hub.display.pixel(selectedslot % 5, selectedslot // 5, brightness=100)
+
+def selectslot(slot):
+    global tracking, editmode
+    if tracking:
+        tracking = False
+    elif editmode:
+        if slot == 24:
+            editmode = False
+        else:
+            tracking = True
+    else:
+        if slot == 24:
+            editmode = True
+        else:
+            runprogram()
+
+def runprogram():
+    wait(20)
+    # here comes run program script
+    
+        
+
+while True:
+    update_odometry()
+    updateinterface()
+    updatelastangles()
+    newdata = peekinline()
+    if newdata != None:
+        processcommand(newdata)
+    
+    if Button.CENTER in hub.buttons.pressed():
+        selectslot(selectedslot)
+        while Button.CENTER in hub.buttons.pressed():
+            wait(20)
+
+    wait(10)
+
+    
+
+
