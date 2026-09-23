@@ -21,18 +21,19 @@ dirrightwheel = Direction.CLOCKWISE
 leftmotor = Motor(leftmotorport, dirleftwheel)
 rightmotor = Motor(rightmotorport, dirrightwheel)
 # Please edit direction config if you're not using the same direction as me
-
+tick = 0
 wheeldiameter = 81.6
 axle = 140 # distance between left and right wheel
-
+last_buttons = set()
 bytesperprogram = 640 # standard config for custom 8 kb robotrack pybricks firmware.
 maxprograms = 12
 
-
+stoprequested = False
 robot = DriveBase(leftmotor, rightmotor, wheeldiameter, axle)
+robot.settings(straight_speed=500, straight_acceleration=800, turn_rate=300, turn_acceleration=600)
 
 global aux_motors, aux_last_angles
-
+print(f"this is {hasattr}")
 aux_motors = []
 aux_last_angles = {}
 
@@ -119,7 +120,7 @@ def reset_odometry():
     hub.imu.reset_heading(0)
     robot.reset()
     wait(10)
-    last_distance = robot.distance()  # Lees de werkelijke beginstand uit!
+    last_distance = robot.distance()
     
 
 def writeflash(start, data):
@@ -184,14 +185,21 @@ def processcommand(data):
     if command == "GETPOS":
         update_odometry()
         print("RequestPos:"+ str(x) + "|" + str(y) + "|" + str(hub.imu.heading()))
+
     if command == "GETSLOT":
         
         print(readflash(int(parameter) * bytesperprogram, bytesperprogram))
+    if command == "STARTTRACKING":
+        tracking = True
+        selectedslot = parameter
+
     #add more when there comes
 
-def drive_to(tx, ty, speed, precision):
+def drive_to(tx, ty, speed, precision, specificdir):
+    global pressed_now
     if speed == '' or speed < 100:
         speed = 150
+        
 
     update_odometry()
     differencex = tx-x
@@ -201,12 +209,20 @@ def drive_to(tx, ty, speed, precision):
     turnto(tangle, 100, precision, '')
     
     while distance > precision:
+        if Button.CENTER in pressed_now:
+            running = False
+            robot.stop()
+            stoprequested = True
+            tracking = False
+            editmode = False
         update_odometry()
         differencex = tx-x
         differencey = ty-y
         distance=sqrt(differencex**2 + differencey**2)
         
         tangle = -atan2(differencey, differencex) * 180 / pi
+        
+        
         err = tangle - hub.imu.heading()
         if err > 180:
             err -= 360
@@ -216,8 +232,18 @@ def drive_to(tx, ty, speed, precision):
             err = -err
         if distance < precision * 2:
             err = 0
+        dir = 1
+        if specificdir == 2:
+            dir = -1
+            err = err - 180 if err > 0 else err + 180
+        elif abs(err) > 90:
+            dir = -1
+            err = err - 180 if err > 0 else err + 180
+
+        
+       
         turn_rate = max(-60, min(60, err * 1.0))
-        current_speed = min(speed, max(40, distance * 1.5))
+        current_speed = min(speed, max(90, distance * 2.5)) * dir
         robot.drive(current_speed, turn_rate)
         wait(10)
 
@@ -241,6 +267,13 @@ def turnto(angle, speed, precision, specificdir):
                 err -= 360
 
     while err > precision or err < -precision:
+        if Button.CENTER in pressed_now:
+            running = False
+            robot.stop()
+            stoprequested = True
+            tracking = False
+            editmode = False
+
         update_odometry()
         err = angle - hub.imu.heading()
         if err > 180:
@@ -254,15 +287,16 @@ def turnto(angle, speed, precision, specificdir):
             elif specificdir == Direction.COUNTERCLOCKWISE:
                 if err > 0:
                     err -= 360
-        turnrate = max(-speed, min(speed, err * 2.0))
+        turnrate = err * 2.5
+        turnrate = max(-speed, min(speed, turnrate))
         if abs(turnrate) < 25:
             if err > 0:
                 turnrate = 25
             else:
                 turnrate = -25
-        robot.drive(0, err)
+        robot.drive(0, turnrate)
         wait(20)
-        wait(20)
+  
     robot.stop()
 
 def clearslot(slot):
@@ -302,6 +336,7 @@ def selectslot():
             clearslot(selectedslot)
             reset_odometry()
             tracking = True
+            updatelastangles()
             editmode = False
     else:
         if selectedslot == 24:
@@ -315,7 +350,7 @@ def selectslot():
 
 def runprogram(slot):
     reset_odometry()
-    global bytesperprogram, selectedslot
+    global bytesperprogram, selectedslot, stoprequested
     # EVERY instruction has 8 bytes. Every bite consists of eight bits (0 or 1)
     # The first byte contains the type of instruction (from 0 to 255)
     # A byte is SIGNED if it can also contain negative numbers, UNSIGNED if only positive
@@ -324,20 +359,28 @@ def runprogram(slot):
     data = loadslot(slot)
     for i in range(0, bytesperprogram // 8):
 
-    
+        if stoprequested:
+            stoprequested = False
+            break
         curroffset = 8 * i
         print("RAW BYTES:", list(data[:24]))
         cmd, p1, p2, flag1, flag2, flag3 = ustruct.unpack(">BhhBBB", data[curroffset : curroffset + 8])
-        print("DOEL:", p1, p2, "HUIDIG:", int(x), int(y), "HEADING:", int(hub.imu.heading()))
+       
         if cmd == 0:
             break
         elif cmd == 1:
-            drive_to(p1, p2, flag1, flag2)
+            drive_to(p1, p2, flag1, flag2, 0)
         elif cmd == 2:
             turnto(p1, flag1, flag2, flag3)
         elif cmd == 3:
-            continue
-            continue
+            playmotorsnapshot(p1, p2, flag1, flag2, flag3)
+    robot.stop()
+    stoprequested = True
+    print("program finished")
+    tracking = False
+    running = False
+    editmode = False
+           
 
 def saveinstruction(slot, cmd, p1, p2, flag1, flag2, flag3):
     offset = countinstructions(slot)
@@ -360,8 +403,8 @@ def playmotorsnapshot(p1, p2, flag1, flag2, flag3):
             continue
         try:
             if flag1 & (1 << idx):
-                delta = p1 if idx == 0 else p2
-                m.run_target(flag2, aux_last_angles.get(name, 0) + delta, wait=flag3)
+                target = p1 if idx == 0 else p2
+                m.run_target(flag2, target, wait=flag3)
         except:
             print("Error with playmotorsnapshot")
     
@@ -374,11 +417,15 @@ def motorsnapshot(speed, waitformotors):
         if name is None:
             continue
         try:
+            currangle = m.angle()
+            delta = int(currangle - aux_last_angles.get(name, 0))
             if m.angle() - aux_last_angles[name] > 5 or m.angle() - aux_last_angles[name] < -5:
-                delta = int(m.angle() - aux_last_angles.get(name, 0))
+              
                 mask |= (1 << idx)
-                editedmotors.append(delta)
+                editedmotors.append(currangle)
+                print("Motor ", name, "CurrentAngle ", currangle, "Last ", aux_last_angles[name], "Difference ", delta)
             else:
+                print("Motor ", name, "CurrentAngle ", currangle, "Last ", aux_last_angles[name], "Difference ", delta)
                 print("motor " + name + " has not moved more than 5 deg")
             
         except:
@@ -397,28 +444,41 @@ def motorsnapshot(speed, waitformotors):
     flag3 = waitformotors
     updatelastangles()
     return ustruct.pack(">BhhBBB", 3, p1, p2, flag1, flag2, flag3)
+
 while True:
-    print(str(x) + " " + str(y))
+    buttons = hub.buttons.pressed()
+    pressed_now = [but for but in buttons if but not in last_buttons]
+    last_buttons = buttons
+    
+    tick += 1
+    if tracking or tick == 5 and not running:
+        print(str(x) + " " + str(y))
+        tick = 0
     update_odometry()
     updateinterface()
     newdata = peekinline()
-    if newdata != None:
+    if newdata != None: 
         processcommand(newdata)
     
-    if Button.CENTER in hub.buttons.pressed():
+    if Button.CENTER in pressed_now:
         if tracking:
             reset_odometry()
             tracking = False
             editmode = False
+        elif running:
+            running = False
+            robot.stop()
+            stoprequested = True
+            tracking = False
+            editmode = False
         else:
             selectslot()
-        while Button.CENTER in hub.buttons.pressed():
-            wait(20)
+        
 
-    if Button.RIGHT in hub.buttons.pressed():
+    if Button.RIGHT in pressed_now:
         if tracking:
 
-            saveinstruction(selectedslot, 1, int(x), int(y), 150, 10, 0)
+            saveinstruction(selectedslot, 1, int(x), int(y), 250, 15, 0)
             
         else:
             if selectedslot == 24:
@@ -428,25 +488,21 @@ while True:
             else:
                 selectedslot = selectedslot + 1
         
-        while Button.RIGHT in hub.buttons.pressed():
-            wait(20)
+        
 
-    if Button.LEFT in hub.buttons.pressed():
+    if Button.LEFT in pressed_now:
         if tracking:
-            wait(20)
+            shot = motorsnapshot(300, 1)
+            if shot is not None:
+                totaloffset = (countinstructions(selectedslot) * 8) + (bytesperprogram * selectedslot)
+                writeflash(totaloffset, shot)
         else:
             if selectedslot <= 0:
                 selectedslot = 24
             elif selectedslot == 24:
                 selectedslot = maxprograms
             else:
-                selectedslot = selectedslot - 1
-            
-            while Button.LEFT in hub.buttons.pressed():
-                wait(20)
-
-        
-    
+                selectedslot = selectedslot - 1    
     
 
     wait(20)
