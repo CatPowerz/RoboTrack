@@ -188,14 +188,14 @@ class _MainDashboardState extends State<MainDashboard> {
       Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(flex: 2, child: Image.asset('assets/rebornrobotrack.png')),
+          Expanded(flex: 3, child: Image.asset('assets/rebornrobotrack.png')),
           Expanded(
-            flex: 8,
+            flex: 17,
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Expanded(
-                  flex: 6,
+                  flex: 4,
                   child: SizedBox.expand(
                     child: CustomPaint(
                       painter: FieldPainter(
@@ -211,94 +211,149 @@ class _MainDashboardState extends State<MainDashboard> {
                     ),
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.all(28.0),
+                SingleChildScrollView(
                   child: Expanded(
-                    flex: 4,
-                    child: FractionallySizedBox(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Center(
-                            child: Row(
-                              children: [
-                                Card(
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(8.0),
-                                    child: SizedBox(
-                                      width: 200,
-                                      child: Text(
-                                        'X: ${(telemetry.xpos / 10).toStringAsFixed(1)}',
-                                        textAlign: TextAlign.center,
-                                        style: TextStyle(fontSize: 48),
+                    flex: 3,
+                    child: Padding(
+                      padding: const EdgeInsets.all(28.0),
+                      child: FractionallySizedBox(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Center(
+                              child: Card(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(8.0),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(
+                                        Icons.battery_4_bar,
+                                        color: Colors.tealAccent,
+                                        size: 130,
+                                      ),
+                                      const SizedBox(width: 2),
+                                      SizedBox(
+                                        width: 150,
+                                        height: 20,
+                                        child: LinearProgressIndicator(
+                                          value: telemetry.batterylevel / 100,
+                                          color: Colors.white,
+                                          backgroundColor: Colors.black,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        '${telemetry.batterylevel}%',
+                                        style: TextStyle(fontSize: 50),
+                                      ),
+                                      const SizedBox(width: 18),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                SingleChildScrollView(
+                  child: Expanded(
+                    flex: 3,
+                    child: Padding(
+                      padding: const EdgeInsets.all(28.0),
+                      child: FractionallySizedBox(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Center(
+                              child: Row(
+                                children: [
+                                  Card(
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(8.0),
+                                      child: SizedBox(
+                                        width: 200,
+                                        child: Text(
+                                          'X: ${(telemetry.xpos / 10).toStringAsFixed(1)}',
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(fontSize: 48),
+                                        ),
                                       ),
                                     ),
                                   ),
-                                ),
-                                Card(
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(8.0),
-                                    child: SizedBox(
-                                      width: 200,
-                                      child: Text(
-                                        'Y: ${(telemetry.ypos / 10).toStringAsFixed(1)}',
-                                        textAlign: TextAlign.center,
-                                        style: TextStyle(fontSize: 48),
+                                  Card(
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(8.0),
+                                      child: SizedBox(
+                                        width: 200,
+                                        child: Text(
+                                          'Y: ${(telemetry.ypos / 10).toStringAsFixed(1)}',
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(fontSize: 48),
+                                        ),
                                       ),
                                     ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                          ),
-                          Center(),
-                          Card(
-                            child: Padding(
-                              padding: const EdgeInsets.all(8.0),
-                              child: SizedBox(
-                                width: 400,
-                                child: Text(
-                                  'Yaw: ${normalizedYaw(telemetry.yaw).toStringAsFixed(1)}°',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(fontSize: 48),
+                            Center(),
+                            Card(
+                              child: Padding(
+                                padding: const EdgeInsets.all(8.0),
+                                child: SizedBox(
+                                  width: 400,
+                                  child: Text(
+                                    'Yaw: ${normalizedYaw(telemetry.yaw).toStringAsFixed(1)}°',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(fontSize: 48),
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                          Card(
-                            child: Padding(
-                              padding: const EdgeInsets.all(8.0),
-                              child: SizedBox(
-                                width: 400,
-                                child: Text(
-                                  'Pitch: ${telemetry.pitch.round()}°',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(fontSize: 48),
+                            Card(
+                              child: Padding(
+                                padding: const EdgeInsets.all(8.0),
+                                child: SizedBox(
+                                  width: 400,
+                                  child: Text(
+                                    'Pitch: ${telemetry.pitch.round()}°',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(fontSize: 48),
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                          Card(
-                            child: Padding(
-                              padding: const EdgeInsets.all(8.0),
-                              child: SizedBox(
-                                width: 400,
-                                child: Text(
-                                  'Roll: ${telemetry.roll.round()}°',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(fontSize: 48),
+                            Card(
+                              child: Padding(
+                                padding: const EdgeInsets.all(8.0),
+                                child: SizedBox(
+                                  width: 400,
+                                  child: Text(
+                                    'Roll: ${telemetry.roll.round()}°',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(fontSize: 48),
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                          AttitudeVisualisation(
-                            pitch: telemetry.pitch,
-                            roll: telemetry.roll,
-                            yaw: telemetry.yaw,
-                            size: 100,
-                          ),
-                        ],
+                            Text(
+                              '3D VISUALISATION',
+                              style: TextStyle(fontSize: 48),
+                            ),
+                            AttitudeVisualisation(
+                              pitch: telemetry.pitch,
+                              roll: telemetry.roll,
+                              yaw: normalizedYaw(telemetry.yaw),
+                              size: 300,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -444,8 +499,7 @@ class _MainDashboardState extends State<MainDashboard> {
       simRoll = cos(simTime * 2.0) * 1.8 + (random.nextDouble() - 0.5) * 0.3;
       simPitch *= 0.98;
       simRoll *= 0.98;
-
-      if (random.nextDouble() < 0.01) {
+      if (random.nextDouble() < 0.03) {
         simPitch += (random.nextDouble() - 0.5) * 1.5;
         simRoll += (random.nextDouble() - 0.5) * 1.5;
       }

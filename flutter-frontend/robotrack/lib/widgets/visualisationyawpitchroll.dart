@@ -43,46 +43,25 @@ class AttitudeVisualisation extends StatelessWidget {
               color: Colors.white.withValues(alpha: 0.2),
               thickness: 1,
             ),
-            Transform.translate(
-              offset: Offset(0, -pitch * 2.5),
-              child: Transform(
-                alignment: Alignment.center,
-                transform: Matrix4.identity()
-                  ..setEntry(3, 2, 0.002)
-                  ..rotateX(pitch * (pi / 180))
-                  ..rotateY(roll * (pi / 180))
-                  ..rotateZ(yaw * (pi / 180)),
-                child: Container(
-                  width: size * 0.7,
-                  height: 3,
-                  decoration: BoxDecoration(
-                    color: Colors.tealAccent,
-                    borderRadius: BorderRadius.circular(2),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.tealAccent.withValues(alpha: 0.8),
-                        blurRadius: 8,
-                      ),
-                    ],
-                  ),
+            Transform(
+              alignment: Alignment.center,
+              transform: Matrix4.identity()
+                ..setEntry(3, 2, 0.002)
+                ..rotateX((pitch * 5) * (pi / 180))
+                ..rotateY((roll * 5) * (pi / 180))
+                ..rotateZ(yaw * (pi / 180) * -1),
+              child: Container(
+                width: size * 0.6,
+                height: size * 0.6,
+                decoration: BoxDecoration(
+                  color: Colors.tealAccent.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.tealAccent, width: 2),
                 ),
-              ),
-            ),
-            Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(
-                shape: BoxShape.rectangle,
-                color: Colors.white,
-              ),
-            ),
-            Transform.rotate(
-              angle: yaw * (pi / 180),
-              child: Align(
-                alignment: Alignment.topCenter,
-                child: Padding(
-                  padding: EdgeInsets.all(4),
-                  child: Icon(Icons.navigation),
+                child: Icon(
+                  Icons.arrow_upward,
+                  color: Colors.tealAccent,
+                  size: size / 2,
                 ),
               ),
             ),
