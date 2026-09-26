@@ -15,18 +15,23 @@ class FieldPainter extends CustomPainter {
     required this.camX,
     required this.camY,
     required this.trail,
+    required double pitch,
+    required double roll,
   });
 
   void paint(Canvas canvas, Size size) {
-    const double fieldwidth = 500.0;
-    const double fieldheight = 500.0;
+    const double fieldwidth = 300.0;
+    const double fieldheight = 300.0;
     final double scaleX = size.width / fieldwidth;
     final double scaleY = size.height / fieldheight;
-    final double scale = min(scaleX, scaleY);
+    final double viewportSize = min(size.width, size.height);
+    final double scale = viewportSize / fieldwidth;
     double currentviewX = 0;
     double currentviewY = 0;
-    final double centerX = size.width / 2;
-    final double centerY = size.height / 2;
+    final double viewportLeft = 0.0;
+    final double viewportTop = (size.height - viewportSize) / 2;
+    final double centerX = viewportLeft + (viewportSize / 2);
+    final double centerY = viewportTop + (viewportSize / 2);
     final double gridSize = 10.0 * scale;
 
     final double rawOffsetX = (centerX - (camX * scale)) % gridSize;
@@ -35,10 +40,11 @@ class FieldPainter extends CustomPainter {
     final double rawOffsetY = (centerY + (camY * scale)) % gridSize;
     final double offsetY = (rawOffsetY + gridSize) % gridSize;
 
-    final viewportRect = Rect.fromCenter(
-      center: Offset(centerX, centerY),
-      width: fieldwidth * scale,
-      height: fieldheight * scale,
+    final viewportRect = Rect.fromLTWH(
+      viewportLeft,
+      viewportTop,
+      viewportSize,
+      viewportSize,
     );
 
     canvas.save();
@@ -105,18 +111,20 @@ class FieldPainter extends CustomPainter {
 
     canvas.rotate(-yaw);
 
-    final robotPaint = Paint()
-      ..color = Colors.tealAccent
-      ..style = PaintingStyle.fill;
-    canvas.drawRect(
-      Rect.fromCenter(center: Offset.zero, width: 24, height: 24),
-      robotPaint,
-    );
+    final robotPaint = Paint()..color = Colors.tealAccent;
+    //..style = PaintingStyle.fill;
 
-    final headingPaint = Paint()
-      ..color = Colors.white
-      ..strokeWidth = 3;
-    canvas.drawLine(Offset.zero, const Offset(18, 0), headingPaint);
+    final robotPath = Path()
+      ..moveTo(10, 0)
+      ..lineTo(-15, -15)
+      ..lineTo(-15, 15)
+      ..close();
+
+    canvas.drawPath(robotPath, robotPaint);
+    //final headingPaint = Paint()
+    //  ..color = Colors.white
+    //  ..strokeWidth = 3;
+    //canvas.drawLine(Offset.zero, const Offset(18, 0), headingPaint);
 
     canvas.restore();
     canvas.restore();
