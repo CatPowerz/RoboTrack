@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:robotrack/classes/telemetrydata.dart';
 import 'package:robotrack/widgets/visualisationwidget.dart';
@@ -5,6 +8,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:robotrack/widgets/visualisationyawpitchroll.dart';
+import 'package:universal_ble/universal_ble.dart';
 
 class MainDashboard extends StatefulWidget {
   const MainDashboard({super.key});
@@ -23,6 +27,170 @@ class _MainDashboardState extends State<MainDashboard> {
   double mockangle = 0.0;
   double simTime = 0.0;
   final List<Offset> trail = [];
+  List<BleDevice> devicesList = [];
+  bool isScanning = false;
+  String bleBuffer = "";
+  BleDevice? connectedHub;
+  final String uartServiceUuid = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
+  final String uartTxUuid = "6e400003-b5a3-f393-e0a9-e50e24dcca9e";
+  final Map<String, DateTime> _lastSeen = {};
+  Timer? _cleanupTimer;
+  final Set<String> _knownRobotIds = {};
+  void startContinuousScan() async {
+    if (isScanning || selectedIndex != 0) return;
+
+    setState(() {
+      devicesList.clear();
+      isScanning = true;
+    });
+
+    await UniversalBle.startScan();
+  }
+
+  void stopContinuousScan() async {
+    if (!isScanning) return;
+
+    await UniversalBle.stopScan();
+    if (mounted) {
+      setState(() {
+        isScanning = false;
+      });
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    UniversalBle.onScanResult = (bleDevice) {
+      final name = bleDevice.name;
+      if (name == null || name.isEmpty) return;
+
+      _lastSeen[bleDevice.deviceId] = DateTime.now();
+
+      // Check of dit apparaat een robot is
+      final isRobotNow =
+          bleDevice.services.any((s) {
+            final lower = s.toLowerCase();
+            return lower.contains("6e400001") || lower.contains("c5f50001");
+          }) ||
+          name.toLowerCase().contains("robotrack") ||
+          name.toLowerCase().contains("pybricks") ||
+          name.toLowerCase().contains("spike");
+
+      // Één keer goedgekeurd = voor altijd goedgekeurd
+      if (isRobotNow) {
+        _knownRobotIds.add(bleDevice.deviceId);
+      }
+
+      final index = devicesList.indexWhere(
+        (d) => d.deviceId == bleDevice.deviceId,
+      );
+
+      if (index == -1) {
+        setState(() {
+          devicesList.add(bleDevice);
+        });
+      } else {
+        final existing = devicesList[index];
+        // Alleen updaten als de naam daadwerkelijk verandert
+        if (existing.name != bleDevice.name) {
+          setState(() {
+            devicesList[index] = bleDevice;
+          });
+        }
+      }
+    };
+
+    _cleanupTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+      final now = DateTime.now();
+      setState(() {
+        devicesList.removeWhere((device) {
+          final lastTime = _lastSeen[device.deviceId];
+          final isDead =
+              lastTime == null || now.difference(lastTime).inSeconds > 5;
+          if (isDead) _lastSeen.remove(device.deviceId);
+          return isDead;
+        });
+      });
+    });
+
+    UniversalBle.onValueChange =
+        (deviceId, characteristicId, rawBytes, serviceId) {
+          if (characteristicId.toLowerCase().contains("6e400003")) {
+            _handleIncomingData(rawBytes);
+          }
+        };
+
+    startContinuousScan();
+  }
+
+  void resetAllTelemetryData() {
+    mocktimer?.cancel();
+    mocktimer = null;
+
+    setState(() {
+      robotX = 0.0;
+      robotY = 0.0;
+      heading = 0.0;
+      turnRate = 0.0;
+      simTime = 0.0;
+      simPitch = 0.0;
+      simRoll = 0.0;
+      mockangle = 0.0;
+      camX = 0.0;
+      camY = 0.0;
+
+      trail.clear();
+      bleBuffer = "";
+
+      telemetry = const TelemetryData(
+        yaw: 0.0,
+        pitch: 0.0,
+        roll: 0.0,
+        xpos: 0.0,
+        ypos: 0.0,
+        batterylevel: 100,
+        occupiedslots: {},
+        leftwheelport: 'A',
+        rightwheelport: 'B',
+        maxslots: '12',
+        bytesperprogram: '0',
+      );
+    });
+  }
+
+  void connectToHub(BleDevice device) async {
+    try {
+      setState(() {
+        isScanning = false;
+
+        resetAllTelemetryData();
+      });
+
+      setState(() {
+        selectedIndex = 1;
+      });
+      await UniversalBle.connect(device.deviceId);
+      connectedHub = device;
+      await UniversalBle.discoverServices(device.deviceId);
+      await UniversalBle.setNotifiable(
+        device.deviceId,
+
+        uartServiceUuid,
+
+        uartTxUuid,
+
+        BleInputProperty.notification,
+      );
+      await UniversalBle.stopScan();
+      stopContinuousScan();
+    } catch (e) {
+      setState(() {
+        selectedIndex = 0;
+      });
+    }
+  }
+
   TelemetryData telemetry = const TelemetryData(
     yaw: 0.0,
     pitch: 0.0,
@@ -89,9 +257,58 @@ class _MainDashboardState extends State<MainDashboard> {
                         const SizedBox(height: 24),
                         FilledButton.icon(
                           onPressed: () {
-                            setState(() {
-                              selectedIndex = 1;
-                            });
+                            showDialog(
+                              context: context,
+                              builder: (context) {
+                                return AlertDialog(
+                                  title: Text("Install RoboTrack Firmware: 1"),
+                                  content: Text("DFU mode placeholder"),
+                                  actions: [
+                                    FilledButton(
+                                      onPressed: () {
+                                        Navigator.of(context).pop();
+                                      },
+                                      child: Icon(Icons.cancel),
+                                    ),
+                                    FilledButton(
+                                      onPressed: () {
+                                        Navigator.of(context).pop();
+                                        showDialog(
+                                          context: context,
+                                          builder: (context) {
+                                            return AlertDialog(
+                                              title: Text(
+                                                "Install RoboTrack Firmware: 2",
+                                              ),
+                                              content: Text(
+                                                "Open Pybricks placeholder and flash firmware",
+                                              ),
+                                              actions: [
+                                                FilledButton(
+                                                  onPressed: () {
+                                                    Navigator.of(context).pop();
+                                                  },
+                                                  child: Icon(Icons.cancel),
+                                                ),
+                                                FilledButton(
+                                                  onPressed: () {
+                                                    Navigator.of(context).pop();
+                                                  },
+                                                  child: Icon(
+                                                    Icons.arrow_right_alt,
+                                                  ),
+                                                ),
+                                              ],
+                                            );
+                                          },
+                                        );
+                                      },
+                                      child: Icon(Icons.arrow_right_alt),
+                                    ),
+                                  ],
+                                );
+                              },
+                            );
                           },
 
                           icon: Icon(Icons.question_mark, size: 24),
@@ -108,7 +325,80 @@ class _MainDashboardState extends State<MainDashboard> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 24),
+
+                const SizedBox(height: 12),
+                Card(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      ...devicesList.map((device) {
+                        final name = device.name;
+                        if (name != null && device.name!.isNotEmpty) {
+                          final bool isRobot =
+                              device.services.any(
+                                (s) =>
+                                    s.toLowerCase().contains("6e400001") ||
+                                    s.toLowerCase().contains("c5f50001"),
+                              ) ||
+                              _knownRobotIds.contains(device.deviceId);
+                          if (isRobot) {
+                            _knownRobotIds.add(device.deviceId);
+                            return Container(
+                              key: ValueKey(device.deviceId),
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.5),
+                                ),
+                                borderRadius: BorderRadius.circular(8),
+                                color: Colors.white.withValues(alpha: 0.1),
+                              ),
+                              child: ListTile(
+                                leading: const Icon(
+                                  Icons.bluetooth,
+                                  color: Colors.teal,
+                                ),
+
+                                title: Text(
+                                  name,
+                                  style: TextStyle(fontFamily: 'Orbitron'),
+                                ),
+                                onTap: () {
+                                  connectToHub(device);
+                                },
+                              ),
+                            );
+                          } else {
+                            return Container(
+                              key: ValueKey(device.deviceId),
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.1),
+                                ),
+                                borderRadius: BorderRadius.circular(8),
+                                color: Colors.white.withValues(alpha: 0.0001),
+                              ),
+                              child: ListTile(
+                                leading: const Icon(
+                                  Icons.bluetooth_disabled,
+                                  color: Color.fromARGB(150, 158, 158, 158),
+                                ),
+
+                                title: Text(
+                                  name,
+                                  style: TextStyle(fontFamily: 'Orbitron'),
+                                ),
+                              ),
+                            );
+                          }
+                        } else {
+                          return SizedBox.shrink();
+                        }
+                      }),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+
                 Card(
                   child: Padding(
                     padding: EdgeInsets.all(24),
@@ -147,17 +437,17 @@ class _MainDashboardState extends State<MainDashboard> {
                                     actions: [
                                       FilledButton(
                                         onPressed: () {
+                                          Navigator.of(context).pop();
+                                        },
+                                        child: Icon(Icons.cancel),
+                                      ),
+                                      FilledButton(
+                                        onPressed: () {
                                           selectedIndex = 1;
                                           startMockTelemetry();
                                           Navigator.of(context).pop();
                                         },
                                         child: Icon(Icons.check),
-                                      ),
-                                      FilledButton(
-                                        onPressed: () {
-                                          Navigator.of(context).pop();
-                                        },
-                                        child: Icon(Icons.cancel),
                                       ),
                                     ],
                                   );
@@ -192,7 +482,6 @@ class _MainDashboardState extends State<MainDashboard> {
           Expanded(
             flex: 17,
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Expanded(
                   flex: 4,
@@ -211,60 +500,62 @@ class _MainDashboardState extends State<MainDashboard> {
                     ),
                   ),
                 ),
-                SingleChildScrollView(
-                  child: Expanded(
-                    flex: 3,
+                Expanded(
+                  flex: 3,
+                  child: SingleChildScrollView(
                     child: Padding(
                       padding: const EdgeInsets.all(28.0),
-                      child: FractionallySizedBox(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Center(
-                              child: Card(
-                                child: Padding(
-                                  padding: const EdgeInsets.all(8.0),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Icon(
-                                        Icons.battery_4_bar,
-                                        color: Colors.tealAccent,
-                                        size: 130,
-                                      ),
-                                      const SizedBox(width: 2),
-                                      SizedBox(
-                                        width: 150,
-                                        height: 20,
+
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Card(
+                            child: Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  const Icon(
+                                    Icons.battery_4_bar,
+                                    color: Colors.tealAccent,
+                                    size: 48,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: SizedBox(
+                                      height: 18,
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(4),
                                         child: LinearProgressIndicator(
                                           value: telemetry.batterylevel / 100,
-                                          color: Colors.white,
-                                          backgroundColor: Colors.black,
+                                          color: Colors.tealAccent,
+                                          backgroundColor: Colors.white24,
                                         ),
                                       ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        '${telemetry.batterylevel}%',
-                                        style: TextStyle(fontSize: 50),
-                                      ),
-                                      const SizedBox(width: 18),
-                                    ],
+                                    ),
                                   ),
-                                ),
+                                  const SizedBox(width: 12),
+                                  Text(
+                                    '${telemetry.batterylevel}%',
+                                    style: const TextStyle(fontSize: 28),
+                                  ),
+                                ],
                               ),
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
                 ),
-                SingleChildScrollView(
-                  child: Expanded(
-                    flex: 3,
+
+                Expanded(
+                  flex: 3,
+                  child: SingleChildScrollView(
                     child: Padding(
                       padding: const EdgeInsets.all(28.0),
+
                       child: FractionallySizedBox(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.center,
@@ -273,28 +564,35 @@ class _MainDashboardState extends State<MainDashboard> {
                             Center(
                               child: Row(
                                 children: [
-                                  Card(
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(8.0),
-                                      child: SizedBox(
-                                        width: 200,
-                                        child: Text(
-                                          'X: ${(telemetry.xpos / 10).toStringAsFixed(1)}',
-                                          textAlign: TextAlign.center,
-                                          style: TextStyle(fontSize: 48),
+                                  Expanded(
+                                    child: Card(
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(8.0),
+                                        child: FittedBox(
+                                          fit: BoxFit.scaleDown,
+                                          child: Text(
+                                            'X: ${(telemetry.xpos / 10).toStringAsFixed(1)}',
+                                            style: const TextStyle(
+                                              fontSize: 48,
+                                            ),
+                                          ),
                                         ),
                                       ),
                                     ),
                                   ),
-                                  Card(
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(8.0),
-                                      child: SizedBox(
-                                        width: 200,
-                                        child: Text(
-                                          'Y: ${(telemetry.ypos / 10).toStringAsFixed(1)}',
-                                          textAlign: TextAlign.center,
-                                          style: TextStyle(fontSize: 48),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Card(
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(8.0),
+                                        child: FittedBox(
+                                          fit: BoxFit.scaleDown,
+                                          child: Text(
+                                            'Y: ${(telemetry.ypos / 10).toStringAsFixed(1)}',
+                                            style: const TextStyle(
+                                              fontSize: 48,
+                                            ),
+                                          ),
                                         ),
                                       ),
                                     ),
@@ -342,15 +640,21 @@ class _MainDashboardState extends State<MainDashboard> {
                                 ),
                               ),
                             ),
-                            Text(
-                              '3D VISUALISATION',
-                              style: TextStyle(fontSize: 48),
-                            ),
-                            AttitudeVisualisation(
-                              pitch: telemetry.pitch,
-                              roll: telemetry.roll,
-                              yaw: normalizedYaw(telemetry.yaw),
-                              size: 300,
+                            Card(
+                              child: Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: Column(
+                                  children: [
+                                    Text('3D', style: TextStyle(fontSize: 48)),
+                                    AttitudeVisualisation(
+                                      pitch: telemetry.pitch,
+                                      roll: telemetry.roll,
+                                      yaw: normalizedYaw(telemetry.yaw),
+                                      size: 300,
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
                           ],
                         ),
@@ -363,7 +667,69 @@ class _MainDashboardState extends State<MainDashboard> {
           ),
         ],
       ),
-      const Placeholder(),
+      Padding(
+        padding: const EdgeInsets.all(38.0),
+        child: Card(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: double.infinity,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const SizedBox(height: 16),
+                      const Text(
+                        "PROGRAM SLOTS",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 48, fontFamily: 'Orbitron'),
+                      ),
+                      const SizedBox(height: 16),
+                      GridView.count(
+                        shrinkWrap: true,
+                        crossAxisCount: 5,
+                        mainAxisSpacing: 6,
+                        childAspectRatio: 2,
+                        physics: const NeverScrollableScrollPhysics(),
+                        children: List.generate(12, (index) {
+                          final slotNumber = index + 1;
+                          final isOccupied = telemetry.occupiedslots.contains(
+                            slotNumber,
+                          );
+                          return Container(
+                            decoration: BoxDecoration(
+                              color: isOccupied
+                                  ? Colors.black
+                                  : Colors.white.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: isOccupied
+                                    ? Colors.white
+                                    : Colors.tealAccent.withValues(alpha: 0.2),
+                              ),
+                            ),
+                            child: Center(
+                              child: Text(
+                                "$slotNumber",
+                                style: const TextStyle(
+                                  fontSize: 32,
+                                  fontFamily: 'Orbitron',
+                                ),
+                              ),
+                            ),
+                          );
+                        }),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+
       const Placeholder(),
     ];
     return Scaffold(
@@ -424,9 +790,47 @@ class _MainDashboardState extends State<MainDashboard> {
                       ],
                       selectedIndex: selectedIndex,
                       onDestinationSelected: (value) {
-                        setState(() {
-                          selectedIndex = value;
-                        });
+                        if (value == 0) {
+                          startContinuousScan();
+                        } else {
+                          stopContinuousScan();
+                        }
+
+                        if (value == 0) {
+                          showDialog(
+                            context: context,
+                            builder: (context) {
+                              return AlertDialog(
+                                title: Text('Are you sure?'),
+                                content: Text(
+                                  "The robot will be disconnected and you'll return to the homepage.",
+                                ),
+                                actions: [
+                                  FilledButton(
+                                    onPressed: () {
+                                      Navigator.of(context).pop();
+                                    },
+                                    child: Icon(Icons.cancel),
+                                  ),
+                                  FilledButton(
+                                    onPressed: () {
+                                      setState(() {
+                                        selectedIndex = value;
+                                        startContinuousScan();
+                                      });
+                                      Navigator.of(context).pop();
+                                    },
+                                    child: Icon(Icons.check),
+                                  ),
+                                ],
+                              );
+                            },
+                          );
+                        } else {
+                          setState(() {
+                            selectedIndex = value;
+                          });
+                        }
                       },
                     ),
             ),
@@ -460,11 +864,6 @@ class _MainDashboardState extends State<MainDashboard> {
         ],
       ),
     );
-  }
-
-  @override
-  void initState() {
-    super.initState();
   }
 
   double robotX = 0.0;
@@ -519,7 +918,7 @@ class _MainDashboardState extends State<MainDashboard> {
         );
 
         trail.add(Offset(robotX, robotY));
-        if (trail.length > 250) {
+        if (trail.length > 750) {
           trail.removeAt(0);
         }
 
@@ -527,5 +926,44 @@ class _MainDashboardState extends State<MainDashboard> {
         camY += (robotY - camY) * 0.1;
       });
     });
+  }
+
+  void _handleIncomingData(Uint8List bytes) {
+    bleBuffer += utf8.decode(bytes, allowMalformed: true);
+    if (bleBuffer.contains('\n')) {
+      var lines = bleBuffer.split('\n');
+      var completeLine = lines.first.trim();
+      bleBuffer = lines.sublist(1).join('\n');
+
+      final parts = completeLine.split(',');
+      if (parts.length >= 6) {
+        final x = double.tryParse(parts[0]) ?? telemetry.xpos;
+        final y = double.tryParse(parts[1]) ?? telemetry.ypos;
+        final yawDeg = double.tryParse(parts[2]) ?? 0.0;
+        final pitch = double.tryParse(parts[3]) ?? telemetry.pitch;
+        final roll = double.tryParse(parts[4]) ?? telemetry.roll;
+        final bat = int.tryParse(parts[5]) ?? telemetry.batterylevel;
+
+        setState(() {
+          telemetry = TelemetryData(
+            yaw: yawDeg * (pi / 180),
+            pitch: pitch,
+            roll: roll,
+            xpos: x,
+            ypos: y,
+            batterylevel: bat,
+            occupiedslots: telemetry.occupiedslots,
+            leftwheelport: telemetry.leftwheelport,
+            rightwheelport: telemetry.rightwheelport,
+            maxslots: telemetry.maxslots,
+            bytesperprogram: telemetry.bytesperprogram,
+          );
+          trail.add(Offset(x, y));
+          if (trail.length > 250) trail.removeAt(0);
+          camX += (x - camX) * 0.1;
+          camY += (y - camY) * 0.1;
+        });
+      }
+    }
   }
 }

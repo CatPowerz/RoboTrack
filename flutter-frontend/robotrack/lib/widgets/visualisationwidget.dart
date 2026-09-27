@@ -8,6 +8,7 @@ class FieldPainter extends CustomPainter {
   final double camX;
   final double camY;
   final List<Offset> trail;
+
   FieldPainter({
     required this.xpos,
     required this.ypos,
@@ -28,7 +29,7 @@ class FieldPainter extends CustomPainter {
     final double scale = viewportSize / fieldwidth;
     double currentviewX = 0;
     double currentviewY = 0;
-    final double viewportLeft = 0.0;
+    final double viewportLeft = 18.0;
     final double viewportTop = (size.height - viewportSize) / 2;
     final double centerX = viewportLeft + (viewportSize / 2);
     final double centerY = viewportTop + (viewportSize / 2);
