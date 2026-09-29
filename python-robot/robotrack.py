@@ -1,4 +1,6 @@
 
+import sys
+
 from pybricks.hubs import PrimeHub
 from pybricks.pupdevices import Motor, ColorSensor, UltrasonicSensor, ForceSensor
 from pybricks.parameters import Button, Color, Direction, Port, Side, Stop
@@ -196,7 +198,7 @@ def processcommand(data):
     #add more when there comes
 
 def drive_to(tx, ty, speed, precision, specificdir):
-    global pressed_now
+    global pressed_now, stoprequested
     if speed == '' or speed < 100:
         speed = 150
         
@@ -206,15 +208,26 @@ def drive_to(tx, ty, speed, precision, specificdir):
     differencey = ty-y
     distance=sqrt(differencex**2 + differencey**2)
     tangle = -atan2(differencey, differencex) * 180 / pi
-    turnto(tangle, 100, precision, '')
+
+
+    init_err = tangle - hub.imu.heading()
+    dir=1
+    while init_err > 180: init_err -= 360
+    while init_err < -180: init_err += 360
+    if abs(init_err) > 90 or specificdir == 2:
+        dir = -1
+        init_err = init_err - 180 if init_err > 0 else init_err + 180
+    elif abs(init_err) > 45 and abs(init_err) < 135:
+        turnto(tangle, 180, precision, '')
+    
+    wait(50)
     
     while distance > precision:
-        if Button.CENTER in pressed_now:
-            running = False
+        if Button.CENTER in hub.buttons.pressed() or stoprequested:
             robot.stop()
             stoprequested = True
-            tracking = False
-            editmode = False
+            return
+        
         update_odometry()
         differencex = tx-x
         differencey = ty-y
@@ -230,8 +243,7 @@ def drive_to(tx, ty, speed, precision, specificdir):
             err += 360
         if speed < 0:
             err = -err
-        if distance < precision * 2:
-            err = 0
+      
         dir = 1
         if specificdir == 2:
             dir = -1
@@ -242,8 +254,8 @@ def drive_to(tx, ty, speed, precision, specificdir):
 
         
        
-        turn_rate = max(-60, min(60, err * 1.0))
-        current_speed = min(speed, max(90, distance * 2.5)) * dir
+        turn_rate = max(-90, min(90, err * 1.8))
+        current_speed = min(speed, max(45, distance * 2.5)) * dir
         robot.drive(current_speed, turn_rate)
         wait(10)
 
@@ -252,6 +264,7 @@ def drive_to(tx, ty, speed, precision, specificdir):
     wait(100)
 
 def turnto(angle, speed, precision, specificdir):
+    global stoprequested
     update_odometry()
     err = angle - hub.imu.heading()
     if err > 180:
@@ -267,12 +280,10 @@ def turnto(angle, speed, precision, specificdir):
                 err -= 360
 
     while err > precision or err < -precision:
-        if Button.CENTER in pressed_now:
-            running = False
+        if Button.CENTER in hub.buttons.pressed() or stoprequested:
             robot.stop()
             stoprequested = True
-            tracking = False
-            editmode = False
+            return
 
         update_odometry()
         err = angle - hub.imu.heading()
@@ -344,13 +355,16 @@ def selectslot():
             selectedslot = 0
         else:
             if not editmode:
-
+                running = True
                 runprogram(selectedslot)
 
 
 def runprogram(slot):
+    while Button.CENTER in hub.buttons.pressed():
+        wait(20)
     reset_odometry()
     global bytesperprogram, selectedslot, stoprequested
+    stoprequested = False
     # EVERY instruction has 8 bytes. Every bite consists of eight bits (0 or 1)
     # The first byte contains the type of instruction (from 0 to 255)
     # A byte is SIGNED if it can also contain negative numbers, UNSIGNED if only positive
@@ -374,8 +388,9 @@ def runprogram(slot):
             turnto(p1, flag1, flag2, flag3)
         elif cmd == 3:
             playmotorsnapshot(p1, p2, flag1, flag2, flag3)
+   
     robot.stop()
-    stoprequested = True
+    stoprequested = False
     print("program finished")
     tracking = False
     running = False
@@ -446,16 +461,27 @@ def motorsnapshot(speed, waitformotors):
     return ustruct.pack(">BhhBBB", 3, p1, p2, flag1, flag2, flag3)
 
 while True:
+
     buttons = hub.buttons.pressed()
     pressed_now = [but for but in buttons if but not in last_buttons]
     last_buttons = buttons
     
     tick += 1
-    if tracking or tick == 5 and not running:
-        print(str(x) + " " + str(y))
-        tick = 0
+    if tracking or tick == 5:
+        if not running:
+            rawcapacity = hub.battery.voltage()
+            capacity = min(100.0, rawcapacity / 80)
+            tick = 0
+            data = f"{x},{y},{hub.imu.heading()},{hub.imu.tilt()[0]},{hub.imu.tilt()[1]},{capacity}\n"
+
+            print(data)
+         
+          
     update_odometry()
     updateinterface()
+   
+    if hasattr(sys.stdout, 'flush'):
+        sys.stdout.flush()
     newdata = peekinline()
     if newdata != None: 
         processcommand(newdata)
@@ -478,7 +504,7 @@ while True:
     if Button.RIGHT in pressed_now:
         if tracking:
 
-            saveinstruction(selectedslot, 1, int(x), int(y), 250, 15, 0)
+            saveinstruction(selectedslot, 1, int(x), int(y), 250, 25, 0)
             
         else:
             if selectedslot == 24:
@@ -492,7 +518,7 @@ while True:
 
     if Button.LEFT in pressed_now:
         if tracking:
-            shot = motorsnapshot(300, 1)
+            shot = motorsnapshot(255, 1)
             if shot is not None:
                 totaloffset = (countinstructions(selectedslot) * 8) + (bytesperprogram * selectedslot)
                 writeflash(totaloffset, shot)
@@ -503,6 +529,17 @@ while True:
                 selectedslot = maxprograms
             else:
                 selectedslot = selectedslot - 1    
+    if Button.BLUETOOTH in pressed_now:
+            if tracking:
+                print(" ")
+                
+            else:
+                if selectedslot <= 0:
+                    selectedslot = 24
+                elif selectedslot == 24:
+                    selectedslot = maxprograms
+                else:
+                    selectedslot = selectedslot - 1    
     
 
     wait(20)

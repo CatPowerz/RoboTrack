@@ -448,7 +448,6 @@ while True:
                 selectedslot = selectedslot + 1
         
         
-
     if Button.LEFT in pressed_now:
         if tracking:
             shot = motorsnapshot(300, 1)
@@ -465,6 +464,7 @@ while True:
     
 
     wait(20)
+
 
     
 
