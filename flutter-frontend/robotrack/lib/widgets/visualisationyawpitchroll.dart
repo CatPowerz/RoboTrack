@@ -18,6 +18,7 @@ class AttitudeVisualisation extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: size,
+      
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.rectangle,
@@ -26,6 +27,7 @@ class AttitudeVisualisation extends StatelessWidget {
           color: Colors.white.withValues(alpha: 0.5),
           width: 2.0,
         ),
+
         boxShadow: [
           BoxShadow(
             color: Colors.tealAccent.withValues(alpha: 0.2),
@@ -46,13 +48,15 @@ class AttitudeVisualisation extends StatelessWidget {
             Transform(
               alignment: Alignment.center,
               transform: Matrix4.identity()
-                ..setEntry(3, 2, 0.002)
-                ..rotateX((pitch) * (pi / 180))
-                ..rotateY((roll) * (pi / 180))
-                ..rotateZ(yaw * (pi / 180) * -1),
+                ..setEntry(3, 2, 0.001)
+                ..rotateZ(-yaw * (pi / 180))
+                ..rotateX(pitch * (pi / 180))
+                ..rotateY(roll * (pi / 180)),
               child: Container(
+
                 width: size * 0.6,
                 height: size * 0.6,
+
                 decoration: BoxDecoration(
                   color: Colors.tealAccent.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),

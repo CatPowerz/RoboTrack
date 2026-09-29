@@ -23,13 +23,8 @@ class FieldPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     const double fieldwidth = 300.0;
-    const double fieldheight = 300.0;
-    final double scaleX = size.width / fieldwidth;
-    final double scaleY = size.height / fieldheight;
     final double viewportSize = min(size.width, size.height);
     final double scale = viewportSize / fieldwidth;
-    double currentviewX = 0;
-    double currentviewY = 0;
     final double viewportLeft = 18.0;
     final double viewportTop = (size.height - viewportSize) / 2;
     final double centerX = viewportLeft + (viewportSize / 2);
@@ -49,7 +44,6 @@ class FieldPainter extends CustomPainter {
       viewportSize,
     );
 
-
     canvas.save();
     canvas.clipRect(viewportRect);
     final double drawx = centerX + ((xpos - camX) * scale);
@@ -61,8 +55,6 @@ class FieldPainter extends CustomPainter {
       ..color = Colors.tealAccent.withValues(alpha: 0.5)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.0;
-    final double fieldDrawX = centerX + ((xpos - camX) * scale);
-    final double fieldDrawY = centerY + ((ypos - camY) * scale);
     final gridPaint = Paint()
       ..color = Colors.white.withValues(alpha: 0.3)
       ..strokeWidth = 1.0;
@@ -108,19 +100,19 @@ class FieldPainter extends CustomPainter {
         path.lineTo(px, py);
       }
     }
+
     canvas.drawPath(path, trailPaint);
     canvas.save();
     canvas.translate(drawx, drawy);
 
-    canvas.rotate(-yaw * (pi / 180.0));
-
+    canvas.rotate(pi / 2 - yaw);
     final robotPaint = Paint()..color = Colors.tealAccent;
     //..style = PaintingStyle.fill;
 
     final robotPath = Path()
-      ..moveTo(10, 0)
-      ..lineTo(-15, -15)
-      ..lineTo(-15, 15)
+      ..moveTo(0, -15) // Neus wijst naar boven (Noord / +Y op veld)
+      ..lineTo(-10, 10) // Linkerachterhoek
+      ..lineTo(10, 10) // Rechterachterhoek
       ..close();
 
     canvas.drawPath(robotPath, robotPaint);
@@ -139,6 +131,7 @@ class FieldPainter extends CustomPainter {
         oldDelegate.ypos != ypos ||
         oldDelegate.yaw != yaw ||
         oldDelegate.camX != camX ||
-        oldDelegate.camY != camY;
+        oldDelegate.camY != camY ||
+        oldDelegate.trail != trail;
   }
 }

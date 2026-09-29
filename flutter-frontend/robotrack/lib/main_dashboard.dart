@@ -31,14 +31,18 @@ class _MainDashboardState extends State<MainDashboard> {
   bool isScanning = false;
   String bleBuffer = "";
   BleDevice? connectedHub;
-
+  int packets = 0;
+  int packetspersecond = 0;
+  bool chargingstate = false;
   final String uartServiceUuid = "c5f50001-8280-46da-89f4-6d8051e4aeef";
   final String uartTxUuid = "c5f50002-8280-46da-89f4-6d8051e4aeef";
-
+  int mockbattery = 95;
   final Map<String, DateTime> _lastSeen = {};
   Timer? _cleanupTimer;
   Timer? _telemetryUpdateTimer;
   TelemetryData? _pendingTelemetry;
+  late final ValueNotifier<TelemetryData> _telemetryListenable =
+      ValueNotifier<TelemetryData>(telemetry);
   final Set<String> _knownRobotIds = {};
   void startContinuousScan() async {
     if (isScanning || selectedIndex != 0) return;
@@ -50,7 +54,6 @@ class _MainDashboardState extends State<MainDashboard> {
 
     await UniversalBle.startScan();
   }
-  
 
   void stopContinuousScan() async {
     if (!isScanning) return;
@@ -61,16 +64,31 @@ class _MainDashboardState extends State<MainDashboard> {
       setState(() {
         isScanning = false;
       });
-
     }
-
-    
   }
 
+  Timer? packettimer;
+  Timer? batterytimer;
   @override
   void initState() {
-    
     super.initState();
+    packettimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      setState(() {
+        packetspersecond += packets;
+        packets / 2;
+      });
+    });
+    batterytimer = Timer.periodic(const Duration(seconds: 10), (timer) {
+      if (!mocking) return;
+
+      if (chargingstate) {
+        mockbattery = (mockbattery + 1).clamp(10, 100).toInt();
+        if (mockbattery == 100) chargingstate = false;
+      } else {
+        mockbattery = (mockbattery - 1).clamp(10, 100).toInt();
+        if (mockbattery == 10) chargingstate = true;
+      }
+    });
     UniversalBle.onScanResult = (bleDevice) {
       final name = bleDevice.name;
       if (name == null || name.isEmpty) return;
@@ -146,8 +164,11 @@ class _MainDashboardState extends State<MainDashboard> {
   @override
   void dispose() {
     mocktimer?.cancel();
+    batterytimer?.cancel();
+    packettimer?.cancel();
     _cleanupTimer?.cancel();
     _telemetryUpdateTimer?.cancel();
+    _telemetryListenable.dispose();
     UniversalBle.onScanResult = null;
     UniversalBle.onValueChange = null;
     UniversalBle.onConnectionChange = null;
@@ -170,10 +191,10 @@ class _MainDashboardState extends State<MainDashboard> {
         if (trail.length > 250) trail.removeAt(0);
         camX += (next.xpos - camX) * 0.1;
         camY += (next.ypos - camY) * 0.1;
+        _telemetryListenable.value = next;
       }
 
-
-      if (selectedIndex == 1 || selectedIndex == 2) {
+      if (selectedIndex == 2) {
         setState(applyUpdate);
       } else {
         applyUpdate();
@@ -183,6 +204,7 @@ class _MainDashboardState extends State<MainDashboard> {
 
   void resetAllTelemetryData() {
     mocktimer?.cancel();
+    mocking = false;
     mocktimer = null;
     _telemetryUpdateTimer?.cancel();
     _telemetryUpdateTimer = null;
@@ -216,6 +238,7 @@ class _MainDashboardState extends State<MainDashboard> {
         maxslots: '12',
         bytesperprogram: '0',
       );
+      _telemetryListenable.value = telemetry;
     });
   }
 
@@ -255,8 +278,6 @@ class _MainDashboardState extends State<MainDashboard> {
       print("Verbonden! Korte pauze voor GATT caching...");
       await Future.delayed(const Duration(milliseconds: 1000));
 
-      // GEEN discoverServices aanroepen! Dat triggert de AccessDenied op c5f50001.
-      // Direct notifiable aanzetten op de Nordic UART RX/TX:
       print("Notificaties aanzetten op Nordic UART...");
       await UniversalBle.setNotifiable(
         device.deviceId,
@@ -562,168 +583,80 @@ class _MainDashboardState extends State<MainDashboard> {
         ),
       ),
 
-      () => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(flex: 3, child: Image.asset('assets/rebornrobotrack.png')),
-          Expanded(
-            flex: 17,
-            child: Row(
-              children: [
-                Expanded(
-                  flex: 4,
-                  child: SizedBox.expand(
-                    child: CustomPaint(
-                      painter: FieldPainter(
-                        xpos: telemetry.xpos,
-                        ypos: telemetry.ypos,
-                        yaw: telemetry.yaw,
-                        pitch: telemetry.pitch,
-                        roll: telemetry.roll,
-                        camX: camX,
-                        camY: camY,
-                        trail: trail,
-                      ),
-                    ),
-                  ),
-                ),
-                Expanded(
-                  flex: 3,
-                  child: SingleChildScrollView(
-                    child: Padding(
-                      padding: const EdgeInsets.all(28.0),
-
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Card(
-                            child: Padding(
-                              padding: const EdgeInsets.all(8.0),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  const Icon(
-                                    Icons.battery_4_bar,
-                                    color: Colors.tealAccent,
-                                    size: 48,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: SizedBox(
-                                      height: 18,
-                                      child: ClipRRect(
-                                        borderRadius: BorderRadius.circular(4),
-                                        child: LinearProgressIndicator(
-                                          value: telemetry.batterylevel / 100,
-                                          color: Colors.tealAccent,
-                                          backgroundColor: Colors.white24,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Text(
-                                    '${telemetry.batterylevel}%',
-                                    style: const TextStyle(fontSize: 28),
-                                  ),
-                                ],
-                              ),
-                            ),
+      () => ValueListenableBuilder<TelemetryData>(
+        valueListenable: _telemetryListenable,
+        builder: (context, currentTelemetry, child) => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(flex: 3, child: Image.asset('assets/rebornrobotrack.png')),
+            Expanded(
+              flex: 17,
+              child: Row(
+                children: [
+                  Expanded(
+                    flex: 4,
+                    child: SizedBox.expand(
+                      child: RepaintBoundary(
+                        child: CustomPaint(
+                          painter: FieldPainter(
+                            xpos: currentTelemetry.xpos,
+                            ypos: currentTelemetry.ypos,
+                            yaw: currentTelemetry.yaw,
+                            pitch: currentTelemetry.pitch,
+                            roll: currentTelemetry.roll,
+                            camX: camX,
+                            camY: camY,
+                            trail: trail,
                           ),
-                        ],
+                        ),
                       ),
                     ),
                   ),
-                ),
+                  Expanded(
+                    flex: 3,
+                    child: SingleChildScrollView(
+                      child: Padding(
+                        padding: const EdgeInsets.all(28.0),
 
-                Expanded(
-                  flex: 3,
-                  child: SingleChildScrollView(
-                    child: Padding(
-                      padding: const EdgeInsets.all(28.0),
-
-                      child: FractionallySizedBox(
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Center(
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: Card(
-                                      child: Padding(
-                                        padding: const EdgeInsets.all(8.0),
-                                        child: FittedBox(
-                                          fit: BoxFit.scaleDown,
-                                          child: Text(
-                                            'X: ${(telemetry.xpos / 10).toStringAsFixed(1)}',
-                                            style: const TextStyle(
-                                              fontSize: 48,
-                                            ),
+                            Card(
+                              child: Padding(
+                                padding: const EdgeInsets.all(8.0),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    const Icon(
+                                      Icons.battery_4_bar,
+                                      color: Colors.tealAccent,
+                                      size: 48,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: SizedBox(
+                                        height: 18,
+                                        child: ClipRRect(
+                                          borderRadius: BorderRadius.circular(
+                                            4,
+                                          ),
+                                          child: LinearProgressIndicator(
+                                            value:
+                                                currentTelemetry.batterylevel /
+                                                100,
+                                            color: Colors.tealAccent,
+                                            backgroundColor: Colors.white24,
                                           ),
                                         ),
                                       ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Card(
-                                      child: Padding(
-                                        padding: const EdgeInsets.all(8.0),
-                                        child: FittedBox(
-                                          fit: BoxFit.scaleDown,
-                                          child: Text(
-                                            'Y: ${(telemetry.ypos / 10).toStringAsFixed(1)}',
-                                            style: const TextStyle(
-                                              fontSize: 48,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
+                                    const SizedBox(width: 12),
+                                    Text(
+                                      '${currentTelemetry.batterylevel}%',
+                                      style: const TextStyle(fontSize: 28),
                                     ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Center(),
-                            Card(
-                              child: Padding(
-                                padding: const EdgeInsets.all(8.0),
-                                child: SizedBox(
-                                  width: 400,
-                                  child: Text(
-                                    'Yaw: ${normalizedYaw(telemetry.yaw).toStringAsFixed(1)}°',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(fontSize: 48),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            Card(
-                              child: Padding(
-                                padding: const EdgeInsets.all(8.0),
-                                child: SizedBox(
-                                  width: 400,
-                                  child: Text(
-                                    'Pitch: ${telemetry.pitch.round()}°',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(fontSize: 48),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            Card(
-                              child: Padding(
-                                padding: const EdgeInsets.all(8.0),
-                                child: SizedBox(
-                                  width: 400,
-                                  child: Text(
-                                    'Roll: ${telemetry.roll.round()}°',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(fontSize: 48),
-                                  ),
+                                  ],
                                 ),
                               ),
                             ),
@@ -734,9 +667,9 @@ class _MainDashboardState extends State<MainDashboard> {
                                   children: [
                                     Text('3D', style: TextStyle(fontSize: 48)),
                                     AttitudeVisualisation(
-                                      pitch: telemetry.pitch,
-                                      roll: telemetry.roll,
-                                      yaw: normalizedYaw(telemetry.yaw),
+                                      pitch: currentTelemetry.pitch,
+                                      roll: currentTelemetry.roll,
+                                      yaw: normalizedYaw(currentTelemetry.yaw),
                                       size: 300,
                                     ),
                                   ],
@@ -748,11 +681,147 @@ class _MainDashboardState extends State<MainDashboard> {
                       ),
                     ),
                   ),
-                ),
-              ],
+
+                  Expanded(
+                    flex: 3,
+                    child: SingleChildScrollView(
+                      child: Padding(
+                        padding: const EdgeInsets.all(28.0),
+
+                        child: FractionallySizedBox(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Center(
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Card(
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(8.0),
+                                          child: FittedBox(
+                                            fit: BoxFit.scaleDown,
+                                            child: Text(
+                                              'X: ${(currentTelemetry.xpos / 10).toStringAsFixed(1)}',
+                                              style: const TextStyle(
+                                                fontSize: 48,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Card(
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(8.0),
+                                          child: FittedBox(
+                                            fit: BoxFit.scaleDown,
+                                            child: Text(
+                                              'Y: ${(currentTelemetry.ypos / 10).toStringAsFixed(1)}',
+                                              style: const TextStyle(
+                                                fontSize: 48,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Center(),
+                              Card(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(8.0),
+                                  child: SizedBox(
+                                    width: 400,
+                                    child: Text(
+                                      'Yaw: ${normalizedYaw(currentTelemetry.yaw).toStringAsFixed(1)}°',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(fontSize: 48),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Card(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(8.0),
+                                  child: SizedBox(
+                                    width: 400,
+                                    child: Text(
+                                      'Pitch: ${currentTelemetry.pitch.round()}°',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(fontSize: 48),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Card(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(8.0),
+                                  child: SizedBox(
+                                    width: 400,
+                                    child: Text(
+                                      'Roll: ${currentTelemetry.roll.round()}°',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(fontSize: 48),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Card(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(8.0),
+                                  child: SizedBox(
+                                    width: 400,
+                                    height: 100,
+                                    child: Column(
+                                      children: [
+                                        Text(
+                                          mocking
+                                              ? "Virtual Robot Connected"
+                                              : "Live Robot Connected",
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(fontSize: 24),
+                                        ),
+                                        Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.baseline,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          textBaseline: TextBaseline.alphabetic,
+                                          children: [
+                                            Text(
+                                              "${packetspersecond}",
+                                              textAlign: TextAlign.center,
+                                              style: TextStyle(fontSize: 36),
+                                            ),
+                                            Text(
+                                              "Hz (packets/second)",
+                                              textAlign: TextAlign.center,
+                                              style: TextStyle(fontSize: 24),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
       () => Padding(
         padding: const EdgeInsets.all(38.0),
@@ -833,10 +902,7 @@ class _MainDashboardState extends State<MainDashboard> {
               layoutBuilder: (currentChild, previousChildren) {
                 return Stack(
                   alignment: Alignment.centerLeft,
-                  children: [
-                    ...previousChildren,
-                    ?currentChild,
-                  ],
+                  children: [...previousChildren, ?currentChild],
                 );
               },
               transitionBuilder: (child, animation) {
@@ -958,17 +1024,23 @@ class _MainDashboardState extends State<MainDashboard> {
   double heading = 0.0;
   double turnRate = 0.0;
   final random = Random();
-
+  bool mocking = false;
   void startMockTelemetry() {
+    mocking = true;
     mocktimer?.cancel();
+    mockbattery = 95;
+    chargingstate = false;
     trail.clear();
     robotX = 0.0;
     robotY = 0.0;
     heading = 0.0;
 
+
     mocktimer = Timer.periodic(const Duration(milliseconds: 35), (timer) {
+      
       turnRate += (random.nextDouble() - 0.5) * 0.05;
 
+      packets++;
       if (random.nextDouble() < 0.01) {
         turnRate = (random.nextDouble() - 0.5) * 0.12;
       }
@@ -981,8 +1053,9 @@ class _MainDashboardState extends State<MainDashboard> {
       robotX += cos(heading) * speed;
       robotY += sin(heading) * speed;
       simTime += 0.05;
-      simPitch = sin(simTime * 1.5) * 9.2 + (random.nextDouble() - 0.5) * 0.3;
-      simRoll = cos(simTime * 2.0) * 9.8 + (random.nextDouble() - 0.5) * 0.3;
+
+      simPitch = sin(simTime * 1.5) * 29.2 + (random.nextDouble() - 0.5) * 0.3;
+      simRoll = cos(simTime * 2.0) * 29.8 + (random.nextDouble() - 0.5) * 0.3;
       simPitch *= 0.98;
       simRoll *= 0.98;
       if (random.nextDouble() < 0.03) {
@@ -996,7 +1069,7 @@ class _MainDashboardState extends State<MainDashboard> {
           roll: simRoll,
           xpos: robotX,
           ypos: robotY,
-          batterylevel: 95,
+          batterylevel: mockbattery,
           occupiedslots: {1, 2},
           leftwheelport: 'A',
           rightwheelport: 'B',
@@ -1008,6 +1081,7 @@ class _MainDashboardState extends State<MainDashboard> {
   }
 
   void _handleIncomingData(Uint8List bytes) {
+    packets++;
     bleBuffer += utf8.decode(bytes, allowMalformed: true);
     final lines = bleBuffer.split('\n');
     bleBuffer = lines.removeLast();
@@ -1023,7 +1097,10 @@ class _MainDashboardState extends State<MainDashboard> {
       final yawDeg = double.tryParse(parts[2]) ?? 0.0;
       final pitch = double.tryParse(parts[3]) ?? current.pitch;
       final roll = double.tryParse(parts[4]) ?? current.roll;
-      final battery = int.tryParse(parts[5]) ?? current.batterylevel;
+      final battery =
+          (double.tryParse(parts[5])?.round() ?? current.batterylevel)
+              .clamp(0, 100)
+              .toInt();
 
       _queueTelemetryUpdate(
         TelemetryData(
