@@ -1,4 +1,0 @@
-mkdocs
-mkdocs-windmill
-pandoc
-pandoc-fignos
