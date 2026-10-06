@@ -9,8 +9,10 @@ from pybricks.tools import wait, StopWatch
 from umath import sin, cos, atan2, sqrt, pi
 from usys import stdin
 from uselect import poll
+from pybricks.parameters import Axis
 import ustruct
 hub = PrimeHub()
+
 hub.display.orientation(Side.LEFT)
 hub.system.set_stop_button(None)
 timer = StopWatch()
@@ -32,7 +34,7 @@ maxprograms = 12
 
 stoprequested = False
 robot = DriveBase(leftmotor, rightmotor, wheeldiameter, axle)
-robot.settings(straight_speed=500, straight_acceleration=800, turn_rate=300, turn_acceleration=600)
+robot.settings(straight_speed=500, straight_acceleration=800, turn_rate=350, turn_acceleration=2000)
 
 global aux_motors, aux_last_angles
 print(f"this is {hasattr}")
@@ -69,17 +71,15 @@ def updatelastangles():
             aux_last_angles[name] = int(m.angle())
         except:
             aux_last_angles[name] = 0
-    
 
 
 editmode = False
+
 tracking = False
 running = False
 
 x = 0.0
 y = 0.0
-
-
 
 # signed 16-bit (-32768 to 32767)
 def s16_to_bytes(v):
@@ -123,9 +123,21 @@ def reset_odometry():
     robot.reset()
     wait(10)
     last_distance = robot.distance()
+    leftmotor.reset_angle(0)
+    rightmotor.reset_angle(0)
     
+    for name, m in aux_motors:
+        try:
+            m.reset_angle(0)
+        except:
+            pass
 
+    updatelastangles()
+    wait(10)
+    last_distance = robot.distance()
+    
 def writeflash(start, data):
+
     try:
         hub.system.storage(int(start), write = bytes(data))
         return True
@@ -144,7 +156,7 @@ def readflash(start, amount):
         return bytes([0] * int(amount))
 
 def saveslot(slot, data):
-    slotoffset = slot * bytesperprogram
+    slotoffset = int(slot) * bytesperprogram
     if slotoffset + len(data) > 8096:
         print("Error: 8 kb exceeded")
         return False
@@ -152,7 +164,7 @@ def saveslot(slot, data):
         writeflash(slotoffset, data)
 
 def loadslot(slot):
-    slotoffset = slot * bytesperprogram
+    slotoffset = int(slot) * bytesperprogram
     try:
         returneddata = readflash(slotoffset, bytesperprogram)
         if len(returneddata) < bytesperprogram:
@@ -161,7 +173,7 @@ def loadslot(slot):
     except Exception as error:
         print("Error reading slot OR empty: " + str(error))
         return bytes([0] * bytesperprogram)
-
+    
 def peekinline():
     data = poller.poll(0)
     if data:
@@ -170,32 +182,41 @@ def peekinline():
     else:
         return None
 
-
-
-
 def processcommand(data):
+    
+    global tracking, selectedslot, editmode, running
+
     data = data.upper()
     parts = data.split("|", 1)
     parameter = ""
+    print("command: ", data)
     if len(parts) <= 1:
         command = data
     else:
         command = parts[0].strip()
         parameter = parts[1].strip()
 
+
    
     if command == "GETPOS":
         update_odometry()
         print("RequestPos:"+ str(x) + "|" + str(y) + "|" + str(hub.imu.heading()))
+    if command == "CLEAR":
+        slot = parameter
+        clearslot(slot)
+        print(f"SLOT_CLEARED:{parameter}")
 
+   
     if command == "GETSLOT":
         
         print(readflash(int(parameter) * bytesperprogram, bytesperprogram))
     if command == "STARTTRACKING":
         tracking = True
         selectedslot = parameter
+    if command == "SHUTDOWN":
+        hub.system.shutdown()
 
-    #add more when there comes
+
 
 def drive_to(tx, ty, speed, precision, specificdir):
     global pressed_now, stoprequested
@@ -204,8 +225,10 @@ def drive_to(tx, ty, speed, precision, specificdir):
         
 
     update_odometry()
+
     differencex = tx-x
     differencey = ty-y
+
     distance=sqrt(differencex**2 + differencey**2)
     tangle = -atan2(differencey, differencex) * 180 / pi
 
@@ -217,17 +240,23 @@ def drive_to(tx, ty, speed, precision, specificdir):
     if abs(init_err) > 90 or specificdir == 2:
         dir = -1
         init_err = init_err - 180 if init_err > 0 else init_err + 180
-    elif abs(init_err) > 45 and abs(init_err) < 135:
-        turnto(tangle, 180, precision, '')
-    
-    wait(50)
+
+    target_turn = tangle if dir == 1 else tangle - 180
+    turnto(target_turn, 200, precision, '')
+    wait(100)
     
     while distance > precision:
+        
         if Button.CENTER in hub.buttons.pressed() or stoprequested:
             robot.stop()
             stoprequested = True
+
             return
+        rawcapacity = hub.battery.voltage()
+        capacity = min(100.0, rawcapacity / 80)
         
+
+
         update_odometry()
         differencex = tx-x
         differencey = ty-y
@@ -263,6 +292,17 @@ def drive_to(tx, ty, speed, precision, specificdir):
     robot.stop()
     wait(100)
 
+def get_robot_heading():
+    h = (hub.imu.heading() + 90) % 360
+    return h - 360 if h > 180 else h
+def get_occupied_mask():
+    mask = 0
+    for s in range(maxprograms):
+
+        data = readflash(s * bytesperprogram, 1)
+        if data and data[0] != 0:
+            mask |= (1 << (s + 1))
+    return mask
 def turnto(angle, speed, precision, specificdir):
     global stoprequested
     update_odometry()
@@ -272,10 +312,10 @@ def turnto(angle, speed, precision, specificdir):
     if err < -180:
         err += 360
     if specificdir != '':
-        if specificdir == Direction.CLOCKWISE:
+        if specificdir == 'R':
             if err < 0:
                 err += 360
-        elif specificdir == Direction.COUNTERCLOCKWISE:
+        elif specificdir == 'L':
             if err > 0:
                 err -= 360
 
@@ -298,20 +338,20 @@ def turnto(angle, speed, precision, specificdir):
             elif specificdir == Direction.COUNTERCLOCKWISE:
                 if err > 0:
                     err -= 360
-        turnrate = err * 2.5
+        turnrate = err * 6.5
         turnrate = max(-speed, min(speed, turnrate))
-        if abs(turnrate) < 25:
+        if abs(turnrate) < 70:
             if err > 0:
-                turnrate = 25
+                turnrate = 70
             else:
-                turnrate = -25
+                turnrate = -70
         robot.drive(0, turnrate)
         wait(20)
   
     robot.stop()
 
 def clearslot(slot):
-    slotoffset = slot * bytesperprogram
+    slotoffset = int(slot) * bytesperprogram
     writeflash(slotoffset, bytes([0] * bytesperprogram))
 
 def updateinterface():
@@ -386,8 +426,10 @@ def runprogram(slot):
             drive_to(p1, p2, flag1, flag2, 0)
         elif cmd == 2:
             turnto(p1, flag1, flag2, flag3)
+
         elif cmd == 3:
             playmotorsnapshot(p1, p2, flag1, flag2, flag3)
+
    
     robot.stop()
     stoprequested = False
@@ -395,6 +437,8 @@ def runprogram(slot):
     tracking = False
     running = False
     editmode = False
+    for name, m in aux_motors:
+        m.stop()
            
 
 def saveinstruction(slot, cmd, p1, p2, flag1, flag2, flag3):
@@ -442,7 +486,7 @@ def motorsnapshot(speed, waitformotors):
             else:
                 print("Motor ", name, "CurrentAngle ", currangle, "Last ", aux_last_angles[name], "Difference ", delta)
                 print("motor " + name + " has not moved more than 5 deg")
-            
+             
         except:
             print("Error with motorsnapshot")
     if len(editedmotors) == 0:
@@ -467,23 +511,28 @@ while True:
     last_buttons = buttons
     
     tick += 1
-    if tracking or tick == 5:
-        if not running:
-            rawcapacity = hub.battery.voltage()
-            capacity = min(100.0, rawcapacity / 80)
-            tick = 0
-            data = f"{x},{y},{hub.imu.heading()},{hub.imu.tilt()[0]},{hub.imu.tilt()[1]},{capacity}\n"
+    if tracking or tick == 3:
+        
+        rawcapacity = hub.battery.voltage()
+        capacity = min(100.0, rawcapacity / 80)
+        tick = 0
+        robot_pitch = hub.imu.tilt()[1]
+        robot_roll = -hub.imu.tilt()[0]
+        robot_heading = hub.imu.heading()
 
-            print(data)
+        mask = get_occupied_mask()
+        data = f"{x},{y},{robot_heading},{robot_pitch},{robot_roll},{capacity},{mask}\n"
+        print(data)
+
          
           
     update_odometry()
     updateinterface()
    
-    if hasattr(sys.stdout, 'flush'):
-        sys.stdout.flush()
+   
     newdata = peekinline()
     if newdata != None: 
+
         processcommand(newdata)
     
     if Button.CENTER in pressed_now:
@@ -494,6 +543,7 @@ while True:
         elif running:
             running = False
             robot.stop()
+            
             stoprequested = True
             tracking = False
             editmode = False
@@ -504,7 +554,7 @@ while True:
     if Button.RIGHT in pressed_now:
         if tracking:
 
-            saveinstruction(selectedslot, 1, int(x), int(y), 250, 25, 0)
+            saveinstruction(selectedslot, 1, int(x), int(y), 250, 10, 0)
             
         else:
             if selectedslot == 24:
@@ -545,4 +595,5 @@ while True:
     wait(20)
 
     
+
 
