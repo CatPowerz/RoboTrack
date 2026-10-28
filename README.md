@@ -5,7 +5,7 @@ A full telemetry, odometry tracking, and debugging system for FIRST LEGO League 
 ---
 
 ## Please watch the demo video before trying the project!
-[![Watch Demo Video](https://img.shields.io/badge/YouTube-Watch%20Demo%20Video%20-red?style=for-the-badge&logo=youtube)](https://youtu.be/S3cDEyh_7lM))
+[![Watch Demo Video](https://img.shields.io/badge/YouTube-Watch%20Demo%20Video%20-red?style=for-the-badge&logo=youtube)](https://youtu.be/S3cDEyh_7lM)
 
 ## Why we built this
 
