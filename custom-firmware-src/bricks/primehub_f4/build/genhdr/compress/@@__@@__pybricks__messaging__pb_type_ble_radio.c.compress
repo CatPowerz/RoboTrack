@@ -1,0 +1,8 @@
+payload limited to 26 bytes
+must be True, False, int, float, str or bytes
+no broadcast channel selected
+received bad data
+channel not configured
+Broadcast channel must be 0 to 255 or None
+Too many observe channels
+observe channel must be 0 to 255

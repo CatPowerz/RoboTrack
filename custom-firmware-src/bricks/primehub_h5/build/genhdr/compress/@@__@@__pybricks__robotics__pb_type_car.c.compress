@@ -1,0 +1,4 @@
+The steering mechanism has no end stop. Did you build a car yet?
+drive_motors must be a list of 1 to %d motors
+drive_motors and steer_motor must be different
+drive_motors must be unique

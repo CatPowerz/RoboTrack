@@ -1,0 +1,1 @@
+MP_REGISTER_ROOT_POINTER(mp_obj_dict_t * pb_type_Color_dict);

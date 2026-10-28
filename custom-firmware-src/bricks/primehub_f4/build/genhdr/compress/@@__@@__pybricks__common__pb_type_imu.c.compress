@@ -1,0 +1,6 @@
+Axis must be Matrix.
+Axis must be 1x3 or 3x1 matrix.
+Angular velocity bias must be a 3-element tuple.
+Angular velocity scale must be a 3-element tuple.
+Acceleration correction must be a 6-element tuple.
+Can't reset heading while gyro in use. Stop driving first.

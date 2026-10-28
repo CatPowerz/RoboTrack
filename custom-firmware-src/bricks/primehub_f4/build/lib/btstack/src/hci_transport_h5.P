@@ -1,0 +1,5 @@
+build/lib/btstack/src/hci_transport_h5.o: \
+ ../../micropython/lib/btstack/src/hci_transport_h5.c \
+ ../../lib/pbio/platform/prime_hub_f4/btstack_config.h
+ ../../micropython/lib/btstack/src/hci_transport_h5.c :
+ ../../lib/pbio/platform/prime_hub_f4/btstack_config.h :

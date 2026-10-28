@@ -1,0 +1,194 @@
+build/pybricks/pybricks.o: ../../pybricks/pybricks.c \
+ C:/Tools/Arm/arm-none-eabi/include/string.h \
+ C:/Tools/Arm/arm-none-eabi/include/_ansi.h \
+ C:/Tools/Arm/arm-none-eabi/include/newlib.h \
+ C:/Tools/Arm/arm-none-eabi/include/_newlib_version.h \
+ C:/Tools/Arm/arm-none-eabi/include/sys/config.h \
+ C:/Tools/Arm/arm-none-eabi/include/machine/ieeefp.h \
+ C:/Tools/Arm/arm-none-eabi/include/sys/features.h \
+ C:/Tools/Arm/arm-none-eabi/include/sys/reent.h \
+ C:/Tools/Arm/arm-none-eabi/include/_ansi.h \
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stddef.h \
+ C:/Tools/Arm/arm-none-eabi/include/sys/cdefs.h \
+ C:/Tools/Arm/arm-none-eabi/include/machine/_default_types.h \
+ C:/Tools/Arm/arm-none-eabi/include/sys/_types.h \
+ C:/Tools/Arm/arm-none-eabi/include/machine/_types.h \
+ C:/Tools/Arm/arm-none-eabi/include/sys/lock.h \
+ C:/Tools/Arm/arm-none-eabi/include/sys/string.h \
+ ../../micropython/py/mpconfig.h \
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stdint.h \
+ C:/Tools/Arm/arm-none-eabi/include/stdint.h \
+ C:/Tools/Arm/arm-none-eabi/include/sys/_intsup.h \
+ C:/Tools/Arm/arm-none-eabi/include/sys/_stdint.h \
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/limits.h \
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/syslimits.h \
+ C:/Tools/Arm/arm-none-eabi/include/limits.h \
+ C:/Tools/Arm/arm-none-eabi/include/sys/syslimits.h mpconfigport.h \
+ ../../micropython/lib/stm32lib/CMSIS/STM32H5xx/Include/stm32h562xx.h \
+ ../../micropython/lib/CMSIS_6/CMSIS/Core/Include/core_cm33.h \
+ ../../micropython/lib/CMSIS_6/CMSIS/Core/Include/cmsis_version.h \
+ ../../micropython/lib/CMSIS_6/CMSIS/Core/Include/cmsis_compiler.h \
+ ../../micropython/lib/CMSIS_6/CMSIS/Core/Include/cmsis_gcc.h \
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/arm_acle.h \
+ ../../micropython/lib/CMSIS_6/CMSIS/Core/Include/m-profile/cmsis_gcc_m.h \
+ ../../micropython/lib/CMSIS_6/CMSIS/Core/Include/m-profile/armv8m_mpu.h \
+ ../../micropython/lib/stm32lib/CMSIS/STM32H5xx/Include/system_stm32h5xx.h \
+ ../_common/mpconfigport.h ../../lib/pbio/include/pbdrv/config.h \
+ ../../lib/pbio/platform/prime_hub_h5/pbdrvconfig.h \
+ ../../lib/pbio/platform/prime_hub_h5/pbio_os_config.h \
+ ../../micropython/lib/stm32lib/CMSIS/STM32H5xx/Include/stm32h5xx.h \
+ C:/Tools/Arm/arm-none-eabi/include/math.h \
+ ../../micropython/lib/stm32lib/CMSIS/STM32H5xx/Include/stm32h562xx.h \
+ C:/Tools/Arm/arm-none-eabi/include/alloca.h ../../micropython/py/obj.h \
+ C:/Tools/Arm/arm-none-eabi/include/assert.h ../../micropython/py/misc.h \
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stdbool.h \
+ build/genhdr/compressed.data.h ../../micropython/py/qstr.h \
+ build/genhdr/qstrdefs.generated.h ../../micropython/py/mpprint.h \
+ ../../micropython/py/runtime0.h ../../micropython/py/objmodule.h \
+ build/genhdr/moduledefs.h ../../micropython/py/objstr.h \
+ ../../micropython/py/objarray.h ../../micropython/py/objtuple.h \
+ ../../micropython/py/runtime.h ../../micropython/py/mpstate.h \
+ ../../micropython/py/mpthread.h ../../micropython/py/nlr.h \
+ ../../micropython/py/objlist.h ../../micropython/py/objexcept.h \
+ build/genhdr/root_pointers.h ../../micropython/py/pystack.h \
+ ../../micropython/py/cstack.h ../../lib/pbio/include/pbio/bluetooth.h \
+ ../../lib/pbio/include/pbio/config.h \
+ ../../lib/pbio/platform/prime_hub_h5/pbioconfig.h \
+ ../../lib/pbio/include/pbio/error.h ../../lib/pbio/include/pbio/os.h \
+ ../../lib/pbio/include/pbio/protocol.h \
+ ../../lib/pbio/include/pbio/util.h ../../lib/lego/lego/lwp3.h \
+ ../../lib/pbio/include/pbio/version.h \
+ ../../lib/pbio/include/pbsys/host.h \
+ ../../lib/pbio/include/pbsys/config.h \
+ ../../lib/pbio/platform/prime_hub_h5/pbsysconfig.h \
+ ../../lib/pbio/include/pbsys/status.h ../../pybricks/common.h \
+ ../../lib/pbio/include/pbio/button.h ../../lib/pbio/include/pbio/port.h \
+ ../../lib/lego/lego/device.h ../../lib/lego/lego/lump.h \
+ ../../lib/pbio/include/pbio/angle.h \
+ ../../lib/pbio/include/pbsys/telemetry.h \
+ ../../lib/pbio/include/pbdrv/compiler.h \
+ ../../lib/pbio/include/pbdrv/button.h \
+ ../../lib/pbio/include/pbio/color.h ../../lib/pbio/include/pbio/light.h \
+ ../../pybricks/util_mp/pb_obj_helper.h ../../pybricks/parameters.h \
+ ../../lib/pbio/include/pbio/font.h ../../pybricks/util_mp/pb_type_enum.h \
+ ../../pybricks/tools/pb_type_matrix.h \
+ ../../pybricks/parameters/pb_type_button.h ../../pybricks/pupdevices.h \
+ ../../pybricks/common/pb_type_device.h \
+ ../../lib/pbio/include/pbio/port_lump.h \
+ ../../lib/pbio/include/pbdrv/ioport.h \
+ ../../lib/pbio/include/pbdrv/gpio.h ../../lib/pbio/include/pbdrv/uart.h \
+ ../../lib/pbio/include/pbdrv/motor_driver.h ../../lib/lego/lego/lump.h \
+ ../../pybricks/tools/pb_type_async.h ../../pybricks/tools.h \
+ ../../lib/pbio/include/pbio/light_matrix.h \
+ ../../lib/pbio/include/pbdrv/led.h \
+ ../../lib/pbio/include/pbio/geometry.h \
+ ../../lib/pbio/include/pbio/light_animation.h \
+ ../../lib/pbio/include/pbio/control.h \
+ ../../lib/pbio/include/pbio/control_settings.h \
+ ../../lib/pbio/include/pbio/trajectory.h \
+ ../../lib/pbio/include/pbio/dcmotor.h \
+ ../../lib/pbio/include/pbdrv/counter.h \
+ ../../lib/pbio/include/pbio/parent.h \
+ ../../lib/pbio/include/pbio/integrator.h \
+ ../../lib/pbio/include/pbio/logger.h ../../lib/pbio/include/pbio/servo.h \
+ ../../lib/pbio/include/pbio/tacho.h \
+ ../../lib/pbio/include/pbio/observer.h \
+ ../../lib/pbio/include/pbio/differentiator.h ../../pybricks/hubs.h \
+ build/genhdr/mpversion.h
+../../pybricks/pybricks.c :
+ C:/Tools/Arm/arm-none-eabi/include/string.h :
+ C:/Tools/Arm/arm-none-eabi/include/_ansi.h :
+ C:/Tools/Arm/arm-none-eabi/include/newlib.h :
+ C:/Tools/Arm/arm-none-eabi/include/_newlib_version.h :
+ C:/Tools/Arm/arm-none-eabi/include/sys/config.h :
+ C:/Tools/Arm/arm-none-eabi/include/machine/ieeefp.h :
+ C:/Tools/Arm/arm-none-eabi/include/sys/features.h :
+ C:/Tools/Arm/arm-none-eabi/include/sys/reent.h :
+ C:/Tools/Arm/arm-none-eabi/include/_ansi.h :
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stddef.h :
+ C:/Tools/Arm/arm-none-eabi/include/sys/cdefs.h :
+ C:/Tools/Arm/arm-none-eabi/include/machine/_default_types.h :
+ C:/Tools/Arm/arm-none-eabi/include/sys/_types.h :
+ C:/Tools/Arm/arm-none-eabi/include/machine/_types.h :
+ C:/Tools/Arm/arm-none-eabi/include/sys/lock.h :
+ C:/Tools/Arm/arm-none-eabi/include/sys/string.h :
+ ../../micropython/py/mpconfig.h :
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stdint.h :
+ C:/Tools/Arm/arm-none-eabi/include/stdint.h :
+ C:/Tools/Arm/arm-none-eabi/include/sys/_intsup.h :
+ C:/Tools/Arm/arm-none-eabi/include/sys/_stdint.h :
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/limits.h :
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/syslimits.h :
+ C:/Tools/Arm/arm-none-eabi/include/limits.h :
+ C:/Tools/Arm/arm-none-eabi/include/sys/syslimits.h mpconfigport.h :
+ ../../micropython/lib/stm32lib/CMSIS/STM32H5xx/Include/stm32h562xx.h :
+ ../../micropython/lib/CMSIS_6/CMSIS/Core/Include/core_cm33.h :
+ ../../micropython/lib/CMSIS_6/CMSIS/Core/Include/cmsis_version.h :
+ ../../micropython/lib/CMSIS_6/CMSIS/Core/Include/cmsis_compiler.h :
+ ../../micropython/lib/CMSIS_6/CMSIS/Core/Include/cmsis_gcc.h :
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/arm_acle.h :
+ ../../micropython/lib/CMSIS_6/CMSIS/Core/Include/m-profile/cmsis_gcc_m.h :
+ ../../micropython/lib/CMSIS_6/CMSIS/Core/Include/m-profile/armv8m_mpu.h :
+ ../../micropython/lib/stm32lib/CMSIS/STM32H5xx/Include/system_stm32h5xx.h :
+ ../_common/mpconfigport.h ../../lib/pbio/include/pbdrv/config.h :
+ ../../lib/pbio/platform/prime_hub_h5/pbdrvconfig.h :
+ ../../lib/pbio/platform/prime_hub_h5/pbio_os_config.h :
+ ../../micropython/lib/stm32lib/CMSIS/STM32H5xx/Include/stm32h5xx.h :
+ C:/Tools/Arm/arm-none-eabi/include/math.h :
+ ../../micropython/lib/stm32lib/CMSIS/STM32H5xx/Include/stm32h562xx.h :
+ C:/Tools/Arm/arm-none-eabi/include/alloca.h ../../micropython/py/obj.h :
+ C:/Tools/Arm/arm-none-eabi/include/assert.h ../../micropython/py/misc.h :
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stdbool.h :
+ build/genhdr/compressed.data.h ../../micropython/py/qstr.h :
+ build/genhdr/qstrdefs.generated.h ../../micropython/py/mpprint.h :
+ ../../micropython/py/runtime0.h ../../micropython/py/objmodule.h :
+ build/genhdr/moduledefs.h ../../micropython/py/objstr.h :
+ ../../micropython/py/objarray.h ../../micropython/py/objtuple.h :
+ ../../micropython/py/runtime.h ../../micropython/py/mpstate.h :
+ ../../micropython/py/mpthread.h ../../micropython/py/nlr.h :
+ ../../micropython/py/objlist.h ../../micropython/py/objexcept.h :
+ build/genhdr/root_pointers.h ../../micropython/py/pystack.h :
+ ../../micropython/py/cstack.h ../../lib/pbio/include/pbio/bluetooth.h :
+ ../../lib/pbio/include/pbio/config.h :
+ ../../lib/pbio/platform/prime_hub_h5/pbioconfig.h :
+ ../../lib/pbio/include/pbio/error.h ../../lib/pbio/include/pbio/os.h :
+ ../../lib/pbio/include/pbio/protocol.h :
+ ../../lib/pbio/include/pbio/util.h ../../lib/lego/lego/lwp3.h :
+ ../../lib/pbio/include/pbio/version.h :
+ ../../lib/pbio/include/pbsys/host.h :
+ ../../lib/pbio/include/pbsys/config.h :
+ ../../lib/pbio/platform/prime_hub_h5/pbsysconfig.h :
+ ../../lib/pbio/include/pbsys/status.h ../../pybricks/common.h :
+ ../../lib/pbio/include/pbio/button.h ../../lib/pbio/include/pbio/port.h :
+ ../../lib/lego/lego/device.h ../../lib/lego/lego/lump.h :
+ ../../lib/pbio/include/pbio/angle.h :
+ ../../lib/pbio/include/pbsys/telemetry.h :
+ ../../lib/pbio/include/pbdrv/compiler.h :
+ ../../lib/pbio/include/pbdrv/button.h :
+ ../../lib/pbio/include/pbio/color.h ../../lib/pbio/include/pbio/light.h :
+ ../../pybricks/util_mp/pb_obj_helper.h ../../pybricks/parameters.h :
+ ../../lib/pbio/include/pbio/font.h ../../pybricks/util_mp/pb_type_enum.h :
+ ../../pybricks/tools/pb_type_matrix.h :
+ ../../pybricks/parameters/pb_type_button.h ../../pybricks/pupdevices.h :
+ ../../pybricks/common/pb_type_device.h :
+ ../../lib/pbio/include/pbio/port_lump.h :
+ ../../lib/pbio/include/pbdrv/ioport.h :
+ ../../lib/pbio/include/pbdrv/gpio.h ../../lib/pbio/include/pbdrv/uart.h :
+ ../../lib/pbio/include/pbdrv/motor_driver.h ../../lib/lego/lego/lump.h :
+ ../../pybricks/tools/pb_type_async.h ../../pybricks/tools.h :
+ ../../lib/pbio/include/pbio/light_matrix.h :
+ ../../lib/pbio/include/pbdrv/led.h :
+ ../../lib/pbio/include/pbio/geometry.h :
+ ../../lib/pbio/include/pbio/light_animation.h :
+ ../../lib/pbio/include/pbio/control.h :
+ ../../lib/pbio/include/pbio/control_settings.h :
+ ../../lib/pbio/include/pbio/trajectory.h :
+ ../../lib/pbio/include/pbio/dcmotor.h :
+ ../../lib/pbio/include/pbdrv/counter.h :
+ ../../lib/pbio/include/pbio/parent.h :
+ ../../lib/pbio/include/pbio/integrator.h :
+ ../../lib/pbio/include/pbio/logger.h ../../lib/pbio/include/pbio/servo.h :
+ ../../lib/pbio/include/pbio/tacho.h :
+ ../../lib/pbio/include/pbio/observer.h :
+ ../../lib/pbio/include/pbio/differentiator.h ../../pybricks/hubs.h :
+ build/genhdr/mpversion.h :

@@ -1,0 +1,6 @@
+build/lib/pbio/drv/pwm/pwm_test.o: ../../lib/pbio/drv/pwm/pwm_test.c \
+ ../../lib/pbio/include/pbdrv/config.h \
+ ../../lib/pbio/platform/prime_hub_f4/pbdrvconfig.h
+../../lib/pbio/drv/pwm/pwm_test.c :
+ ../../lib/pbio/include/pbdrv/config.h :
+ ../../lib/pbio/platform/prime_hub_f4/pbdrvconfig.h :

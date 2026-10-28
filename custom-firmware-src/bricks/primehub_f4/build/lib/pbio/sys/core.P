@@ -1,0 +1,76 @@
+build/lib/pbio/sys/core.o: ../../lib/pbio/sys/core.c \
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stdint.h \
+ C:/Tools/Arm/arm-none-eabi/include/stdint.h \
+ C:/Tools/Arm/arm-none-eabi/include/machine/_default_types.h \
+ C:/Tools/Arm/arm-none-eabi/include/sys/features.h \
+ C:/Tools/Arm/arm-none-eabi/include/_newlib_version.h \
+ C:/Tools/Arm/arm-none-eabi/include/sys/_intsup.h \
+ C:/Tools/Arm/arm-none-eabi/include/sys/_stdint.h \
+ ../../lib/pbio/include/pbio/bluetooth.h \
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stdbool.h \
+ ../../lib/pbio/include/pbio/config.h \
+ ../../lib/pbio/platform/prime_hub_f4/pbioconfig.h \
+ ../../lib/pbio/include/pbio/error.h ../../lib/pbio/include/pbio/os.h \
+ ../../lib/pbio/include/pbio/protocol.h \
+ ../../lib/pbio/include/pbio/util.h \
+ C:/Tools/Arm/arm-none-eabi/include/sys/cdefs.h \
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stddef.h \
+ ../../lib/lego/lego/lwp3.h ../../lib/pbio/include/pbdrv/clock.h \
+ ../../lib/pbio/include/pbdrv/watchdog.h \
+ ../../lib/pbio/include/pbdrv/config.h \
+ ../../lib/pbio/platform/prime_hub_f4/pbdrvconfig.h \
+ ../../lib/pbio/include/pbio/usb.h \
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stdarg.h \
+ ../../lib/pbio/include/pbio/busy_count.h \
+ ../../lib/pbio/include/pbio/main.h \
+ ../../lib/pbio/include/pbsys/battery.h \
+ ../../lib/pbio/include/pbsys/config.h \
+ ../../lib/pbio/platform/prime_hub_f4/pbsysconfig.h \
+ ../../lib/pbio/include/pbsys/hmi.h ../../lib/pbio/include/pbsys/status.h \
+ ../../lib/pbio/include/pbsys/host.h ../../lib/pbio/sys/light.h \
+ ../../lib/pbio/include/pbio/color.h ../../lib/pbio/sys/storage.h \
+ ../../lib/pbio/include/pbsys/main.h \
+ ../../lib/pbio/include/pbsys/storage_settings.h \
+ ../../lib/pbio/include/pbdrv/bluetooth.h \
+ ../../lib/pbio/include/pbio/imu.h ../../lib/pbio/include/pbio/angle.h \
+ ../../lib/pbio/include/pbio/geometry.h ../../lib/pbio/sys/program_stop.h \
+ ../../lib/pbio/include/pbsys/telemetry.h \
+ ../../lib/pbio/include/pbdrv/compiler.h
+../../lib/pbio/sys/core.c :
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stdint.h :
+ C:/Tools/Arm/arm-none-eabi/include/stdint.h :
+ C:/Tools/Arm/arm-none-eabi/include/machine/_default_types.h :
+ C:/Tools/Arm/arm-none-eabi/include/sys/features.h :
+ C:/Tools/Arm/arm-none-eabi/include/_newlib_version.h :
+ C:/Tools/Arm/arm-none-eabi/include/sys/_intsup.h :
+ C:/Tools/Arm/arm-none-eabi/include/sys/_stdint.h :
+ ../../lib/pbio/include/pbio/bluetooth.h :
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stdbool.h :
+ ../../lib/pbio/include/pbio/config.h :
+ ../../lib/pbio/platform/prime_hub_f4/pbioconfig.h :
+ ../../lib/pbio/include/pbio/error.h ../../lib/pbio/include/pbio/os.h :
+ ../../lib/pbio/include/pbio/protocol.h :
+ ../../lib/pbio/include/pbio/util.h :
+ C:/Tools/Arm/arm-none-eabi/include/sys/cdefs.h :
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stddef.h :
+ ../../lib/lego/lego/lwp3.h ../../lib/pbio/include/pbdrv/clock.h :
+ ../../lib/pbio/include/pbdrv/watchdog.h :
+ ../../lib/pbio/include/pbdrv/config.h :
+ ../../lib/pbio/platform/prime_hub_f4/pbdrvconfig.h :
+ ../../lib/pbio/include/pbio/usb.h :
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stdarg.h :
+ ../../lib/pbio/include/pbio/busy_count.h :
+ ../../lib/pbio/include/pbio/main.h :
+ ../../lib/pbio/include/pbsys/battery.h :
+ ../../lib/pbio/include/pbsys/config.h :
+ ../../lib/pbio/platform/prime_hub_f4/pbsysconfig.h :
+ ../../lib/pbio/include/pbsys/hmi.h ../../lib/pbio/include/pbsys/status.h :
+ ../../lib/pbio/include/pbsys/host.h ../../lib/pbio/sys/light.h :
+ ../../lib/pbio/include/pbio/color.h ../../lib/pbio/sys/storage.h :
+ ../../lib/pbio/include/pbsys/main.h :
+ ../../lib/pbio/include/pbsys/storage_settings.h :
+ ../../lib/pbio/include/pbdrv/bluetooth.h :
+ ../../lib/pbio/include/pbio/imu.h ../../lib/pbio/include/pbio/angle.h :
+ ../../lib/pbio/include/pbio/geometry.h ../../lib/pbio/sys/program_stop.h :
+ ../../lib/pbio/include/pbsys/telemetry.h :
+ ../../lib/pbio/include/pbdrv/compiler.h :

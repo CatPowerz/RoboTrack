@@ -1,0 +1,243 @@
+build/lib/pbio/drv/bluetooth/bluetooth_btstack.o: \
+ ../../lib/pbio/drv/bluetooth/bluetooth_btstack.c \
+ ../../lib/pbio/include/pbdrv/config.h \
+ ../../lib/pbio/platform/prime_hub_f4/pbdrvconfig.h \
+ C:/Tools/Arm/arm-none-eabi/include/assert.h \
+ C:/Tools/Arm/arm-none-eabi/include/_ansi.h \
+ C:/Tools/Arm/arm-none-eabi/include/newlib.h \
+ C:/Tools/Arm/arm-none-eabi/include/_newlib_version.h \
+ C:/Tools/Arm/arm-none-eabi/include/sys/config.h \
+ C:/Tools/Arm/arm-none-eabi/include/machine/ieeefp.h \
+ C:/Tools/Arm/arm-none-eabi/include/sys/features.h \
+ C:/Tools/Arm/arm-none-eabi/include/inttypes.h \
+ C:/Tools/Arm/arm-none-eabi/include/sys/_intsup.h \
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stdint.h \
+ C:/Tools/Arm/arm-none-eabi/include/stdint.h \
+ C:/Tools/Arm/arm-none-eabi/include/machine/_default_types.h \
+ C:/Tools/Arm/arm-none-eabi/include/sys/_stdint.h \
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stddef.h \
+ C:/Tools/Arm/arm-none-eabi/include/stdio.h \
+ C:/Tools/Arm/arm-none-eabi/include/sys/cdefs.h \
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stdarg.h \
+ C:/Tools/Arm/arm-none-eabi/include/sys/reent.h \
+ C:/Tools/Arm/arm-none-eabi/include/_ansi.h \
+ C:/Tools/Arm/arm-none-eabi/include/sys/_types.h \
+ C:/Tools/Arm/arm-none-eabi/include/machine/_types.h \
+ C:/Tools/Arm/arm-none-eabi/include/sys/lock.h \
+ C:/Tools/Arm/arm-none-eabi/include/sys/stdio.h \
+ ../../lib/btstack/src/ble/gatt-service/device_information_service_server.h \
+ ../../lib/btstack/src/ble/gatt-service/nordic_spp_service_server.h \
+ ../../lib/btstack/src/bluetooth.h \
+ ../../lib/btstack/src/btstack_defines.h \
+ ../../lib/btstack/src/btstack_linked_list.h \
+ ../../lib/btstack/src/btstack_bool.h \
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stdbool.h \
+ ../../lib/btstack/src/btstack.h \
+ ../../lib/pbio/platform/prime_hub_f4/btstack_config.h \
+ ../../lib/btstack/src/ad_parser.h ../../lib/btstack/src/bluetooth.h \
+ ../../lib/btstack/src/bluetooth_psm.h \
+ ../../lib/btstack/src/bluetooth_company_id.h \
+ ../../lib/btstack/src/bluetooth_data_types.h \
+ ../../lib/btstack/src/bluetooth_gatt.h \
+ ../../lib/btstack/src/bluetooth_sdp.h \
+ ../../lib/btstack/src/btstack_audio.h \
+ ../../lib/btstack/src/btstack_control.h \
+ ../../lib/btstack/src/btstack_util.h \
+ C:/Tools/Arm/arm-none-eabi/include/string.h \
+ C:/Tools/Arm/arm-none-eabi/include/sys/string.h \
+ ../../lib/btstack/src/btstack_defines.h \
+ ../../lib/btstack/src/btstack_crypto.h \
+ ../../lib/btstack/src/btstack_debug.h ../../lib/btstack/src/hci_dump.h \
+ ../../lib/btstack/src/btstack_event.h \
+ ../../lib/btstack/src/ble/gatt_client.h ../../lib/btstack/src/hci.h \
+ ../../lib/btstack/src/btstack_chipset.h ../../lib/btstack/src/hci_cmd.h \
+ ../../lib/btstack/src/gap.h ../../lib/btstack/src/hci_transport.h \
+ ../../lib/btstack/src/btstack_run_loop.h \
+ ../../lib/btstack/src/ble/att_db.h \
+ ../../lib/btstack/src/btstack_linked_list.h \
+ ../../lib/btstack/src/btstack_bool.h \
+ C:/Tools/Arm/arm-none-eabi/include/stdlib.h \
+ C:/Tools/Arm/arm-none-eabi/include/machine/stdlib.h \
+ ../../lib/btstack/src/btstack_hid.h \
+ ../../lib/btstack/src/btstack_hid_parser.h \
+ ../../lib/btstack/src/btstack_memory.h ../../lib/btstack/src/hci.h \
+ ../../lib/btstack/src/l2cap.h ../../lib/btstack/src/l2cap_signaling.h \
+ ../../lib/btstack/src/ble/gatt-service/battery_service_client.h \
+ ../../lib/btstack/src/ble/gatt_client.h \
+ ../../lib/btstack/src/ble/gatt-service/hids_client.h \
+ ../../lib/btstack/src/btstack_hid.h \
+ ../../lib/btstack/src/ble/gatt-service/scan_parameters_service_client.h \
+ ../../lib/btstack/src/ble/sm.h ../../lib/btstack/src/btstack_util.h \
+ ../../lib/btstack/src/btstack_memory_pool.h \
+ ../../lib/btstack/src/btstack_network.h \
+ ../../lib/btstack/src/btstack_ring_buffer.h \
+ ../../lib/btstack/src/btstack_stdin.h \
+ ../../lib/btstack/src/ble/att_db_util.h \
+ ../../lib/btstack/src/btstack_crypto.h \
+ ../../lib/btstack/src/ble/att_dispatch.h \
+ ../../lib/btstack/src/ble/att_server.h \
+ ../../lib/btstack/src/ble/att_db.h \
+ ../../lib/btstack/src/ble/gatt-service/ancs_client.h \
+ ../../lib/btstack/src/ble/gatt-service/battery_service_server.h \
+ ../../lib/btstack/src/ble/gatt-service/bond_management_service_server.h \
+ ../../lib/btstack/src/ble/gatt-service/cycling_power_service_server.h \
+ ../../lib/btstack/src/ble/gatt-service/cycling_speed_and_cadence_service_server.h \
+ ../../lib/btstack/src/ble/gatt-service/device_information_service_client.h \
+ ../../lib/btstack/src/ble/gatt-service/device_information_service_server.h \
+ ../../lib/btstack/src/ble/gatt-service/heart_rate_service_server.h \
+ ../../lib/btstack/src/ble/gatt-service/hids_device.h \
+ ../../lib/btstack/src/ble/gatt-service/scan_parameters_service_server.h \
+ ../../lib/btstack/src/ble/gatt-service/tx_power_service_server.h \
+ ../../lib/btstack/src/ble/le_device_db.h \
+ ../../lib/btstack/src/le-audio/le_audio.h \
+ ../../lib/btstack/src/le-audio/le_audio_util.h \
+ ../../lib/btstack/src/le-audio/le_audio.h \
+ ../../lib/btstack/src/btstack_lc3.h \
+ ../../lib/btstack/src/le-audio/gatt-service/broadcast_audio_scan_service_client.h \
+ ../../lib/btstack/src/le-audio/le_audio.h \
+ ../../lib/btstack/src/le-audio/gatt-service/broadcast_audio_scan_service_util.h \
+ ../../lib/btstack/src/le-audio/gatt-service/broadcast_audio_scan_service_server.h \
+ ../../lib/btstack/src/le-audio/gatt-service/broadcast_audio_scan_service_util.h \
+ ../../lib/btstack/src/btstack_run_loop.h \
+ ../../lib/lwrb/src/include/lwrb/lwrb.h \
+ ../../lib/pbio/include/pbio/bluetooth.h \
+ ../../lib/pbio/include/pbio/config.h \
+ ../../lib/pbio/platform/prime_hub_f4/pbioconfig.h \
+ ../../lib/pbio/include/pbio/error.h ../../lib/pbio/include/pbio/os.h \
+ ../../lib/pbio/include/pbio/protocol.h \
+ ../../lib/pbio/include/pbio/util.h ../../lib/lego/lego/lwp3.h \
+ ../../lib/pbio/include/pbio/serial.h ../../lib/pbio/include/pbsys/host.h \
+ ../../lib/pbio/include/pbsys/config.h \
+ ../../lib/pbio/platform/prime_hub_f4/pbsysconfig.h \
+ ../../lib/pbio/include/pbdrv/clock.h \
+ ../../lib/pbio/include/pbio/version.h \
+ ../../lib/pbio/include/pbdrv/bluetooth.h \
+ ../../lib/pbio/drv/bluetooth/bluetooth_address.h \
+ build/pbio_version_hash.h \
+ ../../lib/pbio/drv/bluetooth/bluetooth_btstack.h \
+ ../../lib/btstack/src/btstack_chipset.h \
+ ../../lib/btstack/src/btstack_control.h \
+ ../../lib/btstack/src/btstack_uart_block.h \
+ ../../lib/btstack/src/btstack_uart.h build/genhdr/pybricks_service.h \
+ ../../lib/pbio/drv/bluetooth/pybricks_service_server.h
+ ../../lib/pbio/drv/bluetooth/bluetooth_btstack.c :
+ ../../lib/pbio/include/pbdrv/config.h :
+ ../../lib/pbio/platform/prime_hub_f4/pbdrvconfig.h :
+ C:/Tools/Arm/arm-none-eabi/include/assert.h :
+ C:/Tools/Arm/arm-none-eabi/include/_ansi.h :
+ C:/Tools/Arm/arm-none-eabi/include/newlib.h :
+ C:/Tools/Arm/arm-none-eabi/include/_newlib_version.h :
+ C:/Tools/Arm/arm-none-eabi/include/sys/config.h :
+ C:/Tools/Arm/arm-none-eabi/include/machine/ieeefp.h :
+ C:/Tools/Arm/arm-none-eabi/include/sys/features.h :
+ C:/Tools/Arm/arm-none-eabi/include/inttypes.h :
+ C:/Tools/Arm/arm-none-eabi/include/sys/_intsup.h :
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stdint.h :
+ C:/Tools/Arm/arm-none-eabi/include/stdint.h :
+ C:/Tools/Arm/arm-none-eabi/include/machine/_default_types.h :
+ C:/Tools/Arm/arm-none-eabi/include/sys/_stdint.h :
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stddef.h :
+ C:/Tools/Arm/arm-none-eabi/include/stdio.h :
+ C:/Tools/Arm/arm-none-eabi/include/sys/cdefs.h :
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stdarg.h :
+ C:/Tools/Arm/arm-none-eabi/include/sys/reent.h :
+ C:/Tools/Arm/arm-none-eabi/include/_ansi.h :
+ C:/Tools/Arm/arm-none-eabi/include/sys/_types.h :
+ C:/Tools/Arm/arm-none-eabi/include/machine/_types.h :
+ C:/Tools/Arm/arm-none-eabi/include/sys/lock.h :
+ C:/Tools/Arm/arm-none-eabi/include/sys/stdio.h :
+ ../../lib/btstack/src/ble/gatt-service/device_information_service_server.h :
+ ../../lib/btstack/src/ble/gatt-service/nordic_spp_service_server.h :
+ ../../lib/btstack/src/bluetooth.h :
+ ../../lib/btstack/src/btstack_defines.h :
+ ../../lib/btstack/src/btstack_linked_list.h :
+ ../../lib/btstack/src/btstack_bool.h :
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stdbool.h :
+ ../../lib/btstack/src/btstack.h :
+ ../../lib/pbio/platform/prime_hub_f4/btstack_config.h :
+ ../../lib/btstack/src/ad_parser.h ../../lib/btstack/src/bluetooth.h :
+ ../../lib/btstack/src/bluetooth_psm.h :
+ ../../lib/btstack/src/bluetooth_company_id.h :
+ ../../lib/btstack/src/bluetooth_data_types.h :
+ ../../lib/btstack/src/bluetooth_gatt.h :
+ ../../lib/btstack/src/bluetooth_sdp.h :
+ ../../lib/btstack/src/btstack_audio.h :
+ ../../lib/btstack/src/btstack_control.h :
+ ../../lib/btstack/src/btstack_util.h :
+ C:/Tools/Arm/arm-none-eabi/include/string.h :
+ C:/Tools/Arm/arm-none-eabi/include/sys/string.h :
+ ../../lib/btstack/src/btstack_defines.h :
+ ../../lib/btstack/src/btstack_crypto.h :
+ ../../lib/btstack/src/btstack_debug.h ../../lib/btstack/src/hci_dump.h :
+ ../../lib/btstack/src/btstack_event.h :
+ ../../lib/btstack/src/ble/gatt_client.h ../../lib/btstack/src/hci.h :
+ ../../lib/btstack/src/btstack_chipset.h ../../lib/btstack/src/hci_cmd.h :
+ ../../lib/btstack/src/gap.h ../../lib/btstack/src/hci_transport.h :
+ ../../lib/btstack/src/btstack_run_loop.h :
+ ../../lib/btstack/src/ble/att_db.h :
+ ../../lib/btstack/src/btstack_linked_list.h :
+ ../../lib/btstack/src/btstack_bool.h :
+ C:/Tools/Arm/arm-none-eabi/include/stdlib.h :
+ C:/Tools/Arm/arm-none-eabi/include/machine/stdlib.h :
+ ../../lib/btstack/src/btstack_hid.h :
+ ../../lib/btstack/src/btstack_hid_parser.h :
+ ../../lib/btstack/src/btstack_memory.h ../../lib/btstack/src/hci.h :
+ ../../lib/btstack/src/l2cap.h ../../lib/btstack/src/l2cap_signaling.h :
+ ../../lib/btstack/src/ble/gatt-service/battery_service_client.h :
+ ../../lib/btstack/src/ble/gatt_client.h :
+ ../../lib/btstack/src/ble/gatt-service/hids_client.h :
+ ../../lib/btstack/src/btstack_hid.h :
+ ../../lib/btstack/src/ble/gatt-service/scan_parameters_service_client.h :
+ ../../lib/btstack/src/ble/sm.h ../../lib/btstack/src/btstack_util.h :
+ ../../lib/btstack/src/btstack_memory_pool.h :
+ ../../lib/btstack/src/btstack_network.h :
+ ../../lib/btstack/src/btstack_ring_buffer.h :
+ ../../lib/btstack/src/btstack_stdin.h :
+ ../../lib/btstack/src/ble/att_db_util.h :
+ ../../lib/btstack/src/btstack_crypto.h :
+ ../../lib/btstack/src/ble/att_dispatch.h :
+ ../../lib/btstack/src/ble/att_server.h :
+ ../../lib/btstack/src/ble/att_db.h :
+ ../../lib/btstack/src/ble/gatt-service/ancs_client.h :
+ ../../lib/btstack/src/ble/gatt-service/battery_service_server.h :
+ ../../lib/btstack/src/ble/gatt-service/bond_management_service_server.h :
+ ../../lib/btstack/src/ble/gatt-service/cycling_power_service_server.h :
+ ../../lib/btstack/src/ble/gatt-service/cycling_speed_and_cadence_service_server.h :
+ ../../lib/btstack/src/ble/gatt-service/device_information_service_client.h :
+ ../../lib/btstack/src/ble/gatt-service/device_information_service_server.h :
+ ../../lib/btstack/src/ble/gatt-service/heart_rate_service_server.h :
+ ../../lib/btstack/src/ble/gatt-service/hids_device.h :
+ ../../lib/btstack/src/ble/gatt-service/scan_parameters_service_server.h :
+ ../../lib/btstack/src/ble/gatt-service/tx_power_service_server.h :
+ ../../lib/btstack/src/ble/le_device_db.h :
+ ../../lib/btstack/src/le-audio/le_audio.h :
+ ../../lib/btstack/src/le-audio/le_audio_util.h :
+ ../../lib/btstack/src/le-audio/le_audio.h :
+ ../../lib/btstack/src/btstack_lc3.h :
+ ../../lib/btstack/src/le-audio/gatt-service/broadcast_audio_scan_service_client.h :
+ ../../lib/btstack/src/le-audio/le_audio.h :
+ ../../lib/btstack/src/le-audio/gatt-service/broadcast_audio_scan_service_util.h :
+ ../../lib/btstack/src/le-audio/gatt-service/broadcast_audio_scan_service_server.h :
+ ../../lib/btstack/src/le-audio/gatt-service/broadcast_audio_scan_service_util.h :
+ ../../lib/btstack/src/btstack_run_loop.h :
+ ../../lib/lwrb/src/include/lwrb/lwrb.h :
+ ../../lib/pbio/include/pbio/bluetooth.h :
+ ../../lib/pbio/include/pbio/config.h :
+ ../../lib/pbio/platform/prime_hub_f4/pbioconfig.h :
+ ../../lib/pbio/include/pbio/error.h ../../lib/pbio/include/pbio/os.h :
+ ../../lib/pbio/include/pbio/protocol.h :
+ ../../lib/pbio/include/pbio/util.h ../../lib/lego/lego/lwp3.h :
+ ../../lib/pbio/include/pbio/serial.h ../../lib/pbio/include/pbsys/host.h :
+ ../../lib/pbio/include/pbsys/config.h :
+ ../../lib/pbio/platform/prime_hub_f4/pbsysconfig.h :
+ ../../lib/pbio/include/pbdrv/clock.h :
+ ../../lib/pbio/include/pbio/version.h :
+ ../../lib/pbio/include/pbdrv/bluetooth.h :
+ ../../lib/pbio/drv/bluetooth/bluetooth_address.h :
+ build/pbio_version_hash.h :
+ ../../lib/pbio/drv/bluetooth/bluetooth_btstack.h :
+ ../../lib/btstack/src/btstack_chipset.h :
+ ../../lib/btstack/src/btstack_control.h :
+ ../../lib/btstack/src/btstack_uart_block.h :
+ ../../lib/btstack/src/btstack_uart.h build/genhdr/pybricks_service.h :
+ ../../lib/pbio/drv/bluetooth/pybricks_service_server.h :

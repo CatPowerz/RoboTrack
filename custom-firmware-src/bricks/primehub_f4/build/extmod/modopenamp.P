@@ -1,0 +1,2 @@
+build/extmod/modopenamp.o: ../../micropython/extmod/modopenamp.c
+../../micropython/extmod/modopenamp.c :

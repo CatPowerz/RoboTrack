@@ -1,0 +1,6 @@
+Invalid mode
+Mode not writable
+Expected %d values
+Value out of range for int8
+Value out of range for int16
+Value out of range for int32

@@ -1,0 +1,7 @@
+build/lib/pbio/drv/battery/battery_test.o: \
+ ../../lib/pbio/drv/battery/battery_test.c \
+ ../../lib/pbio/include/pbdrv/config.h \
+ ../../lib/pbio/platform/prime_hub_f4/pbdrvconfig.h
+ ../../lib/pbio/drv/battery/battery_test.c :
+ ../../lib/pbio/include/pbdrv/config.h :
+ ../../lib/pbio/platform/prime_hub_f4/pbdrvconfig.h :

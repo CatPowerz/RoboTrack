@@ -1,0 +1,7 @@
+build/lib/pbio/drv/uart/uart_ev3_pru.o: \
+ ../../lib/pbio/drv/uart/uart_ev3_pru.c \
+ ../../lib/pbio/include/pbdrv/config.h \
+ ../../lib/pbio/platform/prime_hub_f4/pbdrvconfig.h
+ ../../lib/pbio/drv/uart/uart_ev3_pru.c :
+ ../../lib/pbio/include/pbdrv/config.h :
+ ../../lib/pbio/platform/prime_hub_f4/pbdrvconfig.h :

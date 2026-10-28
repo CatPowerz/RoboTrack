@@ -1,0 +1,1 @@
+MP_REGISTER_MODULE(MP_QSTR_pybricks_dot_experimental, pb_module_experimental);

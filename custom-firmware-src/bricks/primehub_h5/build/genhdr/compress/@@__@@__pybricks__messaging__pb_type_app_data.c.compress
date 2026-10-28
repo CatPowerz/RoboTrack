@@ -1,0 +1,5 @@
+invalid mode
+index out of range
+host rx_buffer already allocated
+modes must be a list of (mode, size) tuples
+mode numbers must be unique

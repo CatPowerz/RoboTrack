@@ -1,0 +1,9 @@
+MP_REGISTER_ROOT_POINTER(const char *readline_hist[(8)]);
+
+MP_REGISTER_ROOT_POINTER(mp_obj_dict_t * pb_type_Color_dict);
+
+MP_REGISTER_ROOT_POINTER(mp_obj_list_t mp_sys_argv_obj);
+
+MP_REGISTER_ROOT_POINTER(mp_obj_t persistent_code_root_pointers);
+
+MP_REGISTER_ROOT_POINTER(mp_obj_t sys_mutable[MP_SYS_MUTABLE_NUM]);

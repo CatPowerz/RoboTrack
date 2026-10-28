@@ -1,0 +1,2 @@
+MP_REGISTER_MODULE(MP_QSTR_pybricks, pb_package_pybricks);
+MP_REGISTER_MODULE_DELEGATION(pb_package_pybricks, pb_package_pybricks_attr);

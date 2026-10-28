@@ -1,0 +1,7 @@
+build/lib/pbio/drv/gpio/gpio_virtual.o: \
+ ../../lib/pbio/drv/gpio/gpio_virtual.c \
+ ../../lib/pbio/include/pbdrv/config.h \
+ ../../lib/pbio/platform/prime_hub_h5/pbdrvconfig.h
+ ../../lib/pbio/drv/gpio/gpio_virtual.c :
+ ../../lib/pbio/include/pbdrv/config.h :
+ ../../lib/pbio/platform/prime_hub_h5/pbdrvconfig.h :

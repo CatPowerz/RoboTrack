@@ -1,0 +1,6 @@
+build/lib/pbio/src/image/image.o: ../../lib/pbio/src/image/image.c \
+ ../../lib/pbio/include/pbio/config.h \
+ ../../lib/pbio/platform/prime_hub_h5/pbioconfig.h
+../../lib/pbio/src/image/image.c :
+ ../../lib/pbio/include/pbio/config.h :
+ ../../lib/pbio/platform/prime_hub_h5/pbioconfig.h :

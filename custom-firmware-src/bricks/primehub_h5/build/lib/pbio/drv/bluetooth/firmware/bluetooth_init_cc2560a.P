@@ -1,0 +1,7 @@
+build/lib/pbio/drv/bluetooth/firmware/bluetooth_init_cc2560a.o: \
+ ../../lib/pbio/drv/bluetooth/firmware/bluetooth_init_cc2560a.c \
+ ../../lib/pbio/include/pbdrv/config.h \
+ ../../lib/pbio/platform/prime_hub_h5/pbdrvconfig.h
+ ../../lib/pbio/drv/bluetooth/firmware/bluetooth_init_cc2560a.c :
+ ../../lib/pbio/include/pbdrv/config.h :
+ ../../lib/pbio/platform/prime_hub_h5/pbdrvconfig.h :

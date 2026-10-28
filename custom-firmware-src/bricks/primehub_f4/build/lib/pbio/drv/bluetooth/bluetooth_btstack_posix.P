@@ -1,0 +1,7 @@
+build/lib/pbio/drv/bluetooth/bluetooth_btstack_posix.o: \
+ ../../lib/pbio/drv/bluetooth/bluetooth_btstack_posix.c \
+ ../../lib/pbio/include/pbdrv/config.h \
+ ../../lib/pbio/platform/prime_hub_f4/pbdrvconfig.h
+ ../../lib/pbio/drv/bluetooth/bluetooth_btstack_posix.c :
+ ../../lib/pbio/include/pbdrv/config.h :
+ ../../lib/pbio/platform/prime_hub_f4/pbdrvconfig.h :

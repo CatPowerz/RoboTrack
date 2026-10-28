@@ -1,0 +1,30 @@
+build/lib/pbio/sys/battery_temp.o: ../../lib/pbio/sys/battery_temp.c \
+ ../../lib/pbio/include/pbsys/config.h \
+ ../../lib/pbio/platform/prime_hub_f4/pbsysconfig.h \
+ ../../lib/pbio/include/pbio/protocol.h \
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stdint.h \
+ C:/Tools/Arm/arm-none-eabi/include/stdint.h \
+ C:/Tools/Arm/arm-none-eabi/include/machine/_default_types.h \
+ C:/Tools/Arm/arm-none-eabi/include/sys/features.h \
+ C:/Tools/Arm/arm-none-eabi/include/_newlib_version.h \
+ C:/Tools/Arm/arm-none-eabi/include/sys/_intsup.h \
+ C:/Tools/Arm/arm-none-eabi/include/sys/_stdint.h \
+ ../../lib/pbio/include/pbio/error.h ../../lib/pbio/include/pbio/util.h \
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stdbool.h \
+ C:/Tools/Arm/arm-none-eabi/include/sys/cdefs.h \
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stddef.h
+../../lib/pbio/sys/battery_temp.c :
+ ../../lib/pbio/include/pbsys/config.h :
+ ../../lib/pbio/platform/prime_hub_f4/pbsysconfig.h :
+ ../../lib/pbio/include/pbio/protocol.h :
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stdint.h :
+ C:/Tools/Arm/arm-none-eabi/include/stdint.h :
+ C:/Tools/Arm/arm-none-eabi/include/machine/_default_types.h :
+ C:/Tools/Arm/arm-none-eabi/include/sys/features.h :
+ C:/Tools/Arm/arm-none-eabi/include/_newlib_version.h :
+ C:/Tools/Arm/arm-none-eabi/include/sys/_intsup.h :
+ C:/Tools/Arm/arm-none-eabi/include/sys/_stdint.h :
+ ../../lib/pbio/include/pbio/error.h ../../lib/pbio/include/pbio/util.h :
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stdbool.h :
+ C:/Tools/Arm/arm-none-eabi/include/sys/cdefs.h :
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stddef.h :

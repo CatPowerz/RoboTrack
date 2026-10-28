@@ -1,0 +1,2 @@
+MP_REGISTER_MODULE(MP_QSTR_pybricks_dot_tools, pb_module_tools);
+MP_REGISTER_MODULE(MP_QSTR_pybricks_dot_geometry, pb_module_tools);

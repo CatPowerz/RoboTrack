@@ -1,0 +1,7 @@
+build/lib/pbio/drv/random/random_stm32_hal.o: \
+ ../../lib/pbio/drv/random/random_stm32_hal.c \
+ ../../lib/pbio/include/pbdrv/config.h \
+ ../../lib/pbio/platform/prime_hub_h5/pbdrvconfig.h
+ ../../lib/pbio/drv/random/random_stm32_hal.c :
+ ../../lib/pbio/include/pbdrv/config.h :
+ ../../lib/pbio/platform/prime_hub_h5/pbdrvconfig.h :

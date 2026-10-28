@@ -1,0 +1,6 @@
+build/lib/pbio/drv/gpio/gpio_pico.o: ../../lib/pbio/drv/gpio/gpio_pico.c \
+ ../../lib/pbio/include/pbdrv/config.h \
+ ../../lib/pbio/platform/prime_hub_h5/pbdrvconfig.h
+../../lib/pbio/drv/gpio/gpio_pico.c :
+ ../../lib/pbio/include/pbdrv/config.h :
+ ../../lib/pbio/platform/prime_hub_h5/pbdrvconfig.h :

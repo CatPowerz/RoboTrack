@@ -1,0 +1,8 @@
+build/shared/libc/string0.o: ../../micropython/shared/libc/string0.c \
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stdint.h \
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stdint-gcc.h \
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stddef.h
+../../micropython/shared/libc/string0.c :
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stdint.h :
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stdint-gcc.h :
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stddef.h :

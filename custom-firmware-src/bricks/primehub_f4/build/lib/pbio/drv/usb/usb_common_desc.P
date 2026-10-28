@@ -1,0 +1,69 @@
+build/lib/pbio/drv/usb/usb_common_desc.o: \
+ ../../lib/pbio/drv/usb/usb_common_desc.c \
+ ../../lib/pbio/include/pbdrv/config.h \
+ ../../lib/pbio/platform/prime_hub_f4/pbdrvconfig.h \
+ C:/Tools/Arm/arm-none-eabi/include/string.h \
+ C:/Tools/Arm/arm-none-eabi/include/_ansi.h \
+ C:/Tools/Arm/arm-none-eabi/include/newlib.h \
+ C:/Tools/Arm/arm-none-eabi/include/_newlib_version.h \
+ C:/Tools/Arm/arm-none-eabi/include/sys/config.h \
+ C:/Tools/Arm/arm-none-eabi/include/machine/ieeefp.h \
+ C:/Tools/Arm/arm-none-eabi/include/sys/features.h \
+ C:/Tools/Arm/arm-none-eabi/include/sys/reent.h \
+ C:/Tools/Arm/arm-none-eabi/include/_ansi.h \
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stddef.h \
+ C:/Tools/Arm/arm-none-eabi/include/sys/cdefs.h \
+ C:/Tools/Arm/arm-none-eabi/include/machine/_default_types.h \
+ C:/Tools/Arm/arm-none-eabi/include/sys/_types.h \
+ C:/Tools/Arm/arm-none-eabi/include/machine/_types.h \
+ C:/Tools/Arm/arm-none-eabi/include/sys/lock.h \
+ C:/Tools/Arm/arm-none-eabi/include/sys/string.h \
+ ../../lib/pbio/include/pbsys/host.h \
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stdbool.h \
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stdint.h \
+ C:/Tools/Arm/arm-none-eabi/include/stdint.h \
+ C:/Tools/Arm/arm-none-eabi/include/sys/_intsup.h \
+ C:/Tools/Arm/arm-none-eabi/include/sys/_stdint.h \
+ ../../lib/pbio/include/pbio/error.h ../../lib/pbio/include/pbio/os.h \
+ ../../lib/pbio/include/pbio/config.h \
+ ../../lib/pbio/platform/prime_hub_f4/pbioconfig.h \
+ ../../lib/pbio/include/pbsys/config.h \
+ ../../lib/pbio/platform/prime_hub_f4/pbsysconfig.h \
+ ../../lib/pbio/include/pbio/protocol.h \
+ ../../lib/pbio/include/pbio/util.h \
+ ../../lib/pbio/drv/usb/usb_common_desc.h ../../lib/lego/lego/usb.h \
+ ../../lib/pbio/drv/usb/usb_ch9.h ../../lib/pbio/include/pbdrv/compiler.h
+ ../../lib/pbio/drv/usb/usb_common_desc.c :
+ ../../lib/pbio/include/pbdrv/config.h :
+ ../../lib/pbio/platform/prime_hub_f4/pbdrvconfig.h :
+ C:/Tools/Arm/arm-none-eabi/include/string.h :
+ C:/Tools/Arm/arm-none-eabi/include/_ansi.h :
+ C:/Tools/Arm/arm-none-eabi/include/newlib.h :
+ C:/Tools/Arm/arm-none-eabi/include/_newlib_version.h :
+ C:/Tools/Arm/arm-none-eabi/include/sys/config.h :
+ C:/Tools/Arm/arm-none-eabi/include/machine/ieeefp.h :
+ C:/Tools/Arm/arm-none-eabi/include/sys/features.h :
+ C:/Tools/Arm/arm-none-eabi/include/sys/reent.h :
+ C:/Tools/Arm/arm-none-eabi/include/_ansi.h :
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stddef.h :
+ C:/Tools/Arm/arm-none-eabi/include/sys/cdefs.h :
+ C:/Tools/Arm/arm-none-eabi/include/machine/_default_types.h :
+ C:/Tools/Arm/arm-none-eabi/include/sys/_types.h :
+ C:/Tools/Arm/arm-none-eabi/include/machine/_types.h :
+ C:/Tools/Arm/arm-none-eabi/include/sys/lock.h :
+ C:/Tools/Arm/arm-none-eabi/include/sys/string.h :
+ ../../lib/pbio/include/pbsys/host.h :
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stdbool.h :
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stdint.h :
+ C:/Tools/Arm/arm-none-eabi/include/stdint.h :
+ C:/Tools/Arm/arm-none-eabi/include/sys/_intsup.h :
+ C:/Tools/Arm/arm-none-eabi/include/sys/_stdint.h :
+ ../../lib/pbio/include/pbio/error.h ../../lib/pbio/include/pbio/os.h :
+ ../../lib/pbio/include/pbio/config.h :
+ ../../lib/pbio/platform/prime_hub_f4/pbioconfig.h :
+ ../../lib/pbio/include/pbsys/config.h :
+ ../../lib/pbio/platform/prime_hub_f4/pbsysconfig.h :
+ ../../lib/pbio/include/pbio/protocol.h :
+ ../../lib/pbio/include/pbio/util.h :
+ ../../lib/pbio/drv/usb/usb_common_desc.h ../../lib/lego/lego/usb.h :
+ ../../lib/pbio/drv/usb/usb_ch9.h ../../lib/pbio/include/pbdrv/compiler.h :

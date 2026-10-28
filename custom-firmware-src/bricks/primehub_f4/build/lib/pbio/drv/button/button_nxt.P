@@ -1,0 +1,7 @@
+build/lib/pbio/drv/button/button_nxt.o: \
+ ../../lib/pbio/drv/button/button_nxt.c \
+ ../../lib/pbio/include/pbdrv/config.h \
+ ../../lib/pbio/platform/prime_hub_f4/pbdrvconfig.h
+ ../../lib/pbio/drv/button/button_nxt.c :
+ ../../lib/pbio/include/pbdrv/config.h :
+ ../../lib/pbio/platform/prime_hub_f4/pbdrvconfig.h :

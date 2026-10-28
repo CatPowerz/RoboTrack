@@ -1,0 +1,7 @@
+build/lib/pbio/drv/usb/usb_simulation.o: \
+ ../../lib/pbio/drv/usb/usb_simulation.c \
+ ../../lib/pbio/include/pbdrv/config.h \
+ ../../lib/pbio/platform/prime_hub_h5/pbdrvconfig.h
+ ../../lib/pbio/drv/usb/usb_simulation.c :
+ ../../lib/pbio/include/pbdrv/config.h :
+ ../../lib/pbio/platform/prime_hub_h5/pbdrvconfig.h :

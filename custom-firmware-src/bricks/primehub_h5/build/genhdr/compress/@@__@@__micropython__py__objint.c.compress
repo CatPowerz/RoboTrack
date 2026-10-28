@@ -1,0 +1,12 @@
+can't convert inf to int
+can't convert NaN to int
+float too big
+long int not supported in this build
+small int overflow
+small int overflow
+small int overflow
+small int overflow
+value would overflow a %d byte buffer
+can't convert negative int to unsigned
+value would overflow a %d byte buffer
+can't convert negative int to unsigned

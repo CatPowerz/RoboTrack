@@ -1,0 +1,88 @@
+build/lib/pbio/src/port.o: ../../lib/pbio/src/port.c \
+ ../../lib/pbio/include/pbdrv/counter.h \
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stddef.h \
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stdint.h \
+ C:/Tools/Arm/arm-none-eabi/include/stdint.h \
+ C:/Tools/Arm/arm-none-eabi/include/machine/_default_types.h \
+ C:/Tools/Arm/arm-none-eabi/include/sys/features.h \
+ C:/Tools/Arm/arm-none-eabi/include/_newlib_version.h \
+ C:/Tools/Arm/arm-none-eabi/include/sys/_intsup.h \
+ C:/Tools/Arm/arm-none-eabi/include/sys/_stdint.h \
+ ../../lib/lego/lego/device.h ../../lib/lego/lego/lump.h \
+ ../../lib/pbio/include/pbdrv/config.h \
+ ../../lib/pbio/platform/prime_hub_h5/pbdrvconfig.h \
+ ../../lib/pbio/include/pbio/error.h ../../lib/pbio/include/pbdrv/i2c.h \
+ ../../lib/pbio/include/pbio/os.h \
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stdbool.h \
+ ../../lib/pbio/include/pbio/config.h \
+ ../../lib/pbio/platform/prime_hub_h5/pbioconfig.h \
+ ../../lib/pbio/include/pbdrv/ioport.h \
+ ../../lib/pbio/include/pbdrv/gpio.h ../../lib/pbio/include/pbdrv/uart.h \
+ ../../lib/pbio/include/pbdrv/motor_driver.h \
+ ../../lib/pbio/include/pbio/port.h ../../lib/pbio/include/pbio/angle.h \
+ ../../lib/pbio/include/pbsys/telemetry.h \
+ ../../lib/pbio/include/pbdrv/compiler.h \
+ ../../lib/pbio/include/pbio/protocol.h \
+ ../../lib/pbio/include/pbio/util.h \
+ C:/Tools/Arm/arm-none-eabi/include/sys/cdefs.h \
+ ../../lib/pbio/include/pbsys/config.h \
+ ../../lib/pbio/platform/prime_hub_h5/pbsysconfig.h \
+ ../../lib/pbio/include/pbio/battery.h \
+ ../../lib/pbio/include/pbio/control.h \
+ ../../lib/pbio/include/pbio/control_settings.h \
+ ../../lib/pbio/include/pbio/trajectory.h \
+ ../../lib/pbio/include/pbio/dcmotor.h \
+ ../../lib/pbio/include/pbio/parent.h \
+ ../../lib/pbio/include/pbio/integrator.h \
+ ../../lib/pbio/include/pbio/logger.h \
+ ../../lib/pbio/include/pbio/drivebase.h \
+ ../../lib/pbio/include/pbio/servo.h ../../lib/pbio/include/pbio/tacho.h \
+ ../../lib/pbio/include/pbio/observer.h \
+ ../../lib/pbio/include/pbio/differentiator.h \
+ ../../lib/pbio/include/pbio/imu.h ../../lib/pbio/include/pbio/geometry.h \
+ ../../lib/pbio/include/pbio/port_dcm.h \
+ ../../lib/pbio/include/pbio/port_lump.h ../../lib/lego/lego/lump.h
+../../lib/pbio/src/port.c :
+ ../../lib/pbio/include/pbdrv/counter.h :
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stddef.h :
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stdint.h :
+ C:/Tools/Arm/arm-none-eabi/include/stdint.h :
+ C:/Tools/Arm/arm-none-eabi/include/machine/_default_types.h :
+ C:/Tools/Arm/arm-none-eabi/include/sys/features.h :
+ C:/Tools/Arm/arm-none-eabi/include/_newlib_version.h :
+ C:/Tools/Arm/arm-none-eabi/include/sys/_intsup.h :
+ C:/Tools/Arm/arm-none-eabi/include/sys/_stdint.h :
+ ../../lib/lego/lego/device.h ../../lib/lego/lego/lump.h :
+ ../../lib/pbio/include/pbdrv/config.h :
+ ../../lib/pbio/platform/prime_hub_h5/pbdrvconfig.h :
+ ../../lib/pbio/include/pbio/error.h ../../lib/pbio/include/pbdrv/i2c.h :
+ ../../lib/pbio/include/pbio/os.h :
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stdbool.h :
+ ../../lib/pbio/include/pbio/config.h :
+ ../../lib/pbio/platform/prime_hub_h5/pbioconfig.h :
+ ../../lib/pbio/include/pbdrv/ioport.h :
+ ../../lib/pbio/include/pbdrv/gpio.h ../../lib/pbio/include/pbdrv/uart.h :
+ ../../lib/pbio/include/pbdrv/motor_driver.h :
+ ../../lib/pbio/include/pbio/port.h ../../lib/pbio/include/pbio/angle.h :
+ ../../lib/pbio/include/pbsys/telemetry.h :
+ ../../lib/pbio/include/pbdrv/compiler.h :
+ ../../lib/pbio/include/pbio/protocol.h :
+ ../../lib/pbio/include/pbio/util.h :
+ C:/Tools/Arm/arm-none-eabi/include/sys/cdefs.h :
+ ../../lib/pbio/include/pbsys/config.h :
+ ../../lib/pbio/platform/prime_hub_h5/pbsysconfig.h :
+ ../../lib/pbio/include/pbio/battery.h :
+ ../../lib/pbio/include/pbio/control.h :
+ ../../lib/pbio/include/pbio/control_settings.h :
+ ../../lib/pbio/include/pbio/trajectory.h :
+ ../../lib/pbio/include/pbio/dcmotor.h :
+ ../../lib/pbio/include/pbio/parent.h :
+ ../../lib/pbio/include/pbio/integrator.h :
+ ../../lib/pbio/include/pbio/logger.h :
+ ../../lib/pbio/include/pbio/drivebase.h :
+ ../../lib/pbio/include/pbio/servo.h ../../lib/pbio/include/pbio/tacho.h :
+ ../../lib/pbio/include/pbio/observer.h :
+ ../../lib/pbio/include/pbio/differentiator.h :
+ ../../lib/pbio/include/pbio/imu.h ../../lib/pbio/include/pbio/geometry.h :
+ ../../lib/pbio/include/pbio/port_dcm.h :
+ ../../lib/pbio/include/pbio/port_lump.h ../../lib/lego/lego/lump.h :

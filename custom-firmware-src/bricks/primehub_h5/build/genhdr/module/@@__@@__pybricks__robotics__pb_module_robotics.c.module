@@ -1,0 +1,1 @@
+MP_REGISTER_MODULE(MP_QSTR_pybricks_dot_robotics, pb_module_robotics);

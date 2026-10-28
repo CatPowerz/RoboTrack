@@ -1,0 +1,7 @@
+build/lib/pbio/drv/bluetooth/bluetooth_stm32_bluenrg.o: \
+ ../../lib/pbio/drv/bluetooth/bluetooth_stm32_bluenrg.c \
+ ../../lib/pbio/include/pbdrv/config.h \
+ ../../lib/pbio/platform/prime_hub_h5/pbdrvconfig.h
+ ../../lib/pbio/drv/bluetooth/bluetooth_stm32_bluenrg.c :
+ ../../lib/pbio/include/pbdrv/config.h :
+ ../../lib/pbio/platform/prime_hub_h5/pbdrvconfig.h :

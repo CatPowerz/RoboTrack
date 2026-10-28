@@ -1,0 +1,5 @@
+This can only be called before multitasking starts.
+Run loop already active.
+prefix must be 0--255
+buffer must be a bytearray
+buffer full

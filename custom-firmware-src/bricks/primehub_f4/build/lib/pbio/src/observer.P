@@ -1,0 +1,76 @@
+build/lib/pbio/src/observer.o: ../../lib/pbio/src/observer.c \
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stdbool.h \
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stdint.h \
+ C:/Tools/Arm/arm-none-eabi/include/stdint.h \
+ C:/Tools/Arm/arm-none-eabi/include/machine/_default_types.h \
+ C:/Tools/Arm/arm-none-eabi/include/sys/features.h \
+ C:/Tools/Arm/arm-none-eabi/include/_newlib_version.h \
+ C:/Tools/Arm/arm-none-eabi/include/sys/_intsup.h \
+ C:/Tools/Arm/arm-none-eabi/include/sys/_stdint.h \
+ C:/Tools/Arm/arm-none-eabi/include/stdlib.h \
+ C:/Tools/Arm/arm-none-eabi/include/machine/ieeefp.h \
+ C:/Tools/Arm/arm-none-eabi/include/_ansi.h \
+ C:/Tools/Arm/arm-none-eabi/include/newlib.h \
+ C:/Tools/Arm/arm-none-eabi/include/sys/config.h \
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stddef.h \
+ C:/Tools/Arm/arm-none-eabi/include/sys/reent.h \
+ C:/Tools/Arm/arm-none-eabi/include/_ansi.h \
+ C:/Tools/Arm/arm-none-eabi/include/sys/cdefs.h \
+ C:/Tools/Arm/arm-none-eabi/include/sys/_types.h \
+ C:/Tools/Arm/arm-none-eabi/include/machine/_types.h \
+ C:/Tools/Arm/arm-none-eabi/include/sys/lock.h \
+ C:/Tools/Arm/arm-none-eabi/include/machine/stdlib.h \
+ C:/Tools/Arm/arm-none-eabi/include/math.h \
+ ../../lib/pbio/include/pbio/angle.h \
+ ../../lib/pbio/include/pbio/dcmotor.h \
+ ../../lib/pbio/include/pbdrv/motor_driver.h \
+ ../../lib/pbio/include/pbdrv/config.h \
+ ../../lib/pbio/platform/prime_hub_f4/pbdrvconfig.h \
+ ../../lib/pbio/include/pbio/error.h \
+ ../../lib/pbio/include/pbdrv/counter.h ../../lib/lego/lego/device.h \
+ ../../lib/lego/lego/lump.h ../../lib/pbio/include/pbio/config.h \
+ ../../lib/pbio/platform/prime_hub_f4/pbioconfig.h \
+ ../../lib/pbio/include/pbio/parent.h \
+ ../../lib/pbio/include/pbio/int_math.h \
+ ../../lib/pbio/include/pbio/observer.h \
+ ../../lib/pbio/include/pbio/control_settings.h \
+ ../../lib/pbio/include/pbio/trajectory.h \
+ ../../lib/pbio/include/pbio/differentiator.h
+../../lib/pbio/src/observer.c :
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stdbool.h :
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stdint.h :
+ C:/Tools/Arm/arm-none-eabi/include/stdint.h :
+ C:/Tools/Arm/arm-none-eabi/include/machine/_default_types.h :
+ C:/Tools/Arm/arm-none-eabi/include/sys/features.h :
+ C:/Tools/Arm/arm-none-eabi/include/_newlib_version.h :
+ C:/Tools/Arm/arm-none-eabi/include/sys/_intsup.h :
+ C:/Tools/Arm/arm-none-eabi/include/sys/_stdint.h :
+ C:/Tools/Arm/arm-none-eabi/include/stdlib.h :
+ C:/Tools/Arm/arm-none-eabi/include/machine/ieeefp.h :
+ C:/Tools/Arm/arm-none-eabi/include/_ansi.h :
+ C:/Tools/Arm/arm-none-eabi/include/newlib.h :
+ C:/Tools/Arm/arm-none-eabi/include/sys/config.h :
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stddef.h :
+ C:/Tools/Arm/arm-none-eabi/include/sys/reent.h :
+ C:/Tools/Arm/arm-none-eabi/include/_ansi.h :
+ C:/Tools/Arm/arm-none-eabi/include/sys/cdefs.h :
+ C:/Tools/Arm/arm-none-eabi/include/sys/_types.h :
+ C:/Tools/Arm/arm-none-eabi/include/machine/_types.h :
+ C:/Tools/Arm/arm-none-eabi/include/sys/lock.h :
+ C:/Tools/Arm/arm-none-eabi/include/machine/stdlib.h :
+ C:/Tools/Arm/arm-none-eabi/include/math.h :
+ ../../lib/pbio/include/pbio/angle.h :
+ ../../lib/pbio/include/pbio/dcmotor.h :
+ ../../lib/pbio/include/pbdrv/motor_driver.h :
+ ../../lib/pbio/include/pbdrv/config.h :
+ ../../lib/pbio/platform/prime_hub_f4/pbdrvconfig.h :
+ ../../lib/pbio/include/pbio/error.h :
+ ../../lib/pbio/include/pbdrv/counter.h ../../lib/lego/lego/device.h :
+ ../../lib/lego/lego/lump.h ../../lib/pbio/include/pbio/config.h :
+ ../../lib/pbio/platform/prime_hub_f4/pbioconfig.h :
+ ../../lib/pbio/include/pbio/parent.h :
+ ../../lib/pbio/include/pbio/int_math.h :
+ ../../lib/pbio/include/pbio/observer.h :
+ ../../lib/pbio/include/pbio/control_settings.h :
+ ../../lib/pbio/include/pbio/trajectory.h :
+ ../../lib/pbio/include/pbio/differentiator.h :

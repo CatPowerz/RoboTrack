@@ -1,0 +1,6 @@
+build/lib/pbio/drv/adc/adc_ev3.o: ../../lib/pbio/drv/adc/adc_ev3.c \
+ ../../lib/pbio/include/pbdrv/config.h \
+ ../../lib/pbio/platform/prime_hub_f4/pbdrvconfig.h
+../../lib/pbio/drv/adc/adc_ev3.c :
+ ../../lib/pbio/include/pbdrv/config.h :
+ ../../lib/pbio/platform/prime_hub_f4/pbdrvconfig.h :

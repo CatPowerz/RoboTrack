@@ -1,0 +1,7 @@
+build/lib/pbio/drv/counter/counter_ev3.o: \
+ ../../lib/pbio/drv/counter/counter_ev3.c \
+ ../../lib/pbio/include/pbdrv/config.h \
+ ../../lib/pbio/platform/prime_hub_h5/pbdrvconfig.h
+ ../../lib/pbio/drv/counter/counter_ev3.c :
+ ../../lib/pbio/include/pbdrv/config.h :
+ ../../lib/pbio/platform/prime_hub_h5/pbdrvconfig.h :

@@ -1,0 +1,7 @@
+build/lib/pbio/drv/button/button_gpio.o: \
+ ../../lib/pbio/drv/button/button_gpio.c \
+ ../../lib/pbio/include/pbdrv/config.h \
+ ../../lib/pbio/platform/prime_hub_h5/pbdrvconfig.h
+ ../../lib/pbio/drv/button/button_gpio.c :
+ ../../lib/pbio/include/pbdrv/config.h :
+ ../../lib/pbio/platform/prime_hub_h5/pbdrvconfig.h :

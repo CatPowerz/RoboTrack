@@ -1,0 +1,68 @@
+build/lib/pbio/src/main.o: ../../lib/pbio/src/main.c \
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stdbool.h \
+ ../../lib/pbio/include/pbio/bluetooth.h \
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stdint.h \
+ C:/Tools/Arm/arm-none-eabi/include/stdint.h \
+ C:/Tools/Arm/arm-none-eabi/include/machine/_default_types.h \
+ C:/Tools/Arm/arm-none-eabi/include/sys/features.h \
+ C:/Tools/Arm/arm-none-eabi/include/_newlib_version.h \
+ C:/Tools/Arm/arm-none-eabi/include/sys/_intsup.h \
+ C:/Tools/Arm/arm-none-eabi/include/sys/_stdint.h \
+ ../../lib/pbio/include/pbio/config.h \
+ ../../lib/pbio/platform/prime_hub_h5/pbioconfig.h \
+ ../../lib/pbio/include/pbio/error.h ../../lib/pbio/include/pbio/os.h \
+ ../../lib/pbio/include/pbio/protocol.h \
+ ../../lib/pbio/include/pbio/util.h \
+ C:/Tools/Arm/arm-none-eabi/include/sys/cdefs.h \
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stddef.h \
+ ../../lib/lego/lego/lwp3.h ../../lib/pbio/include/pbdrv/display.h \
+ ../../lib/pbio/include/pbdrv/config.h \
+ ../../lib/pbio/platform/prime_hub_h5/pbdrvconfig.h \
+ ../../lib/pbio/include/pbio/image.h ../../lib/pbio/include/pbio/font.h \
+ ../../lib/pbio/include/pbsys/telemetry.h \
+ ../../lib/pbio/include/pbdrv/compiler.h \
+ ../../lib/pbio/include/pbsys/config.h \
+ ../../lib/pbio/platform/prime_hub_h5/pbsysconfig.h \
+ ../../lib/pbio/include/pbdrv/sound.h \
+ ../../lib/pbio/include/pbio/battery.h ../../lib/pbio/include/pbio/imu.h \
+ ../../lib/pbio/include/pbio/angle.h \
+ ../../lib/pbio/include/pbio/geometry.h \
+ ../../lib/pbio/include/pbio/light_animation.h \
+ ../../lib/pbio/include/pbio/motor_process.h \
+ ../../lib/pbio/include/pbio/port.h ../../lib/lego/lego/device.h \
+ ../../lib/lego/lego/lump.h ../../lib/pbio/include/pbio/serial.h \
+ ../../lib/pbio/include/pbsys/host.h
+../../lib/pbio/src/main.c :
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stdbool.h :
+ ../../lib/pbio/include/pbio/bluetooth.h :
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stdint.h :
+ C:/Tools/Arm/arm-none-eabi/include/stdint.h :
+ C:/Tools/Arm/arm-none-eabi/include/machine/_default_types.h :
+ C:/Tools/Arm/arm-none-eabi/include/sys/features.h :
+ C:/Tools/Arm/arm-none-eabi/include/_newlib_version.h :
+ C:/Tools/Arm/arm-none-eabi/include/sys/_intsup.h :
+ C:/Tools/Arm/arm-none-eabi/include/sys/_stdint.h :
+ ../../lib/pbio/include/pbio/config.h :
+ ../../lib/pbio/platform/prime_hub_h5/pbioconfig.h :
+ ../../lib/pbio/include/pbio/error.h ../../lib/pbio/include/pbio/os.h :
+ ../../lib/pbio/include/pbio/protocol.h :
+ ../../lib/pbio/include/pbio/util.h :
+ C:/Tools/Arm/arm-none-eabi/include/sys/cdefs.h :
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stddef.h :
+ ../../lib/lego/lego/lwp3.h ../../lib/pbio/include/pbdrv/display.h :
+ ../../lib/pbio/include/pbdrv/config.h :
+ ../../lib/pbio/platform/prime_hub_h5/pbdrvconfig.h :
+ ../../lib/pbio/include/pbio/image.h ../../lib/pbio/include/pbio/font.h :
+ ../../lib/pbio/include/pbsys/telemetry.h :
+ ../../lib/pbio/include/pbdrv/compiler.h :
+ ../../lib/pbio/include/pbsys/config.h :
+ ../../lib/pbio/platform/prime_hub_h5/pbsysconfig.h :
+ ../../lib/pbio/include/pbdrv/sound.h :
+ ../../lib/pbio/include/pbio/battery.h ../../lib/pbio/include/pbio/imu.h :
+ ../../lib/pbio/include/pbio/angle.h :
+ ../../lib/pbio/include/pbio/geometry.h :
+ ../../lib/pbio/include/pbio/light_animation.h :
+ ../../lib/pbio/include/pbio/motor_process.h :
+ ../../lib/pbio/include/pbio/port.h ../../lib/lego/lego/device.h :
+ ../../lib/lego/lego/lump.h ../../lib/pbio/include/pbio/serial.h :
+ ../../lib/pbio/include/pbsys/host.h :

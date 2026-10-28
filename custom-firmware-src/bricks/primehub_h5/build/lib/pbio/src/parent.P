@@ -1,0 +1,8 @@
+build/lib/pbio/src/parent.o: ../../lib/pbio/src/parent.c \
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stddef.h \
+ ../../lib/pbio/include/pbio/error.h ../../lib/pbio/include/pbio/parent.h \
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stdbool.h
+../../lib/pbio/src/parent.c :
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stddef.h :
+ ../../lib/pbio/include/pbio/error.h ../../lib/pbio/include/pbio/parent.h :
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stdbool.h :

@@ -1,0 +1,7 @@
+build/lib/pbio/drv/clock/clock_linux.o: \
+ ../../lib/pbio/drv/clock/clock_linux.c \
+ ../../lib/pbio/include/pbdrv/config.h \
+ ../../lib/pbio/platform/prime_hub_f4/pbdrvconfig.h
+ ../../lib/pbio/drv/clock/clock_linux.c :
+ ../../lib/pbio/include/pbdrv/config.h :
+ ../../lib/pbio/platform/prime_hub_f4/pbdrvconfig.h :

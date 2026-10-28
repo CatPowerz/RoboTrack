@@ -1,0 +1,6 @@
+build/lib/pbio/src/error.o: ../../lib/pbio/src/error.c \
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stddef.h \
+ ../../lib/pbio/include/pbio/error.h
+../../lib/pbio/src/error.c :
+ C:/Tools/Arm/lib/gcc/arm-none-eabi/15.3.1/include/stddef.h :
+ ../../lib/pbio/include/pbio/error.h :

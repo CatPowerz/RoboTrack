@@ -1,0 +1,47 @@
+MP_REGISTER_EXTENSIBLE_MODULE(MP_QSTR_errno, mp_module_errno);
+
+MP_REGISTER_EXTENSIBLE_MODULE(MP_QSTR_io, mp_module_io);
+
+MP_REGISTER_EXTENSIBLE_MODULE(MP_QSTR_json, mp_module_json);
+
+MP_REGISTER_EXTENSIBLE_MODULE(MP_QSTR_math, mp_module_math);
+
+MP_REGISTER_EXTENSIBLE_MODULE(MP_QSTR_random, mp_module_random);
+
+MP_REGISTER_EXTENSIBLE_MODULE(MP_QSTR_select, mp_module_select);
+
+MP_REGISTER_EXTENSIBLE_MODULE(MP_QSTR_struct, mp_module_struct);
+
+MP_REGISTER_MODULE(MP_QSTR___main__, mp_module___main__);
+
+MP_REGISTER_MODULE(MP_QSTR_builtins, mp_module_builtins);
+
+MP_REGISTER_MODULE(MP_QSTR_gc, mp_module_gc);
+
+MP_REGISTER_MODULE(MP_QSTR_micropython, mp_module_micropython);
+
+MP_REGISTER_MODULE(MP_QSTR_pybricks, pb_package_pybricks);
+
+MP_REGISTER_MODULE(MP_QSTR_pybricks_dot_experimental, pb_module_experimental);
+
+MP_REGISTER_MODULE(MP_QSTR_pybricks_dot_geometry, pb_module_tools);
+
+MP_REGISTER_MODULE(MP_QSTR_pybricks_dot_hubs, pb_module_hubs);
+
+MP_REGISTER_MODULE(MP_QSTR_pybricks_dot_iodevices, pb_module_iodevices);
+
+MP_REGISTER_MODULE(MP_QSTR_pybricks_dot_messaging, pb_module_messaging);
+
+MP_REGISTER_MODULE(MP_QSTR_pybricks_dot_parameters, pb_module_parameters);
+
+MP_REGISTER_MODULE(MP_QSTR_pybricks_dot_pupdevices, pb_module_pupdevices);
+
+MP_REGISTER_MODULE(MP_QSTR_pybricks_dot_robotics, pb_module_robotics);
+
+MP_REGISTER_MODULE(MP_QSTR_pybricks_dot_tools, pb_module_tools);
+
+MP_REGISTER_MODULE(MP_QSTR_sys, mp_module_sys);
+
+MP_REGISTER_MODULE_DELEGATION(mp_module_sys, mp_module_sys_attr);
+
+MP_REGISTER_MODULE_DELEGATION(pb_package_pybricks, pb_package_pybricks_attr);

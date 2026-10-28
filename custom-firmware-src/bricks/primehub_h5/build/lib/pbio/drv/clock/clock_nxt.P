@@ -1,0 +1,7 @@
+build/lib/pbio/drv/clock/clock_nxt.o: \
+ ../../lib/pbio/drv/clock/clock_nxt.c \
+ ../../lib/pbio/include/pbdrv/config.h \
+ ../../lib/pbio/platform/prime_hub_h5/pbdrvconfig.h
+ ../../lib/pbio/drv/clock/clock_nxt.c :
+ ../../lib/pbio/include/pbdrv/config.h :
+ ../../lib/pbio/platform/prime_hub_h5/pbdrvconfig.h :
