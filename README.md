@@ -1,84 +1,83 @@
 # RoboTrack
 
-Real-time telemetry and odometry tracking system for FIRST LEGO League (FLL) robots using a LEGO SPIKE Prime hub, custom Pybricks firmware, and a Flutter desktop dashboard over Bluetooth Low Energy (BLE).
-
-Built for team REborn (Bornego College) for the FLL season.
+A full telemetry, odometry tracking, and debugging system for FIRST LEGO League (FLL) robots. Built for our team, **REborn** (Bornego College), running on a LEGO SPIKE Prime hub with custom Pybricks firmware and a Flutter desktop app over BLE.
 
 ---
 
-## The Problem & Motivation
+## Why we built this
 
-Standard LEGO SPIKE Prime firmware has limited bandwidth and lacks practical, high-frequency bidirectional telemetry during run testing. Pybricks solves the execution speed and control precision, but by default its internal BLE buffer is restricted to standard small MTU sizes, causing packet drops when streaming continuous odometry data (X/Y coordinates, gyro heading, motor velocity, and sensor logs) at high sample rates.
+If you've ever tried building a serious competition robot with the stock LEGO SPIKE app, you know the pain:
+- The stock app is laggy, slow to upload, and locks you into a clunky block/hybrid environment that feels like a toy.
+- Robot runs are inconsistent. You tweak a turn, run it on the mat, and it ends up somewhere completely different because wheel slip and heading drift are impossible to catch.
+- When an autonomous run fails, you're literally just staring at the mat guessing why. Did a wheel slip? Did the gyro drift? Did a motor stall? There's zero real-time feedback.
 
-RoboTrack solves this with three connected parts:
-1. Custom Pybricks firmware compiled with an extended 8 KB telemetry buffer.
-2. An onboard Python runtime script handling motion profiles and binary-packed BLE packet dispatch.
-3. A cross-platform Flutter desktop dashboard running real-time field visualization, run comparisons, and replay logs.
+Pybricks makes the robot run 10x smoother with proper MicroPython support, but doing high-speed odometry and live tracking out of the box had a major catch: standard BLE buffers on the hub are tiny, so streaming real-time coordinates, motor speeds, and battery stats instantly clogged the connection and dropped packets.
 
----
-
-## Architecture Overview
-
-[ LEGO SPIKE Prime Hub ]
-│
-├─ custom-firmware-src/   → Pybricks C source (8 KB ring buffer patch)
-│
-└─ python-robot/          → Pybricks Python script
-│
-│  (BLE Telemetry Stream: 8-byte packed packets)
-▼
-[ Host Machine (Windows/Linux) ]
-│
-└─ flutter-app/           → Desktop dashboard (live plotting & odometry)
-
+RoboTrack is our complete fix for all of this.
 
 ---
 
-## Repository Structure
+## How it works
 
-- `flutter-app/`: Cross-platform Flutter desktop client. Connects directly to the hub via BLE, parses incoming telemetry packets, and renders real-time coordinate paths on the competition field.
-- `python-robot/`: The onboard robot control script (`robotrack.py`). Implements motion scheduling, gyro-compensated drive routines, and real-time sensor polling.
-- `custom-firmware-src/`: Patched Pybricks MicroPython firmware source. Contains the modified internal buffer size to prevent buffer overruns during sustained telemetry broadcasts.
-- `firmware-compiled-build/`: Pre-compiled binary builds of the custom firmware ready to flash directly onto the SPIKE Prime hub.
+Instead of guessing, the robot tracks its exact position and talks straight to our laptop in real time:
 
----
-
-## Telemetry Protocol
-
-To maintain low latency and prevent BLE packet fragmentation, telemetry data is packed into 8-byte structured binary payloads instead of JSON or string serialization:
-
-- **Byte 0**: Instruction / Message Type (0–255)
-- **Byte 1**: Signed flags (execution state, tracking status)
-- **Bytes 2–3**: Parameter 1 (16-bit integer, e.g., X position / linear velocity)
-- **Bytes 4–5**: Parameter 2 (16-bit integer, e.g., Y position / target heading)
-- **Bytes 6–7**: Auxiliary flags & run metadata
-
-This keeps throughput high and parsing overhead on the host machine negligible.
+1. **Custom Pybricks C Firmware**: We patched and recompiled Pybricks firmware to boost the internal BLE ring buffer to 8 KB, so the hub never drops data packets when spamming live sensor updates.
+2. **Onboard Odometry & Logic (`robotrack.py`)**: A dedicated MicroPython script on the hub running our motion logic, gyro-assisted driving, coordinate math (X/Y position tracking), and state management.
+3. **Flutter Desktop App**: A custom dashboard where we can see the robot drive across a virtual competition field live, compare runs, catch wheel slips, and send commands back over BLE.
 
 ---
 
-## Getting Started
+## Communication & Protocol
 
-### 1. Hub Firmware
-Flash the pre-compiled firmware located in `firmware-compiled-build/` using the official Pybricks web installer (or flash from source via the build scripts in `custom-firmware-src/`).
+We didn't want the overhead of heavy JSON strings slowing down the hub loop, so we built our own lightweight communication layer:
 
-### 2. Robot Code
-Deploy `python-robot/robotrack.py` to the SPIKE Prime hub using the Pybricks IDE.
+- **Robot Internal (how the robot saves its runs to flash storage)**
 
-### 3. Desktop App
-Ensure Flutter is installed on your development machine, then run:
+   Every instruction is packed into compact **8-byte bytecode packets** that can be easily replayed:
+  - **Byte 0**: Message / instruction type (0–255)
+  - **Byte 1**: Status flags (running, tracking, stop-requested, etc.)
+  - **Bytes 2–3**: Parameter 1 (signed 16-bit int, e.g. X coordinate or speed based on type)
+  - **Bytes 4–5**: Parameter 2 (signed 16-bit int, e.g. Y coordinate or heading angle based on type)
+  - **Bytes 6–7**: Auxiliary flags & extra run data
+    
+- **Robot → Computer (Telemetry)**: 
 
-```bash
-cd flutter-app
-flutter pub get
-flutter run -d windows
-Turn on the SPIKE Prime hub, connect via BLE in the desktop interface, and start a run.
+ The robot constantly prints ```{x},{y},{robot_heading},{robot_pitch},{robot_roll},{capacity},{mask}```
+ For short, it prints all telemetry data like position, rotation and even battery capacity.
+  
+The Flutter app listens, decodes these values into a class, and plots the live path on screen.
+
+- **Computer → Robot (Commands)**:  
+  Commands use a simple string format over BLE: `type|parameter` (like sending `SHUTDOWN` or run triggers).
+
+---
+
+## Repo Structure
+
+- `flutter-app/`: The Flutter desktop code for the live dashboard, field UI, and BLE listener.
+- `python-robot/`: `robotrack.py`, the main robot script with the odometry loops, motor control, and telemetry packet builder.
+- `custom-firmware-src/`: The modified Pybricks MicroPython C source code with our enlarged buffer patch.
+- `firmware-compiled-build/`: Ready-to-flash binary builds of our custom firmware.
+
+---
+
+## Setup & Running
+
+1. **Flash Firmware**: Flash the pre-compiled binary from `firmware-compiled-build/` onto the SPIKE Prime hub using the Pybricks web tool.
+2. **Upload Robot Code**: Copy `python-robot/robotrack.py` into the Pybricks IDE and download it to the hub.
+3. **Launch Desktop App**:
+   ```bash
+   cd flutter-app
+   flutter pub get
+   flutter run -d windows
+   ```
+Turn on the hub, hit connect in the Flutter app or connect to a virtual robot, and place the robot on the mat.
 
 Tech Stack
-Firmware: C / MicroPython (Pybricks runtime)
+Firmware: C / MicroPython (Pybricks)
 
-Robot Script: MicroPython
+Robot Brain: MicroPython
 
-Desktop Application: Flutter / Dart
+Desktop UI: Flutter (Dart)
 
-Communication: Bluetooth Low Energy (BLE)
+Connection: Bluetooth Low Energy (BLE)
