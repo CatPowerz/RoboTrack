@@ -63,7 +63,6 @@ The Flutter app listens, decodes these values into a class, and plots the live p
 
 ## Setup & Running
 
-<<<<<<< HEAD
 ### 1. Hub Firmware
 Flash the pre-compiled firmware located in `firmware-compiled-build/` using the official Pybricks web installer (or flash from source via the build scripts in `custom-firmware-src/`).
 
@@ -78,8 +77,10 @@ If you want to compile it yourself, ensure Flutter is installed on your developm
 ```bash
 cd flutter-app
 flutter pub get
-flutter run -d windows```
+flutter run -d windows
+```
 Turn on the SPIKE Prime hub, connect via BLE in the desktop interface, and start a run.
+
 =======
 1. **Flash Firmware**: Flash the pre-compiled binary from `firmware-compiled-build/` onto the SPIKE Prime hub using the Pybricks web tool.
 2. **Upload Robot Code**: Copy `python-robot/robotrack.py` into the Pybricks IDE and download it to the hub.
