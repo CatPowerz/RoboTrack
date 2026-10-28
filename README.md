@@ -5,7 +5,7 @@ A full telemetry, odometry tracking, and debugging system for FIRST LEGO League 
 ---
 
 ## Please watch the demo video before trying the project!
-[![Watch Demo Video](https://img.shields.io/badge/YouTube-Watch%20Demo%20Video%20(90s)-red?style=for-the-badge&logo=youtube)]([JOUW_YOUTUBE_LINK](https://youtu.be/S3cDEyh_7lM))
+[![Watch Demo Video](https://img.shields.io/badge/YouTube-Watch%20Demo%20Video%20-red?style=for-the-badge&logo=youtube)](https://youtu.be/S3cDEyh_7lM))
 
 ## Why we built this
 
@@ -114,3 +114,5 @@ Please do not copy the app and call it yours.
 Feel free to look at our code and architecture for inspiration! However, please do not clone/copy this into your own team's project. FLL judges ask deep technical questions about your software, and you must understand and write your own code to explain it.
 
 (C) Quintijn / REborn: All Rights Reserved
+
+"LEGO® and SPIKE™ are trademarks of the LEGO Group. Flutter is a trademark of Google LLC. This project is independent and not affiliated with or endorsed by these entities."
