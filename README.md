@@ -27,18 +27,22 @@ Instead of guessing, the robot tracks its exact position and talks straight to o
 
 ---
 
+## Standalone & With Computer
+
+Obviously, since communication with the robot during the run is illegal in an official tournament, the robot can write its runs to its flash memory storage and can both **run and record** instructions without a device.
+
 ## Communication & Protocol
 
 We didn't want the overhead of heavy JSON strings slowing down the hub loop, so we built our own lightweight communication layer:
 
-- **Robot Internal (how the robot saves its runs to flash storage)**
-
-   Every instruction is packed into compact **8-byte bytecode packets** that can be easily replayed:
-  - **Byte 0**: Message / instruction type (0–255)
-  - **Byte 1**: Status flags (running, tracking, stop-requested, etc.)
-  - **Bytes 2–3**: Parameter 1 (signed 16-bit int, e.g. X coordinate or speed based on type)
-  - **Bytes 4–5**: Parameter 2 (signed 16-bit int, e.g. Y coordinate or heading angle based on type)
-  - **Bytes 6–7**: Auxiliary flags & extra run data
+- **Robot Internal (Flash Storage Instruction Packets)**:  
+  Every run is saved directly to flash memory in compact **8-byte binary packets** using `>BhhBBB` struct packing:
+  - **Byte 0** (`uint8`): **Command / Instruction Type** (`0` = EOF, `1` = Drive To, `2` = Turn To, `3` = Motor Snapshot)
+  - **Bytes 1–2** (`int16`): **Parameter 1** (e.g. Target X coordinate, target heading, or Motor 1 angle)
+  - **Bytes 3–4** (`int16`): **Parameter 2** (e.g. Target Y coordinate or Motor 2 angle)
+  - **Byte 5** (`uint8`): **Flag 1** (e.g. Speed, motor change mask)
+  - **Byte 6** (`uint8`): **Flag 2** (e.g. Position tolerance, motor speed)
+  - **Byte 7** (`uint8`): **Flag 3** (e.g. Direction override mode, wait-for-completion flag)
     
 - **Robot → Computer (Telemetry)**: 
 
