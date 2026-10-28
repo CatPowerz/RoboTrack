@@ -813,7 +813,7 @@ for (var s in services) {
                                           textBaseline: TextBaseline.alphabetic,
                                           children: [
                                             Text(
-                                              "${packetspersecond}",
+                                              "$packetspersecond",
                                               textAlign: TextAlign.center,
                                               style: TextStyle(fontSize: 36),
                                             ),
