@@ -1,6 +1,0 @@
-build
-*.hcd
-.mxproject
-.settings
-.clangd
-.cache
