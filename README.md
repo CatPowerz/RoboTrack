@@ -81,7 +81,6 @@ flutter run -d windows
 ```
 Turn on the SPIKE Prime hub, connect via BLE in the desktop interface, and start a run.
 
-=======
 1. **Flash Firmware**: Flash the pre-compiled binary from `firmware-compiled-build/` onto the SPIKE Prime hub using the Pybricks web tool.
 2. **Upload Robot Code**: Copy `python-robot/robotrack.py` into the Pybricks IDE and download it to the hub.
 3. **Launch Desktop App**:
@@ -91,7 +90,6 @@ Turn on the SPIKE Prime hub, connect via BLE in the desktop interface, and start
    flutter run -d windows
    ```
 Turn on the hub, hit connect in the Flutter app or connect to a virtual robot, and place the robot on the mat.
->>>>>>> 59dcdcac77e9ea4428535540f8d93c82ded41e1f
 
 Tech Stack
 Firmware: C / MicroPython (Pybricks)
