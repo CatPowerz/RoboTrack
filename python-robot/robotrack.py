@@ -746,7 +746,8 @@ while True:
     if tracking or tick == 3:
         
         rawcapacity = hub.battery.voltage()
-        capacity = min(100.0, rawcapacity / 80)
+
+        capacity = max(0.0, min(100.0, (rawcapacity - 7000) / 12))
         tick = 0
         robot_pitch = hub.imu.tilt()[1]
         robot_roll = -hub.imu.tilt()[0]
