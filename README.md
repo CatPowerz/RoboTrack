@@ -4,6 +4,9 @@ A full telemetry, odometry tracking, and debugging system for FIRST LEGO League 
 
 ---
 
+## Please watch the demo video before trying the project!
+[![Watch Demo Video](https://img.shields.io/badge/YouTube-Watch%20Demo%20Video%20(90s)-red?style=for-the-badge&logo=youtube)]([JOUW_YOUTUBE_LINK](https://youtu.be/S3cDEyh_7lM))
+
 ## Why we built this
 
 If you've ever tried building a serious competition robot with the stock LEGO SPIKE app, you know the pain:
