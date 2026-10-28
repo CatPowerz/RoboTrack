@@ -66,12 +66,14 @@ Flash the pre-compiled firmware located in `firmware-compiled-build/` using the 
 Deploy `python-robot/robotrack.py` to the SPIKE Prime hub using the Pybricks IDE.
 
 ### 3. Desktop App
-Ensure Flutter is installed on your development machine, then run:
+You can easily run `desktopapp/robotrack.exe` to launch the app and either connect to a robot over BLE or connect to a virtual robot.
+
+If you want to compile it yourself, ensure Flutter is installed on your development machine, then run:
 
 ```bash
 cd flutter-app
 flutter pub get
-flutter run -d windows
+flutter run -d windows```
 Turn on the SPIKE Prime hub, connect via BLE in the desktop interface, and start a run.
 
 Tech Stack
