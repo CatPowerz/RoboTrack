@@ -102,5 +102,8 @@ Connection: Bluetooth Low Energy (BLE)
 
 
 **Author: Quintijn (@CatPowerz)**
+
 Please do not copy the app and call it yours.
 Feel free to look at our code and architecture for inspiration! However, please do not clone/copy this into your own team's project. FLL judges ask deep technical questions about your software, and you must understand and write your own code to explain it.
+
+(C) Quintijn / REborn: All Rights Reserved
